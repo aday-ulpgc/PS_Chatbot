@@ -23,9 +23,7 @@ def main() -> None:
     4. Registra los handlers de comandos.
     5. Inicia el loop de polling.
     """
-    dotenv_path: str = os.path.join(
-        os.path.dirname(__file__), "..", "env", ".env"
-    )
+    dotenv_path: str = os.path.join(os.path.dirname(__file__), "..", "env", ".env")
     load_dotenv(dotenv_path=dotenv_path)
 
     token: str | None = os.getenv("TELEGRAM_TOKEN")
