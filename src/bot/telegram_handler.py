@@ -5,11 +5,13 @@ a los comandos del usuario. Los handlers deben mantenerse
 "tontos": sin lógica de negocio, solo interacción con el chat.
 """
 
+import telegram
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
+from telegram_bot_calendar import DetailedTelegramCalendar, LSTEP
 
 
-async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:    
     """Responde al comando /start con un mensaje de bienvenida y un menú interactivo.
 
     Args:
@@ -45,7 +47,8 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
     match query.data:
         case "action_reserve":
-            response_text = "Has seleccionado: 📅 Hacer una reserva. (Funcionalidad en desarrollo)"
+            calendar, step = DetailedTelegramCalendar().build()
+            await query.edit_message_text(text=f"Selecciona una fecha: {LSTEP[step]}", reply_markup=calendar)
         case "action_my_appointments":
             response_text = "Has seleccionado: 📋 Mis citas. (Funcionalidad en desarrollo)"
         case "action_help":
