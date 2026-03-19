@@ -46,8 +46,6 @@ def main() -> None:
 
     app.add_handler(CommandHandler("start", start_command))
     app.add_handler(CallbackQueryHandler(menu_callback_handler))
-    app.add_handler(CallbackQueryHandler(calendar_callback_handler))
-
     print("Bot iniciado. Esperando mensajes...")
     app.run_polling()
 
