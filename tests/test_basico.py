@@ -1,7 +1,7 @@
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from telegram import Update, Message, CallbackQuery, InlineKeyboardMarkup
+from telegram import Update, Message, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from src.bot.telegram_handler import start_command
 
@@ -27,3 +27,6 @@ async def test_start():
     assert "¡Hola! Soy tu asistente de reservas" in mensaje[0]
     assert "reply_markup" in reply
     assert isinstance(reply["reply_markup"], InlineKeyboardMarkup)
+
+def test_2():
+    assert True
