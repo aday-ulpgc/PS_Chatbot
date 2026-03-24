@@ -65,8 +65,24 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         case "action_my_appointments":
             response_text = "Has seleccionado: 📋 Mis citas. (Funcionalidad en desarrollo)"
         case "action_help":
-            response_text = "Has seleccionado: ❓ Ayuda. (Funcionalidad en desarrollo)"
+            await menu_ayuda(query)
+            return
         case _:
             response_text = "Acción no reconocida."
 
     await query.edit_message_text(text=response_text)
+
+
+async def menu_ayuda(query):
+    keyboard = [
+        [InlineKeyboardButton("❓ Preguntas frecuentes", callback_data="help_faq")],
+        [InlineKeyboardButton("🛠️ Soporte técnico", callback_data="help_support")],
+        [InlineKeyboardButton("📖 Guía de uso", callback_data="help_guide")],
+        [InlineKeyboardButton("🔙 Volver al menú principal", callback_data="menu_main")] 
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await query.edit_message_text(text=f"Sección Ayuda. ¿Que necesitas?", reply_markup=reply_markup)
+
+    
+
