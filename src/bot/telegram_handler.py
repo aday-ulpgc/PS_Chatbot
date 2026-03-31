@@ -65,13 +65,35 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         
         if not result and key:
             teclado_dict = json.loads(key)
-            btn_cancelar = [InlineKeyboardButton("❌ Cancelar / Volver", callback_data="action_cancel")]
-            teclado_dict["inline_keyboard"].append(btn_cancelar)
+            fila_navegacion = [
+                {"text": "🔄 Reiniciar", "callback_data": "action_reserve"},
+                {"text": "❌ Menú", "callback_data": "action_cancel"}
+            ]
+            teclado_dict["inline_keyboard"].append(fila_navegacion)
             key_modificado = json.dumps(teclado_dict)
             
             await query.edit_message_text(text=f"Selecciona una fecha: {LSTEP[step]}", reply_markup=key_modificado)
+
         elif result:
-            await query.edit_message_text(text=f"Fecha seleccionada: {result}")
+            context.user_data["fecha_seleccionada"] = str(result)
+
+            teclado_horas = [
+                [
+                    InlineKeyboardButton("10:00", callback_data="time_10:00"),
+                    InlineKeyboardButton("11:00", callback_data="time_11:00")
+                ],
+                [
+                    InlineKeyboardButton("16:00", callback_data="time_16:00"),
+                    InlineKeyboardButton("17:00", callback_data="time_17:00")
+                ],
+                [
+                    InlineKeyboardButton("🔄 Cambiar Fecha", callback_data="action_reserve"),
+                    InlineKeyboardButton("❌ Menú", callback_data="action_cancel")
+                ]   
+            ]
+            await query.edit_message_text(text=f"Fecha seleccionada: {result}\n⏰ Ahora, selecciona una hora:",
+                                          reply_markup=InlineKeyboardMarkup(teclado_horas)
+            )
         else:
             await volver_menu(query)
 
@@ -83,11 +105,14 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
             calendar, step = actual_calendar.build()
 
             teclado_dict = json.loads(calendar)
-            btn_cancelar = [InlineKeyboardButton("❌ Cancelar / Volver", callback_data="action_cancel")]
-            teclado_dict["inline_keyboard"].append(btn_cancelar)
-            key_modificado = json.dumps(teclado_dict)
+            fila_navegacion = [
+                {"text": "🔄 Reiniciar", "callback_data": "action_reserve"},
+                {"text": "❌ Menú", "callback_data": "action_cancel"}
+            ]
+            teclado_dict["inline_keyboard"].append(fila_navegacion)
+            calendar_modificado = json.dumps(teclado_dict)
 
-            await query.edit_message_text(text=f"Selecciona una fecha: {LSTEP[step]}", reply_markup=key_modificado)
+            await query.edit_message_text(text=f"Selecciona una fecha: {LSTEP[step]}", reply_markup=calendar_modificado)
             return
 
         case "action_my_appointments":
@@ -98,7 +123,7 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         case "help_faq":
             await questions(query)
             return
-        case "menu_main":
+        case "action_cancel" | "menu_main":
             await volver_menu(query)
             return
         case _:
