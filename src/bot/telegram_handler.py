@@ -10,6 +10,8 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from telegram_bot_calendar import DetailedTelegramCalendar, LSTEP
 
+TEXTO_BIENVENIDA="¡Hola! Soy tu asistente de reservas (SaaS-Bot del Grupo 06). ¿En qué te puedo ayudar hoy?"
+
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:    
     """Responde al comando /start con un mensaje de bienvenida y un menú interactivo.
@@ -18,18 +20,21 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         update: Objeto con la información del mensaje entrante.
         context: Contexto del handler proporcionado por python-telegram-bot.
     """
+    if update.message:
+        await update.message.reply_text(
+            text=TEXTO_BIENVENIDA,
+            reply_markup=botones_principales()
+        )
+
+def botones_principales() -> InlineKeyboardMarkup:
+    """Devuelve los botones del menú principal"""
+
     keyboard = [
         [InlineKeyboardButton("📅 Hacer una reserva", callback_data="action_reserve")],
         [InlineKeyboardButton("📋 Mis citas", callback_data="action_my_appointments")],
         [InlineKeyboardButton("❓ Ayuda", callback_data="action_help")]
     ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-
-    if update.message:
-        await update.message.reply_text(
-            "¡Hola! Soy tu asistente de reservas (SaaS-Bot del Grupo 06). ¿En qué te puedo ayudar hoy?",
-            reply_markup=reply_markup
-        )
+    return InlineKeyboardMarkup(keyboard)
 
 
 async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -66,22 +71,10 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
             
             await query.edit_message_text(text=f"Selecciona una fecha: {LSTEP[step]}", reply_markup=key_modificado)
         elif result:
-            context.user_data["fecha_seleccionada"] = str(result)
+            await query.edit_message_text(text=f"Fecha seleccionada: {result}")
+        else:
+            await volver_menu(query)
 
-            teclado_horas = [
-                [
-                    InlineKeyboardButton("10:00", callback_data="time_10:00"),
-                    InlineKeyboardButton("11:00", callback_data="time_11:00")
-                ],
-                [
-                    InlineKeyboardButton("16:00", callback_data="time_16:00"),
-                    InlineKeyboardButton("17:00", callback_data="time_17:00")
-                ],
-                [InlineKeyboardButton("❌ Cancelar / Volver", callback_data="action_cancel")]
-            ]
-            await query.edit_message_text(text=f"Fecha seleccionada: {result}\n⏰ Ahora, selecciona una hora:",
-                                          reply_markup=InlineKeyboardMarkup(teclado_horas)
-            )
         return
 
     match query.data:
@@ -102,16 +95,11 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         case "action_help":
             await menu_ayuda(query)
             return
-        case "action_cancel" | "menu_main":
-            keyboard = [
-                [InlineKeyboardButton("📅 Hacer una reserva", callback_data="action_reserve")],
-                [InlineKeyboardButton("📋 Mis citas", callback_data="action_my_appointments")],
-                [InlineKeyboardButton("❓ Ayuda", callback_data="action_help")]
-            ]
-            await query.edit_message_text(
-                text="Has vuelto al menú principal. ¿En qué te puedo ayudar hoy?", 
-                reply_markup=InlineKeyboardMarkup(keyboard)
-            )
+        case "help_faq":
+            await questions(query)
+            return
+        case "menu_main":
+            await volver_menu(query)
             return
         case _:
             response_text = "Acción no reconocida."
@@ -119,16 +107,53 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
     await query.edit_message_text(text=response_text)
 
 
-async def menu_ayuda(query):
+async def menu_ayuda(query) -> None:
+    """Reemplaza el menú principal por el submenú de opciones de ayuda.
+
+    Args:
+        query (CallbackQuery): El objeto del evento generado al pulsar el botón, 
+                               usado para editar el mensaje actual.
+    """
     keyboard = [
         [InlineKeyboardButton("❓ Preguntas frecuentes", callback_data="help_faq")],
-        [InlineKeyboardButton("🛠️ Soporte técnico", callback_data="help_support")],
-        [InlineKeyboardButton("📖 Guía de uso", callback_data="help_guide")],
+        [InlineKeyboardButton("🛠️ Soporte técnico", url="https://forms.gle/Fu9HuBVJA747nW9E8")],
+        [InlineKeyboardButton("📖 Guía de uso", url="https://docs.google.com/document/d/16ryO0SMthEtiy3AFTEKQJK7v4IODzlgunb8nVP7bI1Q/edit?usp=sharing")],
         [InlineKeyboardButton("🔙 Volver al menú principal", callback_data="menu_main")] 
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     await query.edit_message_text(text=f"Sección Ayuda. ¿Que necesitas?", reply_markup=reply_markup)
 
+async def questions(query) -> None:
+    """Reemplaza el submenú de opciones de ayuda por las preguntas frecuentes
+
+    Args:
+        query (CallbackQuery): El objeto del evento generado al pulsar el botón, 
+                               usado para editar el mensaje actual.
+    """
+    questions = (
+        "❓ *Preguntas Frecuentes*\n\n"
+        "1️⃣ *¿Cómo cancelo una cita?*\n"
+        "Ve a 'Mis citas' y pulsa anular.\n\n"
+        "2️⃣ *¿Qué pasa si llego tarde?*\n"
+        "Tienes 10 minutos de cortesía."
+    )
+
+    keyboard = [[InlineKeyboardButton("Volver", callback_data="action_help")]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await query.edit_message_text(text=questions, reply_markup=reply_markup,parse_mode="Markdown")
+
     
+async def volver_menu(query) -> None:
+    """Muestre el menu principal
+
+     Args:
+        query (CallbackQuery): El objeto del evento generado al pulsar el botón, 
+                               usado para editar el mensaje actual.
+    """
+    await query.edit_message_text(
+            text=TEXTO_BIENVENIDA,
+            reply_markup=botones_principales()
+        )
+
 
