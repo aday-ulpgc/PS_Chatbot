@@ -4,7 +4,7 @@ Este módulo contiene las funciones asíncronas que responden
 a los comandos del usuario. Los handlers deben mantenerse
 "tontos": sin lógica de negocio, solo interacción con el chat.
 """
-
+import json
 from datetime import date
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
@@ -45,27 +45,73 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
     await query.answer()
 
-    if DetailedTelegramCalendar.func()(query):  
+    if query.data.startswith("time_"):
+        hora_seleccionada = query.data.split("_")[1]
+        fecha_seleccionada = context.user_data.get("fecha_seleccionada", "Desconocida")
+
+        await query.edit_message_text(
+            text=f"✅ ¡Resumen de tu solicitud!\n📅 Fecha: {fecha_seleccionada}\n⏰ Hora: {hora_seleccionada}\n\n(Próximamente se enviará a Google Calendar...)")
+        return
+        
+
+    if DetailedTelegramCalendar.func()(query):
         actual_calendar = DetailedTelegramCalendar(min_date=date.today())
         result, key, step = actual_calendar.process(query.data)
         
         if not result and key:
-            await query.edit_message_text(text=f"Selecciona una fecha: {LSTEP[step]}", reply_markup=key)
+            teclado_dict = json.loads(key)
+            btn_cancelar = [InlineKeyboardButton("❌ Cancelar / Volver", callback_data="action_cancel")]
+            teclado_dict["inline_keyboard"].append(btn_cancelar)
+            key_modificado = json.dumps(teclado_dict)
+            
+            await query.edit_message_text(text=f"Selecciona una fecha: {LSTEP[step]}", reply_markup=key_modificado)
         elif result:
-            await query.edit_message_text(text=f"Fecha seleccionada: {result}")
+            context.user_data["fecha_seleccionada"] = str(result)
+
+            teclado_horas = [
+                [
+                    InlineKeyboardButton("10:00", callback_data="time_10:00"),
+                    InlineKeyboardButton("11:00", callback_data="time_11:00")
+                ],
+                [
+                    InlineKeyboardButton("16:00", callback_data="time_16:00"),
+                    InlineKeyboardButton("17:00", callback_data="time_17:00")
+                ],
+                [InlineKeyboardButton("❌ Cancelar / Volver", callback_data="action_cancel")]
+            ]
+            await query.edit_message_text(text=f"Fecha seleccionada: {result}\n⏰ Ahora, selecciona una hora:",
+                                          reply_markup=InlineKeyboardMarkup(teclado_horas)
+            )
         return
 
     match query.data:
         case "action_reserve":
             actual_calendar = DetailedTelegramCalendar(min_date=date.today())
             calendar, step = actual_calendar.build()
-            
-            await query.edit_message_text(text=f"Selecciona una fecha: {LSTEP[step]}", reply_markup=calendar)
+
+            teclado_dict = json.loads(calendar)
+            btn_cancelar = [InlineKeyboardButton("❌ Cancelar / Volver", callback_data="action_cancel")]
+            teclado_dict["inline_keyboard"].append(btn_cancelar)
+            key_modificado = json.dumps(teclado_dict)
+
+            await query.edit_message_text(text=f"Selecciona una fecha: {LSTEP[step]}", reply_markup=key_modificado)
             return
+
         case "action_my_appointments":
             response_text = "Has seleccionado: 📋 Mis citas. (Funcionalidad en desarrollo)"
         case "action_help":
             await menu_ayuda(query)
+            return
+        case "action_cancel" | "menu_main":
+            keyboard = [
+                [InlineKeyboardButton("📅 Hacer una reserva", callback_data="action_reserve")],
+                [InlineKeyboardButton("📋 Mis citas", callback_data="action_my_appointments")],
+                [InlineKeyboardButton("❓ Ayuda", callback_data="action_help")]
+            ]
+            await query.edit_message_text(
+                text="Has vuelto al menú principal. ¿En qué te puedo ayudar hoy?", 
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
             return
         case _:
             response_text = "Acción no reconocida."
