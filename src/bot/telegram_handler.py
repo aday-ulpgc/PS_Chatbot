@@ -13,6 +13,7 @@ from telegram_bot_calendar import DetailedTelegramCalendar, LSTEP
 TEXTO_BIENVENIDA="¡Hola! Soy tu asistente de reservas (SaaS-Bot del Grupo 06). ¿En qué te puedo ayudar hoy?"
 
 
+
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:    
     """Responde al comando /start con un mensaje de bienvenida y un menú interactivo.
 
@@ -67,7 +68,7 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
             teclado_dict = json.loads(key)
             fila_navegacion = [
                 {"text": "🔄 Reiniciar", "callback_data": "action_reserve"},
-                {"text": "❌ Menú", "callback_data": "action_cancel"}
+                {"text": "❌ Menú", "callback_data": "action_back_menu"}
             ]
             teclado_dict["inline_keyboard"].append(fila_navegacion)
             key_modificado = json.dumps(teclado_dict)
@@ -88,51 +89,67 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
                 ],
                 [
                     InlineKeyboardButton("🔄 Cambiar Fecha", callback_data="action_reserve"),
-                    InlineKeyboardButton("❌ Menú", callback_data="action_cancel")
+                    InlineKeyboardButton("❌ Menú", callback_data="action_back_menu")
                 ]   
             ]
             await query.edit_message_text(text=f"Fecha seleccionada: {result}\n⏰ Ahora, selecciona una hora:",
                                           reply_markup=InlineKeyboardMarkup(teclado_horas)
             )
         else:
-            await volver_menu(query)
+            await handle_action_back_menu(query)
 
         return
-
-    match query.data:
-        case "action_reserve":
-            actual_calendar = DetailedTelegramCalendar(min_date=date.today())
-            calendar, step = actual_calendar.build()
-
-            teclado_dict = json.loads(calendar)
-            fila_navegacion = [
-                {"text": "🔄 Reiniciar", "callback_data": "action_reserve"},
-                {"text": "❌ Menú", "callback_data": "action_cancel"}
-            ]
-            teclado_dict["inline_keyboard"].append(fila_navegacion)
-            calendar_modificado = json.dumps(teclado_dict)
-
-            await query.edit_message_text(text=f"Selecciona una fecha: {LSTEP[step]}", reply_markup=calendar_modificado)
-            return
-
-        case "action_my_appointments":
-            response_text = "Has seleccionado: 📋 Mis citas. (Funcionalidad en desarrollo)"
-        case "action_help":
-            await menu_ayuda(query)
-            return
-        case "help_faq":
-            await questions(query)
-            return
-        case "action_cancel" | "menu_main":
-            await volver_menu(query)
-            return
-        case _:
-            response_text = "Acción no reconocida."
-
-    await query.edit_message_text(text=response_text)
+    
+    function = RUTAS_CALLBACKS.get(query.data)
+    if function:
+        await function(query)
+        return
+    else:
+        await query.edit_message_text(text="Acción no reconocida.")
 
 
-async def menu_ayuda(query) -> None:
+async def handle_action_reserve(query) -> None:
+    """Inicia el proceso de reserva mostrando un calendario para seleccionar la fecha.
+
+    Args:
+        query (CallbackQuery): El objeto del evento generado al pulsar el botón, 
+                               usado para editar el mensaje actual.
+    """
+    actual_calendar = DetailedTelegramCalendar(min_date=date.today())
+    calendar, step = actual_calendar.build()
+
+    teclado_dict = json.loads(calendar)
+    fila_navegacion = [
+        {"text": "🔄 Reiniciar", "callback_data": "action_reserve"},
+        {"text": "❌ Menú", "callback_data": "action_back_menu"}
+    ]
+    teclado_dict["inline_keyboard"].append(fila_navegacion)
+    calendar_modificado = json.dumps(teclado_dict)
+
+    await query.edit_message_text(text=f"Selecciona una fecha: {LSTEP[step]}", reply_markup=calendar_modificado)
+
+
+async def handle_action_my_appointments(query) -> None:
+    """Muestra un mensaje de que la funcionalidad de 'Mis citas' está en desarrollo.
+
+    Args:
+        query (CallbackQuery): El objeto del evento generado al pulsar el botón, 
+                               usado para editar el mensaje actual.
+    """
+    questions = (
+        " *Mis citas*\n\n"
+        "1️⃣ *20/03/2023* Fisio Juan\n"
+        "2️⃣ *21/03/2023* Fisio Daniel\n"
+        "3️⃣ *3/04/2023* Fisio Juan\n"
+        "4️⃣ *4/04/2023* Fisio Daniel\n"
+    )
+
+    keyboard = [[InlineKeyboardButton("Volver", callback_data="action_back_menu")]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await query.edit_message_text(text=questions, reply_markup=reply_markup,parse_mode="Markdown")
+
+
+async def handle_action_menu_help(query) -> None:
     """Reemplaza el menú principal por el submenú de opciones de ayuda.
 
     Args:
@@ -140,16 +157,16 @@ async def menu_ayuda(query) -> None:
                                usado para editar el mensaje actual.
     """
     keyboard = [
-        [InlineKeyboardButton("❓ Preguntas frecuentes", callback_data="help_faq")],
+        [InlineKeyboardButton("❓ Preguntas frecuentes", callback_data="action_help_faq")],
         [InlineKeyboardButton("🛠️ Soporte técnico", url="https://forms.gle/Fu9HuBVJA747nW9E8")],
         [InlineKeyboardButton("📖 Guía de uso", url="https://docs.google.com/document/d/16ryO0SMthEtiy3AFTEKQJK7v4IODzlgunb8nVP7bI1Q/edit?usp=sharing")],
-        [InlineKeyboardButton("🔙 Volver al menú principal", callback_data="menu_main")] 
+        [InlineKeyboardButton("🔙 Volver al menú principal", callback_data="action_back_menu")] 
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     await query.edit_message_text(text=f"Sección Ayuda. ¿Que necesitas?", reply_markup=reply_markup)
 
-async def questions(query) -> None:
+async def handle_action_faq(query) -> None:
     """Reemplaza el submenú de opciones de ayuda por las preguntas frecuentes
 
     Args:
@@ -169,7 +186,7 @@ async def questions(query) -> None:
     await query.edit_message_text(text=questions, reply_markup=reply_markup,parse_mode="Markdown")
 
     
-async def volver_menu(query) -> None:
+async def handle_action_back_menu(query) -> None:
     """Muestre el menu principal
 
      Args:
@@ -182,3 +199,10 @@ async def volver_menu(query) -> None:
         )
 
 
+RUTAS_CALLBACKS = {
+    "action_reserve": handle_action_reserve,
+    "action_my_appointments": handle_action_my_appointments,
+    "action_help": handle_action_menu_help,
+    "action_help_faq": handle_action_faq,
+    "action_back_menu": handle_action_back_menu,
+}
