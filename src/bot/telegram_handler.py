@@ -55,7 +55,7 @@ async def menu_callback_handler(
     await query.answer()
 
     if query.data.startswith("time_"):
-        hora_seleccionada = query.data.split("_")[1]
+        #hora_seleccionada = query.data.split("_")[1]
         fecha_seleccionada = context.user_data.get("fecha_seleccionada", "Desconocida")
 
         await query.edit_message_text("⏳ Procesando tu reserva en Google Calendar. Dame un segundo...")
