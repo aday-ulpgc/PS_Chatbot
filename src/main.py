@@ -8,10 +8,13 @@ import os
 import sys
 import asyncio
 
+# Aseguramos que la raíz del proyecto esté en el path para que los imports desde 'src.' funcionen correctamente
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 from dotenv import load_dotenv
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler
 
-from bot.telegram_handler import start_command, menu_callback_handler
+from src.bot.telegram_handler import start_command, menu_callback_handler
 
 
 def main() -> None:

@@ -10,6 +10,7 @@ from datetime import date
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from telegram_bot_calendar import DetailedTelegramCalendar, LSTEP
+from src.services import calendar_service
 
 TEXTO_BIENVENIDA = "¡Hola! Soy tu asistente de reservas (SaaS-Bot del Grupo 06). ¿En qué te puedo ayudar hoy?"
 
@@ -57,9 +58,18 @@ async def menu_callback_handler(
         hora_seleccionada = query.data.split("_")[1]
         fecha_seleccionada = context.user_data.get("fecha_seleccionada", "Desconocida")
 
-        await query.edit_message_text(
-            text=f"✅ ¡Resumen de tu solicitud!\n📅 Fecha: {fecha_seleccionada}\n⏰ Hora: {hora_seleccionada}\n\n(Próximamente se enviará a Google Calendar...)"
-        )
+        await query.edit_message_text("⏳ Procesando tu reserva en Google Calendar. Dame un segundo...")
+
+        try:
+            mensaje_google = calendar_service.crear_reserva(
+                usuario_id=str(update.effective_user.id),
+                fecha=fecha_seleccionada
+            )
+            
+            await query.edit_message_text(f"✅ ¡Reserva Confirmada!\n\n{mensaje_google}")
+            
+        except Exception as error:
+            await query.edit_message_text(f"❌ Vaya, hubo un problema al guardar la cita en el calendario. Inténtalo más tarde.\n(Error: {error})")
 
         return
 
