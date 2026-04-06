@@ -42,7 +42,7 @@ def crear_reserva(usuario_id: str, fecha: str) -> str:
 
         event = {
             "summary": f"Reserva de usuario {usuario_id}",
-            "description": f"Reserva generada automáticamente por SaaS-Bot.",
+            "description": "Reserva generada automáticamente por SaaS-Bot.",
             "start": {
                 "dateTime": start_time.isoformat(),
                 "timeZone": "Europe/Madrid",
@@ -59,7 +59,7 @@ def crear_reserva(usuario_id: str, fecha: str) -> str:
 
         evento_url = event_result.get("htmlLink", "")
 
-        return f"✅ ¡Reserva confirmada para el {fecha} a las 10:00!\n📅 Puedes verla en el calendario."
+        return f"✅ ¡Reserva confirmada para el {fecha} a las 10:00!\n📅 Puedes verla aquí: {evento_url}"
 
     except Exception as e:
         print(f"Error creando reserva en Google Calendar: {e}")
