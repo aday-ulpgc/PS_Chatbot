@@ -8,6 +8,16 @@ from googleapiclient.discovery import build
 SCOPES = ['https://www.googleapis.com/auth/calendar.events']
 
 def crear_reserva(usuario_id: str, fecha: str) -> str:
+    """
+    Se autentica en Google Calendar y crea un evento para la fecha indicada.
+    
+    Args:
+        usuario_id: El ID del usuario de Telegram.
+        fecha: Fecha seleccionada en formato 'YYYY-MM-DD'.
+        
+    Returns:
+        Mensaje de éxito o error para mostrar al usuario.
+    """
     try:
         base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
         creds_path = os.path.join(base_dir, "env", "service_account.json")
