@@ -8,13 +8,14 @@ from googleapiclient.discovery import build
 SCOPES = ["https://www.googleapis.com/auth/calendar.events"]
 
 
-def crear_reserva(usuario_id: str, fecha: str) -> str:
+def crear_reserva(usuario_id: str, fecha: str, hora: str) -> str:
     """
     Se autentica en Google Calendar y crea un evento para la fecha indicada.
 
     Args:
         usuario_id: El ID del usuario de Telegram.
         fecha: Fecha seleccionada en formato 'YYYY-MM-DD'.
+        hora: Hora seleccionada en formato 'HH:MM'.
 
     Returns:
         Mensaje de éxito o error para mostrar al usuario.
@@ -36,8 +37,9 @@ def crear_reserva(usuario_id: str, fecha: str) -> str:
         service = build("calendar", "v3", credentials=creds)
 
         fecha_obj = datetime.strptime(fecha, "%Y-%m-%d")
+        hora_obj = datetime.strptime(hora, "%H:%M").time()
 
-        start_time = fecha_obj.replace(hour=10, minute=0, second=0)
+        start_time = datetime.combine(fecha_obj, hora_obj)
         end_time = start_time + timedelta(hours=1)
 
         event = {
@@ -59,7 +61,7 @@ def crear_reserva(usuario_id: str, fecha: str) -> str:
 
         evento_url = event_result.get("htmlLink", "")
 
-        return f"✅ ¡Reserva confirmada para el {fecha} a las 10:00!\n📅 Puedes verla aquí: {evento_url}"
+        return f"✅ ¡Reserva confirmada para el {fecha} a las {hora}!\n📅 Puedes verla aquí: {evento_url}"
 
     except Exception as e:
         print(f"Error creando reserva en Google Calendar: {e}")

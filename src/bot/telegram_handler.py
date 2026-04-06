@@ -6,6 +6,8 @@ a los comandos del usuario. Los handlers deben mantenerse
 """
 
 import json
+import asyncio
+from services import calendar_service
 from datetime import date
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
@@ -57,9 +59,27 @@ async def menu_callback_handler(
         hora_seleccionada = query.data.split("_")[1]
         fecha_seleccionada = context.user_data.get("fecha_seleccionada", "Desconocida")
 
+        if fecha_seleccionada == "Desconocida":
+            await query.edit_message_text("❌ Error: No se ha encontrado la fecha. Inténtalo de nuevo.")
+            return
+
+        # 1. UX: Decirle al usuario que estamos trabajando en ello
         await query.edit_message_text(
-            text=f"✅ ¡Resumen de tu solicitud!\n📅 Fecha: {fecha_seleccionada}\n⏰ Hora: {hora_seleccionada}\n\n(Próximamente se enviará a Google Calendar...)"
+            text=f"✅ ¡Resumen de tu solicitud!\n📅 Fecha: {fecha_seleccionada}\n⏰ Hora: {hora_seleccionada}\n\n⏳ Procesando reserva en Google Calendar..."
         )
+
+        usuario_id = str(update.effective_user.id)
+
+        # 2. Llamada asíncrona a la API de Google (aislada para no congelar el bot)
+        mensaje_respuesta = await asyncio.to_thread(
+            calendar_service.crear_reserva,
+            usuario_id,
+            fecha_seleccionada,
+            hora_seleccionada
+        )
+
+        # 3. Mostrar el link definitivo
+        await query.edit_message_text(text=mensaje_respuesta)
 
         return
 
@@ -70,8 +90,8 @@ async def menu_callback_handler(
         if not result and key:
             teclado_dict = json.loads(key)
             fila_navegacion = [
-                {"text": "🔄 Reiniciar", "callback_data": "action_reserve"},
-                {"text": "❌ Menú", "callback_data": "action_back_menu"},
+                {"text": "↻ Reiniciar", "callback_data": "action_reserve"},
+                {"text": "⫶☰ Menú", "callback_data": "action_back_menu"},
             ]
             teclado_dict["inline_keyboard"].append(fila_navegacion)
             key_modificado = json.dumps(teclado_dict)
@@ -94,9 +114,9 @@ async def menu_callback_handler(
                 ],
                 [
                     InlineKeyboardButton(
-                        "🔄 Cambiar Fecha", callback_data="action_reserve"
+                        "↻ Cambiar Fecha", callback_data="action_reserve"
                     ),
-                    InlineKeyboardButton("❌ Menú", callback_data="action_back_menu"),
+                    InlineKeyboardButton("⫶☰ Menú", callback_data="action_back_menu"),
                 ],
             ]
             await query.edit_message_text(
@@ -128,8 +148,8 @@ async def handle_action_reserve(query) -> None:
 
     teclado_dict = json.loads(calendar)
     fila_navegacion = [
-        {"text": "🔄 Reiniciar", "callback_data": "action_reserve"},
-        {"text": "❌ Menú", "callback_data": "action_back_menu"},
+        {"text": "↻ Reiniciar", "callback_data": "action_reserve"},
+        {"text": "⫶☰ Menú", "callback_data": "action_back_menu"},
     ]
     teclado_dict["inline_keyboard"].append(fila_navegacion)
     calendar_modificado = json.dumps(teclado_dict)
