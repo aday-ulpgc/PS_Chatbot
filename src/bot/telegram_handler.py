@@ -52,7 +52,15 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         if not result and key:
             await query.edit_message_text(text=f"Selecciona una fecha: {LSTEP[step]}", reply_markup=key)
         elif result:
-            await query.edit_message_text(text=f"Fecha seleccionada: {result}")
+            await query.edit_message_text(f"⏳ Conectando con Google Calendar para el día {result}...")
+
+            mensaje_respuesta = calendar_service.crear_reserva(
+                usuario_id=str(update.effective_user.id), 
+                fecha=str(result)
+            )
+
+            await query.edit_message_text(mensaje_respuesta)
+            
         return
 
     match query.data:
