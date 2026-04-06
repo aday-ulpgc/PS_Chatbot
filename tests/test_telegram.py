@@ -1,6 +1,6 @@
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 from telegram import Update, Message, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from src.bot.telegram_handler import start_command
