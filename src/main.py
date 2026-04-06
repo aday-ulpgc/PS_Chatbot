@@ -9,9 +9,9 @@ import sys
 import asyncio
 
 from dotenv import load_dotenv
-from telegram.ext import ApplicationBuilder, CommandHandler
+from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler
 
-from bot.telegram_handler import start_command
+from bot.telegram_handler import start_command, menu_callback_handler
 
 
 def main() -> None:
@@ -45,7 +45,7 @@ def main() -> None:
     app = ApplicationBuilder().token(token).build()
 
     app.add_handler(CommandHandler("start", start_command))
-
+    app.add_handler(CallbackQueryHandler(menu_callback_handler))
     print("Bot iniciado. Esperando mensajes...")
     app.run_polling()
 
