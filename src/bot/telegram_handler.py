@@ -57,6 +57,7 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
         await query.edit_message_text(
             text=f"✅ ¡Resumen de tu solicitud!\n📅 Fecha: {fecha_seleccionada}\n⏰ Hora: {hora_seleccionada}\n\n(Próximamente se enviará a Google Calendar...)")
+            
         return
         
 
