@@ -164,7 +164,7 @@ async def handle_action_menu_help(query) -> None:
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    await query.edit_message_text(text=f"Sección Ayuda. ¿Que necesitas?", reply_markup=reply_markup)
+    await query.edit_message_text(text="Sección Ayuda. ¿Que necesitas?", reply_markup=reply_markup)
 
 async def handle_action_faq(query) -> None:
     """Reemplaza el submenú de opciones de ayuda por las preguntas frecuentes
