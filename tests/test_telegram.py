@@ -22,9 +22,10 @@ async def test_start():
 
     update.message.reply_text.assert_called_once()
 
-    mensaje, reply = update.message.reply_text.call_args
-
-    assert "¡Hola! Soy tu asistente de reservas" in mensaje[0]
+    reply = update.message.reply_text.call_args.kwargs
+    print("cosas del reply\n")
+    print(reply)
+    assert "¡Hola! Soy tu asistente de reservas" in reply["text"]
     assert "reply_markup" in reply
     assert isinstance(reply["reply_markup"], InlineKeyboardMarkup)
 
