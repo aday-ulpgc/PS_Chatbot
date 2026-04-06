@@ -55,21 +55,26 @@ async def menu_callback_handler(
     await query.answer()
 
     if query.data.startswith("time_"):
-        #hora_seleccionada = query.data.split("_")[1]
+        # hora_seleccionada = query.data.split("_")[1]
         fecha_seleccionada = context.user_data.get("fecha_seleccionada", "Desconocida")
 
-        await query.edit_message_text("⏳ Procesando tu reserva en Google Calendar. Dame un segundo...")
+        await query.edit_message_text(
+            "⏳ Procesando tu reserva en Google Calendar. Dame un segundo..."
+        )
 
         try:
             mensaje_google = calendar_service.crear_reserva(
-                usuario_id=str(update.effective_user.id),
-                fecha=fecha_seleccionada
+                usuario_id=str(update.effective_user.id), fecha=fecha_seleccionada
             )
-            
-            await query.edit_message_text(f"✅ ¡Reserva Confirmada!\n\n{mensaje_google}")
-            
+
+            await query.edit_message_text(
+                f"✅ ¡Reserva Confirmada!\n\n{mensaje_google}"
+            )
+
         except Exception as error:
-            await query.edit_message_text(f"❌ Vaya, hubo un problema al guardar la cita en el calendario. Inténtalo más tarde.\n(Error: {error})")
+            await query.edit_message_text(
+                f"❌ Vaya, hubo un problema al guardar la cita en el calendario. Inténtalo más tarde.\n(Error: {error})"
+            )
 
         return
 
