@@ -8,7 +8,7 @@ a los comandos del usuario. Los handlers deben mantenerse
 import json
 import asyncio
 from services import calendar_service
-from datetime import date
+from datetime import date, datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from telegram_bot_calendar import DetailedTelegramCalendar, LSTEP
@@ -76,10 +76,20 @@ async def menu_callback_handler(
             hora_seleccionada
         )
 
-        await query.edit_message_text(
-            text=mensaje_respuesta,
-            reply_markup=botones_principales()
-        )
+        if mensaje_respuesta.startswith("❌"):
+            teclado_error = InlineKeyboardMarkup([
+                [InlineKeyboardButton("↻ Elegir otro día", callback_data="action_reserve")],
+                [InlineKeyboardButton("⫶☰ Menú Principal", callback_data="action_back_menu")]
+            ])
+            await query.edit_message_text(
+                text=mensaje_respuesta, 
+                reply_markup=teclado_error
+            )
+        else:
+            await query.edit_message_text(
+                text=mensaje_respuesta,
+                reply_markup=botones_principales()
+            )
 
         return
 
@@ -102,27 +112,44 @@ async def menu_callback_handler(
 
         elif result:
             context.user_data["fecha_seleccionada"] = str(result)
+            
+            ahora = datetime.now()
+            es_hoy = (result == date.today())
 
-            teclado_horas = [
-                [
-                    InlineKeyboardButton("10:00", callback_data="time_10:00"),
-                    InlineKeyboardButton("11:00", callback_data="time_11:00"),
-                ],
-                [
-                    InlineKeyboardButton("16:00", callback_data="time_16:00"),
-                    InlineKeyboardButton("17:00", callback_data="time_17:00"),
-                ],
-                [
-                    InlineKeyboardButton(
-                        "↻ Cambiar Fecha", callback_data="action_reserve"
-                    ),
-                    InlineKeyboardButton("⫶☰ Menú", callback_data="action_back_menu"),
-                ],
-            ]
-            await query.edit_message_text(
-                text=f"Fecha seleccionada: {result}\n⏰ Ahora, selecciona una hora:",
-                reply_markup=InlineKeyboardMarkup(teclado_horas),
-            )
+            horas_disponibles = ["10:00", "11:00", "16:00", "17:00"]
+            botones = []
+            fila = []
+
+            for h in horas_disponibles:
+                hora_int = int(h.split(":")[0])
+                if es_hoy and hora_int <= ahora.hour:
+                    continue
+                
+                fila.append(InlineKeyboardButton(h, callback_data=f"time_{h}"))
+                if len(fila) == 2:
+                    botones.append(fila)
+                    fila = []
+            
+            if fila: 
+                botones.append(fila) 
+
+            botones.append([
+                InlineKeyboardButton("↻ Cambiar Fecha", callback_data="action_reserve"),
+                InlineKeyboardButton("⫶☰ Menú", callback_data="action_back_menu")
+            ])
+
+            texto_hora = f"Fecha seleccionada: {result}\n⏰ Ahora, selecciona una hora:"
+            if es_hoy and not botones[:-1]:
+                texto_hora = f"❌ Lo siento, ya no quedan huecos disponibles para hoy ({result})."
+                reply_markup = InlineKeyboardMarkup([
+                    [InlineKeyboardButton("↻ Elegir otro día", callback_data="action_reserve")],
+                    [InlineKeyboardButton("⫶☰ Menú Principal", callback_data="action_back_menu")]
+                ])
+            else:
+                reply_markup = InlineKeyboardMarkup(botones)
+
+            await query.edit_message_text(text=texto_hora, reply_markup=reply_markup)
+
         else:
             await handle_action_back_menu(query)
 
