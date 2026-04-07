@@ -35,34 +35,36 @@ async def test_start():
 async def test_guardar_fecha_en_contexto():
     """Verifica que al elegir fecha, se guarda en la 'memoria' del bot."""
     from src.bot.telegram_handler import menu_callback_handler
-    
 
     update = MagicMock()
     context = MagicMock()
     context.user_data = {}
-    
-    query = MagicMock() 
-    query.answer = AsyncMock()              
-    query.edit_message_text = AsyncMock()   
+
+    query = MagicMock()
+    query.answer = AsyncMock()
+    query.edit_message_text = AsyncMock()
     query.data = "cb_calendar_data"
     update.callback_query = query
-    
-    with patch('src.bot.telegram_handler.DetailedTelegramCalendar.process') as mock_process, \
-         patch('src.bot.telegram_handler.DetailedTelegramCalendar.func') as mock_func:
-        
+
+    with patch(
+        "src.bot.telegram_handler.DetailedTelegramCalendar.process"
+    ) as mock_process, patch(
+        "src.bot.telegram_handler.DetailedTelegramCalendar.func"
+    ) as mock_func:
         mock_process.return_value = (date(2026, 6, 26), None, None)
-        
-        mock_func.return_value = lambda x: True 
-        
+
+        mock_func.return_value = lambda x: True
+
         await menu_callback_handler(update, context)
 
     assert context.user_data.get("fecha_seleccionada") == "2026-06-26"
-    
+
     query.edit_message_text.assert_called_once()
     argumentos_nombrados = query.edit_message_text.call_args.kwargs
-    texto_respuesta = argumentos_nombrados.get('text', '').lower()
-    
+    texto_respuesta = argumentos_nombrados.get("text", "").lower()
+
     assert "selecciona una hora" in texto_respuesta
+
 
 def test_2():
     assert True
