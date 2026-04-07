@@ -42,6 +42,23 @@ def crear_reserva(usuario_id: str, fecha: str, hora: str) -> str:
         start_time = datetime.combine(fecha_obj, hora_obj)
         end_time = start_time + timedelta(hours=1)
 
+        inicio_dia = fecha_obj.isoformat() + "Z"
+        fin_dia = (fecha_obj + timedelta(days=1)).isoformat() + "Z"
+
+        eventos_existentes = service.events().list(
+            calendarId=calendar_id,
+            timeMin=inicio_dia,
+            timeMax=fin_dia,
+            singleEvents=True
+        ).execute()
+
+        lista_eventos = eventos_existentes.get("items", [])
+        for cita_guardada in lista_eventos:
+            fecha_inicio_guardada = cita_guardada["start"].get("dateTime", "")
+            
+            if f"T{hora}:00" in fecha_inicio_guardada:
+                return f"❌ Lo siento, la cita de las {hora}h ya no está disponible."
+
         event = {
             "summary": f"Reserva de {usuario_id}",
             "description": "Reserva generada automáticamente por SaaS-Bot.",
