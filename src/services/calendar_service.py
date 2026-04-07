@@ -47,11 +47,11 @@ def crear_reserva(usuario_id: str, fecha: str, hora: str) -> str:
             "description": "Reserva generada automáticamente por SaaS-Bot.",
             "start": {
                 "dateTime": start_time.isoformat(),
-                "timeZone": "Europe/Madrid",
+                "timeZone": "Atlantic/Canary",
             },
             "end": {
                 "dateTime": end_time.isoformat(),
-                "timeZone": "Europe/Madrid",
+                "timeZone": "Atlantic/Canary",
             },
         }
 
