@@ -63,14 +63,12 @@ async def menu_callback_handler(
             await query.edit_message_text("❌ Error: No se ha encontrado la fecha. Inténtalo de nuevo.")
             return
 
-        # 1. UX: Decirle al usuario que estamos trabajando en ello
         await query.edit_message_text(
             text=f"✅ ¡Resumen de tu solicitud!\n📅 Fecha: {fecha_seleccionada}\n⏰ Hora: {hora_seleccionada}\n\n⏳ Procesando reserva en Google Calendar..."
         )
 
         nombre_y_id = f"{update.effective_user.full_name} ({update.effective_user.id})"
 
-        # 2. Llamada asíncrona a la API de Google (aislada para no congelar el bot)
         mensaje_respuesta = await asyncio.to_thread(
             calendar_service.crear_reserva,
             nombre_y_id,
@@ -78,8 +76,10 @@ async def menu_callback_handler(
             hora_seleccionada
         )
 
-        # 3. Mostrar el link definitivo
-        await query.edit_message_text(text=mensaje_respuesta)
+        await query.edit_message_text(
+            text=mensaje_respuesta,
+            reply_markup=botones_principales()
+        )
 
         return
 
