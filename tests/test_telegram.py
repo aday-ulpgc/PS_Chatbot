@@ -1,9 +1,7 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from telegram import Update, Message, InlineKeyboardMarkup
 from telegram import CallbackQuery, Update, Message, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
-from src.bot.telegram_handler import start_command
 from datetime import date
 from src.bot.telegram_handler import handle_action_menu_help, start_command
 
@@ -26,9 +24,6 @@ async def test_start():
     update.message.reply_text.assert_called_once()
 
     reply = update.message.reply_text.call_args.kwargs
-    print("Reply:", reply)
-    print("CNODSNONDC")
-    print(reply)
     assert (
         "¡Hola! Soy tu asistente de reservas (SaaS-Bot del Grupo 06). ¿En qué te puedo ayudar hoy?"
         in reply["text"]
@@ -48,7 +43,6 @@ async def test_handle_action_menu_help():
     await handle_action_menu_help(query)
     query.edit_message_text.assert_called_once()
     reply = query.edit_message_text.call_args.kwargs
-    print("Reply:", reply)
     assert "Sección Ayuda. ¿Que necesitas?" in reply["text"]
     assert reply["reply_markup"].inline_keyboard[0][0].text == "❓ Preguntas frecuentes"
     assert reply["reply_markup"].inline_keyboard[1][0].text == "🛠️ Soporte técnico"
