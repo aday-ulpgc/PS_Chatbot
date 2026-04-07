@@ -68,12 +68,12 @@ async def menu_callback_handler(
             text=f"✅ ¡Resumen de tu solicitud!\n📅 Fecha: {fecha_seleccionada}\n⏰ Hora: {hora_seleccionada}\n\n⏳ Procesando reserva en Google Calendar..."
         )
 
-        usuario_id = str(update.effective_user.id)
+        nombre_y_id = f"{update.effective_user.full_name} ({update.effective_user.id})"
 
         # 2. Llamada asíncrona a la API de Google (aislada para no congelar el bot)
         mensaje_respuesta = await asyncio.to_thread(
             calendar_service.crear_reserva,
-            usuario_id,
+            nombre_y_id,
             fecha_seleccionada,
             hora_seleccionada
         )
