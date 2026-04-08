@@ -76,7 +76,7 @@ async def menu_callback_handler(
         name_and_id = f"{update.effective_user.full_name} ({update.effective_user.id})"
 
         response_message = await asyncio.to_thread(
-            calendar_service.crear_reserva,
+            calendar_service.create_reservation,
             name_and_id,
             selected_data,
             selected_time
