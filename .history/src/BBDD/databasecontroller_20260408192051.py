@@ -29,32 +29,18 @@ _dotenv_path = os.path.join(os.path.dirname(__file__), "..", "..", "env", ".env"
 load_dotenv(dotenv_path=_dotenv_path)
 
 _CA_PATH = os.path.join(os.path.dirname(__file__), "ca.pem")
+_DB_URL = os.getenv("DB_URL", "")
 
-# Usa SQLite en desarrollo si lo especificas en .env
-USE_SQLITE = os.getenv("USE_SQLITE", "false").lower() == "true"
-if USE_SQLITE:
-    _DB_URL = "sqlite:///./ps_chatbot.db"
-else:
-    _DB_URL = os.getenv("DB_URL", "")
-
-if USE_SQLITE:
-    engine = create_engine(
-        _DB_URL,
-        connect_args={"check_same_thread": False},
-        pool_pre_ping=True,
-        echo=False,
-    )
-else:
-    engine = create_engine(
-        _DB_URL,
-        connect_args={
-            "ssl": {"ca": _CA_PATH},
-            "connect_timeout": 30,  # 30 segundos
-        },
-        pool_pre_ping=True,
-        pool_recycle=3600,  # Recicla conexiones cada hora
-        echo=False,
-    )
+engine = create_engine(
+    _DB_URL,
+    connect_args={
+        "ssl": {"ca": _CA_PATH},
+        "connect_timeout": 30,  # 30 segundos
+    },
+    pool_pre_ping=True,
+    pool_recycle=3600,  # Recicla conexiones cada hora
+    echo=False,
+)
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 

@@ -29,32 +29,18 @@ _dotenv_path = os.path.join(os.path.dirname(__file__), "..", "..", "env", ".env"
 load_dotenv(dotenv_path=_dotenv_path)
 
 _CA_PATH = os.path.join(os.path.dirname(__file__), "ca.pem")
+_DB_URL = os.getenv("DB_URL", "")
 
-# Usa SQLite en desarrollo si lo especificas en .env
-USE_SQLITE = os.getenv("USE_SQLITE", "false").lower() == "true"
-if USE_SQLITE:
-    _DB_URL = "sqlite:///./ps_chatbot.db"
-else:
-    _DB_URL = os.getenv("DB_URL", "")
-
-if USE_SQLITE:
-    engine = create_engine(
-        _DB_URL,
-        connect_args={"check_same_thread": False},
-        pool_pre_ping=True,
-        echo=False,
-    )
-else:
-    engine = create_engine(
-        _DB_URL,
-        connect_args={
-            "ssl": {"ca": _CA_PATH},
-            "connect_timeout": 30,  # 30 segundos
-        },
-        pool_pre_ping=True,
-        pool_recycle=3600,  # Recicla conexiones cada hora
-        echo=False,
-    )
+engine = create_engine(
+    _DB_URL,
+    connect_args={
+        "ssl": {"ca": _CA_PATH},
+        "connect_timeout": 30,  # 30 segundos
+    },
+    pool_pre_ping=True,
+    pool_recycle=3600,  # Recicla conexiones cada hora
+    echo=False,
+)
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -140,23 +126,18 @@ def init_db() -> None:
 
     Migración v1: añade ID_USUARIO y su FK a CONTACTOS si no existen.
     """
-    try:
-        with engine.connect() as conn:
-            try:
-                conn.execute(text("ALTER TABLE CONTACTOS ADD COLUMN ID_USUARIO INT NULL"))
-                conn.execute(text(
-                    "ALTER TABLE CONTACTOS ADD CONSTRAINT fk_contactos_usuario "
-                    "FOREIGN KEY (ID_USUARIO) REFERENCES USUARIOS(ID_USUARIO)"
-                ))
-                conn.commit()
-            except Exception:
-                conn.rollback()  # Columna/FK ya existe, se ignora
+    with engine.connect() as conn:
+        try:
+            conn.execute(text("ALTER TABLE CONTACTOS ADD COLUMN ID_USUARIO INT NULL"))
+            conn.execute(text(
+                "ALTER TABLE CONTACTOS ADD CONSTRAINT fk_contactos_usuario "
+                "FOREIGN KEY (ID_USUARIO) REFERENCES USUARIOS(ID_USUARIO)"
+            ))
+            conn.commit()
+        except Exception:
+            conn.rollback()  # Columna/FK ya existe, se ignora
 
-        Base.metadata.create_all(engine)
-        print("✓ Base de datos inicializada correctamente")
-    except Exception as e:
-        print(f"⚠ Advertencia: No se pudo conectar a la BD durante init: {e}")
-        print("  La API seguirá funcionando pero las operaciones de BD fallarán")
+    Base.metadata.create_all(engine)
 
 
 # ── Helpers internos ───────────────────────────────────────────────────────────
