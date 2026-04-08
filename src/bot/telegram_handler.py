@@ -17,10 +17,11 @@ from telegram.error import BadRequest
 WELCOME_TEXT = "¡Hola! Soy tu asistente de reservas (SaaS-Bot del Grupo 06).\n¿En qué te puedo ayudar hoy?"
 
 CALENDAR_STEPS = {
-    'y': '(año)',
-    'm': '(mes)',
-    'd': '(día)',
+    "y": "(año)",
+    "m": "(mes)",
+    "d": "(día)",
 }
+
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Responde al comando /start con un mensaje de bienvenida y un menú interactivo.
@@ -66,7 +67,9 @@ async def menu_callback_handler(
         selected_data = context.user_data.get("selected_data", "Desconocida")
 
         if selected_data == "Desconocida":
-            await query.edit_message_text("❌ Error: No se ha encontrado la fecha. Inténtalo de nuevo.")
+            await query.edit_message_text(
+                "❌ Error: No se ha encontrado la fecha. Inténtalo de nuevo."
+            )
             return
 
         await query.edit_message_text(
@@ -79,22 +82,30 @@ async def menu_callback_handler(
             calendar_service.create_reservation,
             name_and_id,
             selected_data,
-            selected_time
+            selected_time,
         )
 
         if response_message.startswith("❌"):
-            error_keyboard = InlineKeyboardMarkup([
-                [InlineKeyboardButton("↻ Elegir otro día", callback_data="action_reserve")],
-                [InlineKeyboardButton("⫶☰ Menú Principal", callback_data="action_back_menu")]
-            ])
+            error_keyboard = InlineKeyboardMarkup(
+                [
+                    [
+                        InlineKeyboardButton(
+                            "↻ Elegir otro día", callback_data="action_reserve"
+                        )
+                    ],
+                    [
+                        InlineKeyboardButton(
+                            "⫶☰ Menú Principal", callback_data="action_back_menu"
+                        )
+                    ],
+                ]
+            )
             await query.edit_message_text(
-                text=response_message, 
-                reply_markup=error_keyboard
+                text=response_message, reply_markup=error_keyboard
             )
         else:
             await query.edit_message_text(
-                text=response_message,
-                reply_markup=main_menu_keyboard()
+                text=response_message, reply_markup=main_menu_keyboard()
             )
 
         return
@@ -114,18 +125,28 @@ async def menu_callback_handler(
 
             try:
                 await query.edit_message_text(
-                    text=f"Selecciona una fecha {CALENDAR_STEPS[step]}:", reply_markup=modified_key
+                    text=f"Selecciona una fecha {CALENDAR_STEPS[step]}:",
+                    reply_markup=modified_key,
                 )
             except BadRequest:
                 pass
 
         elif result:
             context.user_data["selected_data"] = str(result)
-            
-            now = datetime.now()
-            is_today = (result == date.today())
 
-            available_hours = ["9:00", "10:00", "11:00", "12:00", "16:00", "17:00", "18:00", "19:00"]
+            now = datetime.now()
+            is_today = result == date.today()
+
+            available_hours = [
+                "9:00",
+                "10:00",
+                "11:00",
+                "12:00",
+                "16:00",
+                "17:00",
+                "18:00",
+                "19:00",
+            ]
             buttons = []
             row = []
 
@@ -133,27 +154,41 @@ async def menu_callback_handler(
                 hour_int = int(h.split(":")[0])
                 if is_today and hour_int <= now.hour:
                     continue
-                
+
                 row.append(InlineKeyboardButton(h, callback_data=f"time_{h}"))
                 if len(row) == 2:
                     buttons.append(row)
                     row = []
-            
-            if row: 
-                buttons.append(row) 
 
-            buttons.append([
-                InlineKeyboardButton("↻ Cambiar Fecha", callback_data="action_reserve"),
-                InlineKeyboardButton("⫶☰ Menú", callback_data="action_back_menu")
-            ])
+            if row:
+                buttons.append(row)
+
+            buttons.append(
+                [
+                    InlineKeyboardButton(
+                        "↻ Cambiar Fecha", callback_data="action_reserve"
+                    ),
+                    InlineKeyboardButton("⫶☰ Menú", callback_data="action_back_menu"),
+                ]
+            )
 
             text_hour = f"Fecha seleccionada: {result}\n⏰ Ahora, selecciona una hora:"
             if is_today and not buttons[:-1]:
                 text_hour = f"❌ Lo siento, ya no quedan huecos disponibles para hoy ({result})."
-                reply_markup = InlineKeyboardMarkup([
-                    [InlineKeyboardButton("↻ Elegir otro día", callback_data="action_reserve")],
-                    [InlineKeyboardButton("⫶☰ Menú Principal", callback_data="action_back_menu")]
-                ])
+                reply_markup = InlineKeyboardMarkup(
+                    [
+                        [
+                            InlineKeyboardButton(
+                                "↻ Elegir otro día", callback_data="action_reserve"
+                            )
+                        ],
+                        [
+                            InlineKeyboardButton(
+                                "⫶☰ Menú Principal", callback_data="action_back_menu"
+                            )
+                        ],
+                    ]
+                )
             else:
                 reply_markup = InlineKeyboardMarkup(buttons)
 
@@ -192,7 +227,8 @@ async def handle_action_reserve(query) -> None:
 
     try:
         await query.edit_message_text(
-            text=f"Selecciona una fecha {CALENDAR_STEPS[step]}:", reply_markup=modified_calendar
+            text=f"Selecciona una fecha {CALENDAR_STEPS[step]}:",
+            reply_markup=modified_calendar,
         )
     except BadRequest:
         pass
@@ -286,9 +322,7 @@ async def handle_action_back_menu(query) -> None:
        query (CallbackQuery): El objeto del evento generado al pulsar el botón,
                               usado para editar el mensaje actual.
     """
-    await query.edit_message_text(
-        text=WELCOME_TEXT, reply_markup=main_menu_keyboard()
-    )
+    await query.edit_message_text(text=WELCOME_TEXT, reply_markup=main_menu_keyboard())
 
 
 CALLBACK_ROUTES = {

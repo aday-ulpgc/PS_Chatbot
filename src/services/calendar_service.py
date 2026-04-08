@@ -6,6 +6,7 @@ from googleapiclient.discovery import build
 SCOPES = ["https://www.googleapis.com/auth/calendar.events"]
 TIMEZONE = "Atlantic/Canary"
 
+
 class GoogleCalendarService:
     """Servicio especializado en la interacción con la API de Google Calendar."""
 
@@ -19,13 +20,15 @@ class GoogleCalendarService:
         Estructura asumida: raíz/env/service_account.json
         """
         current_dir = os.path.dirname(os.path.abspath(__file__))
-        
+
         project_root = os.path.dirname(os.path.dirname(current_dir))
-        
+
         creds_path = os.path.join(project_root, "env", "service_account.json")
 
         if not os.path.exists(creds_path):
-            raise FileNotFoundError(f"No se encontró el archivo de credenciales en: {creds_path}")
+            raise FileNotFoundError(
+                f"No se encontró el archivo de credenciales en: {creds_path}"
+            )
 
         credentials = service_account.Credentials.from_service_account_file(
             creds_path, scopes=SCOPES
@@ -37,16 +40,20 @@ class GoogleCalendarService:
         time_min = f"{date_str}T00:00:00Z"
         time_max = f"{date_str}T23:59:59Z"
 
-        events_result = self.service.events().list(
-            calendarId=self.calendar_id,
-            timeMin=time_min,
-            timeMax=time_max,
-            singleEvents=True
-        ).execute()
+        events_result = (
+            self.service.events()
+            .list(
+                calendarId=self.calendar_id,
+                timeMin=time_min,
+                timeMax=time_max,
+                singleEvents=True,
+            )
+            .execute()
+        )
 
         events = events_result.get("items", [])
 
-        formatted_hour = hour_str.zfill(5) 
+        formatted_hour = hour_str.zfill(5)
 
         for event in events:
             start_time = event["start"].get("dateTime", "")
@@ -62,7 +69,11 @@ class GoogleCalendarService:
             "start": {"dateTime": start_dt.isoformat(), "timeZone": TIMEZONE},
             "end": {"dateTime": end_dt.isoformat(), "timeZone": TIMEZONE},
         }
-        return self.service.events().insert(calendarId=self.calendar_id, body=event_body).execute()
+        return (
+            self.service.events()
+            .insert(calendarId=self.calendar_id, body=event_body)
+            .execute()
+        )
 
 
 def create_reservation(user_id: str, date: str, hour: str) -> str:
@@ -74,11 +85,13 @@ def create_reservation(user_id: str, date: str, hour: str) -> str:
         calendar = GoogleCalendarService()
 
         if not calendar.calendar_id:
-            return "❌ Error interno: No se ha configurado el CALENDAR_ID en el entorno."
+            return (
+                "❌ Error interno: No se ha configurado el CALENDAR_ID en el entorno."
+            )
 
         if not calendar.is_slot_available(date, hour):
             return f"❌ Lo siento, la cita de las {hour}h ya no está disponible."
-    
+
         start_time = datetime.strptime(f"{date} {hour}", "%Y-%m-%d %H:%M")
         end_time = start_time + timedelta(hours=1)
 
