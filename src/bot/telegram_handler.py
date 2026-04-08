@@ -12,9 +12,15 @@ from datetime import date, datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from telegram_bot_calendar import DetailedTelegramCalendar, LSTEP
+from telegram.error import BadRequest
 
 WELCOME_TEXT = "¡Hola! Soy tu asistente de reservas (SaaS-Bot del Grupo 06).\n¿En qué te puedo ayudar hoy?"
 
+CALENDAR_STEPS = {
+    'y': '(año)',
+    'm': '(mes)',
+    'd': '(día)',
+}
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Responde al comando /start con un mensaje de bienvenida y un menú interactivo.
@@ -106,9 +112,12 @@ async def menu_callback_handler(
             keyboard_dict["inline_keyboard"].append(navigation_row)
             modified_key = json.dumps(keyboard_dict)
 
-            await query.edit_message_text(
-                text=f"Selecciona una fecha: {LSTEP[step]}", reply_markup=modified_key
-            )
+            try:
+                await query.edit_message_text(
+                    text=f"Selecciona una fecha {CALENDAR_STEPS[step]}:", reply_markup=modified_key
+                )
+            except BadRequest:
+                pass
 
         elif result:
             context.user_data["selected_data"] = str(result)
@@ -116,7 +125,7 @@ async def menu_callback_handler(
             now = datetime.now()
             is_today = (result == date.today())
 
-            available_hours = ["10:00", "11:00", "16:00", "17:00"]
+            available_hours = ["9:00", "10:00", "11:00", "12:00", "16:00", "17:00", "18:00", "19:00"]
             buttons = []
             row = []
 
@@ -181,9 +190,12 @@ async def handle_action_reserve(query) -> None:
     keyboard_dict["inline_keyboard"].append(navigation_row)
     modified_calendar = json.dumps(keyboard_dict)
 
-    await query.edit_message_text(
-        text=f"Selecciona una fecha: {LSTEP[step]}", reply_markup=modified_calendar
-    )
+    try:
+        await query.edit_message_text(
+            text=f"Selecciona una fecha {CALENDAR_STEPS[step]}:", reply_markup=modified_calendar
+        )
+    except BadRequest:
+        pass
 
 
 async def handle_action_my_appointments(query) -> None:
