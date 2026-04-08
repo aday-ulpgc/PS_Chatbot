@@ -11,7 +11,7 @@ from services import calendar_service
 from datetime import date, datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
-from telegram_bot_calendar import DetailedTelegramCalendar, LSTEP
+from telegram_bot_calendar import DetailedTelegramCalendar
 from telegram.error import BadRequest
 
 WELCOME_TEXT = "¡Hola! Soy tu asistente de reservas (SaaS-Bot del Grupo 06).\n¿En qué te puedo ayudar hoy?"
