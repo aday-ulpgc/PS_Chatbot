@@ -203,6 +203,42 @@ async def menu_callback_handler(
         return
     else:
         await query.edit_message_text(text="Acción no reconocida.")
+            ]
+            # Convertir diccionario a lista de listas de botones
+            keyboard_buttons = [[InlineKeyboardButton(text=btn["text"], callback_data=btn["callback_data"]) 
+                                 for btn in row] for row in teclado_dict.get("inline_keyboard", [])]
+            keyboard_buttons.extend(fila_navegacion)
+
+            await query.edit_message_text(
+                text=f"Selecciona una fecha: {LSTEP[step]}", 
+                reply_markup=InlineKeyboardMarkup(keyboard_buttons)
+            )
+
+        elif result:
+            context.user_data["fecha_seleccionada"] = str(result)
+
+            teclado_horas = [
+                [
+                    InlineKeyboardButton("10:00", callback_data="time_10:00"),
+                    InlineKeyboardButton("11:00", callback_data="time_11:00")
+                ],
+                [
+                    InlineKeyboardButton("16:00", callback_data="time_16:00"),
+                    InlineKeyboardButton("17:00", callback_data="time_17:00")
+                ],
+                [
+                    InlineKeyboardButton("🔄 Cambiar Fecha", callback_data="action_reserve"),
+                    InlineKeyboardButton("❌ Menú", callback_data="action_back_menu")
+                ]
+            ]
+            await query.edit_message_text(text=f"Fecha seleccionada: {result}\n⏰ Ahora, selecciona una hora:",
+                                          reply_markup=InlineKeyboardMarkup(teclado_horas)
+                                          )
+        else:
+            await handle_action_back_menu(query)
+
+        return
+
 
 
 async def handle_action_reserve(query) -> None:
@@ -212,28 +248,30 @@ async def handle_action_reserve(query) -> None:
         query (CallbackQuery): El objeto del evento generado al pulsar el botón,
                                usado para editar el mensaje actual.
     """
-    current_calendar = DetailedTelegramCalendar(min_date=date.today())
-    calendar, step = current_calendar.build()
-
-    keyboard_dict = json.loads(calendar)
-    navigation_row = [
-        {"text": "↻ Reiniciar", "callback_data": "action_reserve"},
-        {"text": "⫶☰ Menú", "callback_data": "action_back_menu"},
-    ]
-    keyboard_dict["inline_keyboard"].append(navigation_row)
-    modified_calendar = json.dumps(keyboard_dict)
-
     try:
+        actual_calendar = DetailedTelegramCalendar(min_date=date.today())
+        calendar, step = actual_calendar.build()
+
+        teclado_dict = json.loads(calendar)
         # Convertir diccionario a lista de listas de botones
         keyboard_buttons = [[InlineKeyboardButton(text=btn["text"], callback_data=btn["callback_data"]) 
-                             for btn in row] for row in keyboard_dict.get("inline_keyboard", [])]
+                             for btn in row] for row in teclado_dict.get("inline_keyboard", [])]
         
+        # Añadir botones de navegación
+        fila_navegacion = [
+            InlineKeyboardButton("🔄 Reiniciar", callback_data="action_reserve"),
+            InlineKeyboardButton("❌ Menú", callback_data="action_back_menu")
+        ]
+        keyboard_buttons.append(fila_navegacion)
+
         await query.edit_message_text(
-            text=f"Selecciona una fecha {CALENDAR_STEPS[step]}:",
+            text=f"Selecciona una fecha: {LSTEP[step]}", 
             reply_markup=InlineKeyboardMarkup(keyboard_buttons)
         )
-    except BadRequest:
-        pass
+    except Exception as e:
+        print(f"❌ Error en handle_action_reserve: {e}")
+        await query.edit_message_text(text="❌ Error al cargar el calendario. Intenta de nuevo.")
+
 
 
 async def handle_action_my_appointments(query) -> None:
@@ -253,9 +291,7 @@ async def handle_action_my_appointments(query) -> None:
 
     keyboard = [[InlineKeyboardButton("Volver", callback_data="action_back_menu")]]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    await query.edit_message_text(
-        text=questions, reply_markup=reply_markup, parse_mode="Markdown"
-    )
+    await query.edit_message_text(text=questions, reply_markup=reply_markup, parse_mode="Markdown")
 
 
 async def handle_action_menu_help(query) -> None:
@@ -266,33 +302,14 @@ async def handle_action_menu_help(query) -> None:
                                usado para editar el mensaje actual.
     """
     keyboard = [
-        [
-            InlineKeyboardButton(
-                "❓ Preguntas frecuentes", callback_data="action_help_faq"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                "🛠️ Soporte técnico", url="https://forms.gle/Fu9HuBVJA747nW9E8"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                "📖 Guía de uso",
-                url="https://docs.google.com/document/d/16ryO0SMthEtiy3AFTEKQJK7v4IODzlgunb8nVP7bI1Q/edit?usp=sharing",
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                "🔙 Volver al menú principal", callback_data="action_back_menu"
-            )
-        ],
+        [InlineKeyboardButton("❓ Preguntas frecuentes", callback_data="action_help_faq")],
+        [InlineKeyboardButton("🛠️ Soporte técnico", url="https://forms.gle/Fu9HuBVJA747nW9E8")],
+        [InlineKeyboardButton("📖 Guía de uso", url="https://docs.google.com/document/d/16ryO0SMthEtiy3AFTEKQJK7v4IODzlgunb8nVP7bI1Q/edit?usp=sharing")],
+        [InlineKeyboardButton("🔙 Volver al menú principal", callback_data="action_back_menu")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    await query.edit_message_text(
-        text="Sección Ayuda. ¿Que necesitas?", reply_markup=reply_markup
-    )
+    await query.edit_message_text(text="Sección Ayuda. ¿Que necesitas?", reply_markup=reply_markup)
 
 
 async def handle_action_faq(query) -> None:
@@ -312,22 +329,23 @@ async def handle_action_faq(query) -> None:
 
     keyboard = [[InlineKeyboardButton("Volver", callback_data="action_help")]]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    await query.edit_message_text(
-        text=questions, reply_markup=reply_markup, parse_mode="Markdown"
-    )
+    await query.edit_message_text(text=questions, reply_markup=reply_markup, parse_mode="Markdown")
 
 
 async def handle_action_back_menu(query) -> None:
-    """Muestra el menu principal
+    """Muestre el menu principal
 
     Args:
-       query (CallbackQuery): El objeto del evento generado al pulsar el botón,
-                              usado para editar el mensaje actual.
+        query (CallbackQuery): El objeto del evento generado al pulsar el botón,
+                               usado para editar el mensaje actual.
     """
-    await query.edit_message_text(text=WELCOME_TEXT, reply_markup=main_menu_keyboard())
+    await query.edit_message_text(
+        text=TEXTO_BIENVENIDA,
+        reply_markup=botones_principales()
+    )
 
 
-CALLBACK_ROUTES = {
+RUTAS_CALLBACKS = {
     "action_reserve": handle_action_reserve,
     "action_my_appointments": handle_action_my_appointments,
     "action_help": handle_action_menu_help,

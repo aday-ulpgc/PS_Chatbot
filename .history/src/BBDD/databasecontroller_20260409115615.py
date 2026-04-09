@@ -112,7 +112,7 @@ class CitaInd(Base):
 
     ID_CITA     = Column(Integer, primary_key=True, autoincrement=True)
     ID_CONTACTO = Column(Integer, ForeignKey("CONTACTOS.ID_CONTACTO"), nullable=False)
-    DESCRIPCION = Column("DESCRIPCIÓN", String(500), nullable=False, default="Cita reservada")
+    DESCRIPCION = Column("DESCRIPCIÓN", String(500), nullable=True)
     FECHA       = Column(DateTime, nullable=False)
     PRIORIDAD   = Column(Integer, nullable=True, default=1)
     ELIMINADO   = Column(DateTime, nullable=True, default=None)

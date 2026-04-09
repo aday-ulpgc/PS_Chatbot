@@ -334,3 +334,7 @@ CALLBACK_ROUTES = {
     "action_help_faq": handle_action_faq,
     "action_back_menu": handle_action_back_menu,
 }
+    "action_help": handle_action_menu_help,
+    "action_help_faq": handle_action_faq,
+    "action_back_menu": handle_action_back_menu,
+}
