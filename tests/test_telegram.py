@@ -25,7 +25,7 @@ async def test_start():
 
     reply = update.message.reply_text.call_args.kwargs
     assert (
-        "¡Hola! Soy tu asistente de reservas (SaaS-Bot del Grupo 06).\n¿En qué te puedo ayudar hoy?"
+        "¡Hola! Soy Calia, tu asistente de reservas.\n¿En qué te puedo ayudar hoy?"
         in reply["text"]
     )
     assert "reply_markup" in reply
