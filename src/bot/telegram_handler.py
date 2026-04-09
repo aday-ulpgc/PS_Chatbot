@@ -8,7 +8,7 @@ a los comandos del usuario. Los handlers deben mantenerse
 import json
 import asyncio
 from src.services import calendar_service
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from telegram_bot_calendar import DetailedTelegramCalendar
@@ -46,6 +46,18 @@ def main_menu_keyboard() -> InlineKeyboardMarkup:
     ]
     return InlineKeyboardMarkup(keyboard)
 
+async def enviar_recordatorio_cita(context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Esta función es la que el bot ejecuta cuando pasan los 2 segundos."""
+    
+    job = context.job
+
+    try:
+        await context.bot.send_message(
+            chat_id=job.chat_id, 
+            text=f"⏰ PRUEBA\n{job.data}"
+        )
+    except Exception as e:
+        print(f"❌ Error al enviar el mensaje: {e}")
 
 async def menu_callback_handler(
     update: Update, context: ContextTypes.DEFAULT_TYPE
@@ -106,6 +118,14 @@ async def menu_callback_handler(
         else:
             await query.edit_message_text(
                 text=response_message, reply_markup=main_menu_keyboard()
+            )
+
+            context.job_queue.run_once(
+                enviar_recordatorio_cita, 
+                when=2, 
+                chat_id=update.effective_chat.id,
+                data=f"Cita el {selected_data} a las {selected_time}",
+                name=f"remind_{update.effective_chat.id}"
             )
 
         return
