@@ -148,20 +148,16 @@ async def handle_action_reserve(query) -> None:
         calendar, step = actual_calendar.build()
 
         teclado_dict = json.loads(calendar)
-        # Convertir diccionario a lista de listas de botones
-        keyboard_buttons = [[InlineKeyboardButton(text=btn["text"], callback_data=btn["callback_data"]) 
-                             for btn in row] for row in teclado_dict.get("inline_keyboard", [])]
-        
-        # Añadir botones de navegación
         fila_navegacion = [
-            InlineKeyboardButton("🔄 Reiniciar", callback_data="action_reserve"),
-            InlineKeyboardButton("❌ Menú", callback_data="action_back_menu")
+            {"text": "🔄 Reiniciar", "callback_data": "action_reserve"},
+            {"text": "❌ Menú", "callback_data": "action_back_menu"}
         ]
-        keyboard_buttons.append(fila_navegacion)
+        teclado_dict["inline_keyboard"].append(fila_navegacion)
+        calendar_modificado = json.dumps(teclado_dict)
 
         await query.edit_message_text(
             text=f"Selecciona una fecha: {LSTEP[step]}", 
-            reply_markup=InlineKeyboardMarkup(keyboard_buttons)
+            reply_markup=calendar_modificado
         )
     except Exception as e:
         print(f"❌ Error en handle_action_reserve: {e}")
