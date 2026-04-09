@@ -14,7 +14,9 @@ from telegram.ext import ContextTypes
 from telegram_bot_calendar import DetailedTelegramCalendar
 from telegram.error import BadRequest
 
-WELCOME_TEXT = "¡Hola! Soy Calia, tu asistente de reservas.\n¿En qué te puedo ayudar hoy?"
+WELCOME_TEXT = (
+    "¡Hola! Soy Calia, tu asistente de reservas.\n¿En qué te puedo ayudar hoy?"
+)
 
 CALENDAR_STEPS = {
     "y": "(año)",
