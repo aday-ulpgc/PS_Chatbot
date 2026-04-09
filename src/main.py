@@ -12,7 +12,12 @@ import asyncio
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from dotenv import load_dotenv
-from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, JobQueue
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler,
+    CallbackQueryHandler,
+    JobQueue,
+)
 
 from src.bot.telegram_handler import start_command, menu_callback_handler
 
