@@ -8,7 +8,7 @@ a los comandos del usuario. Los handlers deben mantenerse
 import json
 import asyncio
 from src.services import calendar_service
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from telegram_bot_calendar import DetailedTelegramCalendar
