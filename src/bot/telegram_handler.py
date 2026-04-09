@@ -6,13 +6,21 @@ a los comandos del usuario. Los handlers deben mantenerse
 """
 
 import json
-from datetime import date
+import asyncio
+from src.services import calendar_service
+from datetime import date, datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
-from telegram_bot_calendar import DetailedTelegramCalendar, LSTEP
-from src.services import calendar_service
+from telegram_bot_calendar import DetailedTelegramCalendar
+from telegram.error import BadRequest
 
-TEXTO_BIENVENIDA = "¡Hola! Soy tu asistente de reservas (SaaS-Bot del Grupo 06). ¿En qué te puedo ayudar hoy?"
+WELCOME_TEXT = "¡Hola! Soy tu asistente de reservas (SaaS-Bot del Grupo 06).\n¿En qué te puedo ayudar hoy?"
+
+CALENDAR_STEPS = {
+    "y": "(año)",
+    "m": "(mes)",
+    "d": "(día)",
+}
 
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -24,11 +32,11 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     """
     if update.message:
         await update.message.reply_text(
-            text=TEXTO_BIENVENIDA, reply_markup=botones_principales()
+            text=WELCOME_TEXT, reply_markup=main_menu_keyboard()
         )
 
 
-def botones_principales() -> InlineKeyboardMarkup:
+def main_menu_keyboard() -> InlineKeyboardMarkup:
     """Devuelve los botones del menú principal"""
 
     keyboard = [
@@ -37,6 +45,19 @@ def botones_principales() -> InlineKeyboardMarkup:
         [InlineKeyboardButton("❓ Ayuda", callback_data="action_help")],
     ]
     return InlineKeyboardMarkup(keyboard)
+
+
+async def enviar_recordatorio_cita(context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Esta función es la que el bot ejecuta cuando pasan los 2 segundos."""
+
+    job = context.job
+
+    try:
+        await context.bot.send_message(
+            chat_id=job.chat_id, text=f"⏰ PRUEBA\n{job.data}"
+        )
+    except Exception as e:
+        print(f"❌ Error al enviar el mensaje: {e}")
 
 
 async def menu_callback_handler(
@@ -55,75 +76,151 @@ async def menu_callback_handler(
     await query.answer()
 
     if query.data.startswith("time_"):
-        # hora_seleccionada = query.data.split("_")[1]
-        fecha_seleccionada = context.user_data.get("fecha_seleccionada", "Desconocida")
+        selected_time = query.data.split("_")[1]
+        selected_data = context.user_data.get("selected_data", "Desconocida")
+
+        if selected_data == "Desconocida":
+            await query.edit_message_text(
+                "❌ Error: No se ha encontrado la fecha. Inténtalo de nuevo."
+            )
+            return
 
         await query.edit_message_text(
-            "⏳ Procesando tu reserva en Google Calendar. Dame un segundo..."
+            text=f"✅ ¡Resumen de tu solicitud!\n📅 Fecha: {selected_data}\n⏰ Hora: {selected_time}\n\n⏳ Procesando reserva en Google Calendar..."
         )
 
-        try:
-            mensaje_google = calendar_service.crear_reserva(
-                usuario_id=str(update.effective_user.id), fecha=fecha_seleccionada
+        name_and_id = f"{update.effective_user.full_name} ({update.effective_user.id})"
+
+        response_message = await asyncio.to_thread(
+            calendar_service.create_reservation,
+            name_and_id,
+            selected_data,
+            selected_time,
+        )
+
+        if response_message.startswith("❌"):
+            error_keyboard = InlineKeyboardMarkup(
+                [
+                    [
+                        InlineKeyboardButton(
+                            "↻ Elegir otro día", callback_data="action_reserve"
+                        )
+                    ],
+                    [
+                        InlineKeyboardButton(
+                            "⫶☰ Menú Principal", callback_data="action_back_menu"
+                        )
+                    ],
+                ]
+            )
+            await query.edit_message_text(
+                text=response_message, reply_markup=error_keyboard
+            )
+        else:
+            await query.edit_message_text(
+                text=response_message, reply_markup=main_menu_keyboard()
             )
 
-            await query.edit_message_text(
-                f"✅ ¡Reserva Confirmada!\n\n{mensaje_google}"
-            )
-
-        except Exception as error:
-            await query.edit_message_text(
-                f"❌ Vaya, hubo un problema al guardar la cita en el calendario. Inténtalo más tarde.\n(Error: {error})"
+            context.job_queue.run_once(
+                enviar_recordatorio_cita,
+                when=2,
+                chat_id=update.effective_chat.id,
+                data=f"Cita el {selected_data} a las {selected_time}",
+                name=f"remind_{update.effective_chat.id}",
             )
 
         return
 
     if DetailedTelegramCalendar.func()(query):
-        actual_calendar = DetailedTelegramCalendar(min_date=date.today())
-        result, key, step = actual_calendar.process(query.data)
+        current_calendar = DetailedTelegramCalendar(min_date=date.today())
+        result, key, step = current_calendar.process(query.data)
 
         if not result and key:
-            teclado_dict = json.loads(key)
-            fila_navegacion = [
-                {"text": "🔄 Reiniciar", "callback_data": "action_reserve"},
-                {"text": "❌ Menú", "callback_data": "action_back_menu"},
+            keyboard_dict = json.loads(key)
+            navigation_row = [
+                {"text": "↻ Reiniciar", "callback_data": "action_reserve"},
+                {"text": "⫶☰ Menú", "callback_data": "action_back_menu"},
             ]
-            teclado_dict["inline_keyboard"].append(fila_navegacion)
-            key_modificado = json.dumps(teclado_dict)
+            keyboard_dict["inline_keyboard"].append(navigation_row)
+            modified_key = json.dumps(keyboard_dict)
 
-            await query.edit_message_text(
-                text=f"Selecciona una fecha: {LSTEP[step]}", reply_markup=key_modificado
-            )
+            try:
+                await query.edit_message_text(
+                    text=f"Selecciona una fecha {CALENDAR_STEPS[step]}:",
+                    reply_markup=modified_key,
+                )
+            except BadRequest:
+                pass
 
         elif result:
-            context.user_data["fecha_seleccionada"] = str(result)
+            context.user_data["selected_data"] = str(result)
 
-            teclado_horas = [
-                [
-                    InlineKeyboardButton("10:00", callback_data="time_10:00"),
-                    InlineKeyboardButton("11:00", callback_data="time_11:00"),
-                ],
-                [
-                    InlineKeyboardButton("16:00", callback_data="time_16:00"),
-                    InlineKeyboardButton("17:00", callback_data="time_17:00"),
-                ],
+            now = datetime.now()
+            is_today = result == date.today()
+
+            available_hours = [
+                "9:00",
+                "10:00",
+                "11:00",
+                "12:00",
+                "16:00",
+                "17:00",
+                "18:00",
+                "19:00",
+            ]
+            buttons = []
+            row = []
+
+            for h in available_hours:
+                hour_int = int(h.split(":")[0])
+                if is_today and hour_int <= now.hour:
+                    continue
+
+                row.append(InlineKeyboardButton(h, callback_data=f"time_{h}"))
+                if len(row) == 2:
+                    buttons.append(row)
+                    row = []
+
+            if row:
+                buttons.append(row)
+
+            buttons.append(
                 [
                     InlineKeyboardButton(
-                        "🔄 Cambiar Fecha", callback_data="action_reserve"
+                        "↻ Cambiar Fecha", callback_data="action_reserve"
                     ),
-                    InlineKeyboardButton("❌ Menú", callback_data="action_back_menu"),
-                ],
-            ]
-            await query.edit_message_text(
-                text=f"Fecha seleccionada: {result}\n⏰ Ahora, selecciona una hora:",
-                reply_markup=InlineKeyboardMarkup(teclado_horas),
+                    InlineKeyboardButton("⫶☰ Menú", callback_data="action_back_menu"),
+                ]
             )
+
+            text_hour = f"Fecha seleccionada: {result}\n⏰ Ahora, selecciona una hora:"
+            if is_today and not buttons[:-1]:
+                text_hour = f"❌ Lo siento, ya no quedan huecos disponibles para hoy ({result})."
+                reply_markup = InlineKeyboardMarkup(
+                    [
+                        [
+                            InlineKeyboardButton(
+                                "↻ Elegir otro día", callback_data="action_reserve"
+                            )
+                        ],
+                        [
+                            InlineKeyboardButton(
+                                "⫶☰ Menú Principal", callback_data="action_back_menu"
+                            )
+                        ],
+                    ]
+                )
+            else:
+                reply_markup = InlineKeyboardMarkup(buttons)
+
+            await query.edit_message_text(text=text_hour, reply_markup=reply_markup)
+
         else:
             await handle_action_back_menu(query)
 
         return
 
-    function = RUTAS_CALLBACKS.get(query.data)
+    function = CALLBACK_ROUTES.get(query.data)
     if function:
         await function(query)
         return
@@ -138,20 +235,24 @@ async def handle_action_reserve(query) -> None:
         query (CallbackQuery): El objeto del evento generado al pulsar el botón,
                                usado para editar el mensaje actual.
     """
-    actual_calendar = DetailedTelegramCalendar(min_date=date.today())
-    calendar, step = actual_calendar.build()
+    current_calendar = DetailedTelegramCalendar(min_date=date.today())
+    calendar, step = current_calendar.build()
 
-    teclado_dict = json.loads(calendar)
-    fila_navegacion = [
-        {"text": "🔄 Reiniciar", "callback_data": "action_reserve"},
-        {"text": "❌ Menú", "callback_data": "action_back_menu"},
+    keyboard_dict = json.loads(calendar)
+    navigation_row = [
+        {"text": "↻ Reiniciar", "callback_data": "action_reserve"},
+        {"text": "⫶☰ Menú", "callback_data": "action_back_menu"},
     ]
-    teclado_dict["inline_keyboard"].append(fila_navegacion)
-    calendar_modificado = json.dumps(teclado_dict)
+    keyboard_dict["inline_keyboard"].append(navigation_row)
+    modified_calendar = json.dumps(keyboard_dict)
 
-    await query.edit_message_text(
-        text=f"Selecciona una fecha: {LSTEP[step]}", reply_markup=calendar_modificado
-    )
+    try:
+        await query.edit_message_text(
+            text=f"Selecciona una fecha {CALENDAR_STEPS[step]}:",
+            reply_markup=modified_calendar,
+        )
+    except BadRequest:
+        pass
 
 
 async def handle_action_my_appointments(query) -> None:
@@ -236,18 +337,16 @@ async def handle_action_faq(query) -> None:
 
 
 async def handle_action_back_menu(query) -> None:
-    """Muestre el menu principal
+    """Muestra el menu principal
 
     Args:
        query (CallbackQuery): El objeto del evento generado al pulsar el botón,
                               usado para editar el mensaje actual.
     """
-    await query.edit_message_text(
-        text=TEXTO_BIENVENIDA, reply_markup=botones_principales()
-    )
+    await query.edit_message_text(text=WELCOME_TEXT, reply_markup=main_menu_keyboard())
 
 
-RUTAS_CALLBACKS = {
+CALLBACK_ROUTES = {
     "action_reserve": handle_action_reserve,
     "action_my_appointments": handle_action_my_appointments,
     "action_help": handle_action_menu_help,
