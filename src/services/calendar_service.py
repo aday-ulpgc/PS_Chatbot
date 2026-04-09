@@ -1,66 +1,107 @@
-"""Servicio para interactuar con Google Calendar."""
-
 import os
 from datetime import datetime, timedelta
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 
 SCOPES = ["https://www.googleapis.com/auth/calendar.events"]
+TIMEZONE = "Atlantic/Canary"
 
 
-def crear_reserva(usuario_id: str, fecha: str) -> str:
-    """
-    Se autentica en Google Calendar y crea un evento para la fecha indicada.
+class GoogleCalendarService:
+    """Servicio especializado en la interacción con la API de Google Calendar."""
 
-    Args:
-        usuario_id: El ID del usuario de Telegram.
-        fecha: Fecha seleccionada en formato 'YYYY-MM-DD'.
+    def __init__(self):
+        self.calendar_id = os.getenv("CALENDAR_ID")
+        self.service = self._authenticate()
 
-    Returns:
-        Mensaje de éxito o error para mostrar al usuario.
-    """
-    try:
-        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-        creds_path = os.path.join(base_dir, "env", "service_account.json")
+    def _authenticate(self):
+        """
+        Maneja la autenticación buscando las credenciales en la raíz del proyecto.
+        Estructura asumida: raíz/env/service_account.json
+        """
+        current_dir = os.path.dirname(os.path.abspath(__file__))
 
-        calendar_id = os.getenv("CALENDAR_ID")
-        if not calendar_id:
-            return "❌ Error interno: No se ha configurado el CALENDAR_ID."
+        project_root = os.path.dirname(os.path.dirname(current_dir))
+
+        creds_path = os.path.join(project_root, "env", "service_account.json")
 
         if not os.path.exists(creds_path):
-            return "❌ Error interno: Archivo de credenciales no encontrado."
+            raise FileNotFoundError(
+                f"No se encontró el archivo de credenciales en: {creds_path}"
+            )
 
-        creds = service_account.Credentials.from_service_account_file(
+        credentials = service_account.Credentials.from_service_account_file(
             creds_path, scopes=SCOPES
         )
-        service = build("calendar", "v3", credentials=creds)
+        return build("calendar", "v3", credentials=credentials)
 
-        fecha_obj = datetime.strptime(fecha, "%Y-%m-%d")
+    def is_slot_available(self, date_str: str, hour_str: str) -> bool:
+        """Verifica si el hueco horario está libre comparando con eventos existentes."""
+        time_min = f"{date_str}T00:00:00Z"
+        time_max = f"{date_str}T23:59:59Z"
 
-        start_time = fecha_obj.replace(hour=10, minute=0, second=0)
-        end_time = start_time + timedelta(hours=1)
-
-        event = {
-            "summary": f"Reserva de usuario {usuario_id}",
-            "description": "Reserva generada automáticamente por SaaS-Bot.",
-            "start": {
-                "dateTime": start_time.isoformat(),
-                "timeZone": "Europe/Madrid",
-            },
-            "end": {
-                "dateTime": end_time.isoformat(),
-                "timeZone": "Europe/Madrid",
-            },
-        }
-
-        event_result = (
-            service.events().insert(calendarId=calendar_id, body=event).execute()
+        events_result = (
+            self.service.events()
+            .list(
+                calendarId=self.calendar_id,
+                timeMin=time_min,
+                timeMax=time_max,
+                singleEvents=True,
+            )
+            .execute()
         )
 
-        evento_url = event_result.get("htmlLink", "")
+        events = events_result.get("items", [])
 
-        return f"✅ ¡Reserva confirmada para el {fecha} a las 10:00!\n📅 Puedes verla aquí: {evento_url}"
+        formatted_hour = hour_str.zfill(5)
 
+        for event in events:
+            start_time = event["start"].get("dateTime", "")
+            if f"T{formatted_hour}:00" in start_time:
+                return False
+        return True
+
+    def create_event(self, user_id: str, start_dt: datetime, end_dt: datetime):
+        """Inserta un nuevo evento en el calendario configurado."""
+        event_body = {
+            "summary": f"Reserva de {user_id}",
+            "description": "Reserva generada automáticamente por SaaS-Bot.",
+            "start": {"dateTime": start_dt.isoformat(), "timeZone": TIMEZONE},
+            "end": {"dateTime": end_dt.isoformat(), "timeZone": TIMEZONE},
+        }
+        return (
+            self.service.events()
+            .insert(calendarId=self.calendar_id, body=event_body)
+            .execute()
+        )
+
+
+def create_reservation(user_id: str, date: str, hour: str) -> str:
+    """
+    Función de fachada (Facade) que orquestra la reserva.
+    Mantiene los mensajes de retorno en español para el usuario del bot.
+    """
+    try:
+        calendar = GoogleCalendarService()
+
+        if not calendar.calendar_id:
+            return (
+                "❌ Error interno: No se ha configurado el CALENDAR_ID en el entorno."
+            )
+
+        if not calendar.is_slot_available(date, hour):
+            return f"❌ Lo siento, la cita de las {hour}h ya no está disponible."
+
+        start_time = datetime.strptime(f"{date} {hour}", "%Y-%m-%d %H:%M")
+        end_time = start_time + timedelta(hours=1)
+
+        calendar.create_event(user_id, start_time, end_time)
+
+        return f"✅ ¡Reserva confirmada para el {date} a las {hour}!\n"
+
+    except FileNotFoundError as e:
+        print(f"[CONFIG ERROR]: {e}")
+        return "❌ Error: No se pudo localizar el archivo de llaves de Google."
     except Exception as e:
-        print(f"Error creando reserva en Google Calendar: {e}")
-        return "❌ Lo siento, hubo un problema al intentar crear la reserva con Google."
+        print(f"[SYSTEM ERROR]: {e}")
+        return "❌ Lo siento, hubo un problema técnico al crear la reserva."

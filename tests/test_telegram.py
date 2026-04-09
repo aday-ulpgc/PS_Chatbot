@@ -25,7 +25,7 @@ async def test_start():
 
     reply = update.message.reply_text.call_args.kwargs
     assert (
-        "¡Hola! Soy tu asistente de reservas (SaaS-Bot del Grupo 06). ¿En qué te puedo ayudar hoy?"
+        "¡Hola! Soy tu asistente de reservas (SaaS-Bot del Grupo 06).\n¿En qué te puedo ayudar hoy?"
         in reply["text"]
     )
     assert "reply_markup" in reply
@@ -79,7 +79,7 @@ async def test_guardar_fecha_en_contexto():
 
         await menu_callback_handler(update, context)
 
-    assert context.user_data.get("fecha_seleccionada") == "2026-06-26"
+    assert context.user_data.get("selected_data") == "2026-06-26"
 
     query.edit_message_text.assert_called_once()
     argumentos_nombrados = query.edit_message_text.call_args.kwargs
