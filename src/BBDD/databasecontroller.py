@@ -92,6 +92,7 @@ class Usuario(Base):
     ELIMINADO  = Column(DateTime, nullable=True, default=None)
 
     contactos = relationship("Contacto", back_populates="usuario")
+    citas     = relationship("CitaInd", back_populates="usuario")
 
 
 class Contacto(Base):
@@ -104,20 +105,20 @@ class Contacto(Base):
     ELIMINADO   = Column(DateTime, nullable=True, default=None)
 
     usuario = relationship("Usuario", back_populates="contactos")
-    citas   = relationship("CitaInd", back_populates="contacto")
 
 
 class CitaInd(Base):
     __tablename__ = "CITAS_IND"
 
     ID_CITA     = Column(Integer, primary_key=True, autoincrement=True)
-    ID_CONTACTO = Column(Integer, ForeignKey("CONTACTOS.ID_CONTACTO"), nullable=False)
+    ID_USUARIO  = Column(Integer, ForeignKey("USUARIOS.ID_USUARIO"), nullable=False)
+    ID_CONTACTO = Column(Integer, nullable=True)
     DESCRIPCION = Column("DESCRIPCIÓN", String(500), nullable=False, default="Cita reservada")
     FECHA       = Column(DateTime, nullable=False)
     PRIORIDAD   = Column(Integer, nullable=True, default=1)
     ELIMINADO   = Column(DateTime, nullable=True, default=None)
 
-    contacto = relationship("Contacto", back_populates="citas")
+    usuario = relationship("Usuario", back_populates="citas")
 
 
 # ── Gestión de sesión ──────────────────────────────────────────────────────────
@@ -281,17 +282,16 @@ def eliminar_contacto(session: Session, id_contacto: int) -> bool:
 
 def crear_cita(
     session: Session,
-    id_contacto: int,
+    id_usuario: int,
     fecha: datetime,
+    id_contacto: int | None = None,
     descripcion: str | None = None,
     prioridad: int = 1,
 ) -> CitaInd:
-    contacto = session.get(Contacto, id_contacto)
-    if contacto is None or contacto.ELIMINADO is not None:
-        raise ValueError(f"Contacto {id_contacto} no encontrado")
-    usuario = _get_usuario_activo(session, contacto.ID_USUARIO)
+    usuario = _get_usuario_activo(session, id_usuario)
     _verificar_acceso(usuario, TIPOS_INDIVIDUALES)
     cita = CitaInd(
+        ID_USUARIO=id_usuario,
         ID_CONTACTO=id_contacto,
         FECHA=fecha,
         DESCRIPCION=descripcion,
@@ -307,8 +307,7 @@ def obtener_citas_por_usuario(session: Session, id_usuario: int) -> list[CitaInd
     _verificar_acceso(usuario, TIPOS_INDIVIDUALES)
     return (
         session.query(CitaInd)
-        .join(Contacto, CitaInd.ID_CONTACTO == Contacto.ID_CONTACTO)
-        .filter(Contacto.ID_USUARIO == id_usuario, CitaInd.ELIMINADO == None)
+        .filter(CitaInd.ID_USUARIO == id_usuario, CitaInd.ELIMINADO == None)
         .order_by(CitaInd.FECHA)
         .all()
     )
@@ -326,8 +325,7 @@ def obtener_citas_eliminadas_por_usuario(session: Session, id_usuario: int) -> l
     _verificar_acceso(usuario, TIPOS_INDIVIDUALES)
     return (
         session.query(CitaInd)
-        .join(Contacto, CitaInd.ID_CONTACTO == Contacto.ID_CONTACTO)
-        .filter(Contacto.ID_USUARIO == id_usuario, CitaInd.ELIMINADO != None)
+        .filter(CitaInd.ID_USUARIO == id_usuario, CitaInd.ELIMINADO != None)
         .order_by(CitaInd.FECHA)
         .all()
     )

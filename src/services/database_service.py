@@ -107,9 +107,10 @@ def guardar_cita_en_db(telegram_id: int, fecha: datetime, hora: str, descripcion
             # 4. Crear cita
             crear_cita(
                 session,
+                id_usuario=usuario.ID_USUARIO,
                 id_contacto=contacto.ID_CONTACTO,
                 fecha=cita_fecha,
-                descripcion=descripcion or f"Cita reservada desde Telegram",
+                descripcion=descripcion or "Cita reservada desde Telegram",
                 prioridad=1,
             )
             session.commit()

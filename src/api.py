@@ -90,7 +90,8 @@ class ContactoOut(BaseModel):
 
 
 class CitaCreate(BaseModel):
-    ID_CONTACTO: int
+    ID_USUARIO: int
+    ID_CONTACTO: Optional[int] = None
     FECHA: datetime
     DESCRIPCION: Optional[str] = None
     PRIORIDAD: int = 1
@@ -106,7 +107,8 @@ class CitaOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     ID_CITA: int
-    ID_CONTACTO: int
+    ID_USUARIO: int
+    ID_CONTACTO: Optional[int]
     DESCRIPCION: Optional[str]
     FECHA: datetime
     PRIORIDAD: Optional[int]
@@ -200,9 +202,9 @@ def delete_contacto(id_contacto: int, db: Session = Depends(get_db)):
 
 @app.post("/citas", response_model=CitaOut, status_code=201, tags=["Citas"])
 def post_cita(body: CitaCreate, db: Session = Depends(get_db)):
-    """Crea una nueva cita con un contacto del usuario."""
+    """Crea una nueva cita. ID_CONTACTO es opcional."""
     try:
-        return crear_cita(db, body.ID_CONTACTO, body.FECHA, body.DESCRIPCION, body.PRIORIDAD)
+        return crear_cita(db, body.ID_USUARIO, body.FECHA, body.ID_CONTACTO, body.DESCRIPCION, body.PRIORIDAD)
     except (ValueError, PermissionError) as e:
         raise HTTPException(status_code=400, detail=str(e))
 
