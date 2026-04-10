@@ -18,5 +18,5 @@ sqlalchemy==2.0.40
 pymysql==1.1.1
 cryptography==44.0.2
 fastapi==0.115.12
-uvicorn[standard]==0.34.0
+uvicorn[standard]>=0.34.0
 bcrypt==5.0.0

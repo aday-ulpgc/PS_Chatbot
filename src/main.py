@@ -6,14 +6,17 @@ de Telegram esté presente y arranca el bot en modo polling.
 
 import os
 import sys
+import threading
 
 # Aseguramos que la raíz del proyecto esté en el path para que los imports desde 'src.' funcionen correctamente
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+import uvicorn
 from dotenv import load_dotenv
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler
 
 from src.bot.telegram_handler import start_command, menu_callback_handler
+from src.api import app as fastapi_app
 
 
 def main() -> None:
@@ -41,6 +44,15 @@ def main() -> None:
 
     app.add_handler(CommandHandler("start", start_command))
     app.add_handler(CallbackQueryHandler(menu_callback_handler))
+
+    api_thread = threading.Thread(
+        target=uvicorn.run,
+        kwargs={"app": fastapi_app, "host": "0.0.0.0", "port": 8000},
+        daemon=True,
+    )
+    api_thread.start()
+    print("API iniciada en http://localhost:8000/docs")
+
     print("Bot iniciado. Esperando mensajes...")
     app.run_polling()
 
