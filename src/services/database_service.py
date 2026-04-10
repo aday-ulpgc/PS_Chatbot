@@ -75,19 +75,23 @@ def guardar_cita_en_db(telegram_id: int, fecha: datetime, hora: str, descripcion
                 print(f"❌ Usuario no encontrado: {email}")
                 return False
             
-            # 2. Obtener o crear contacto
+            # 2. Obtener o crear contacto genérico de reserva
+            # Los contactos representan personas/servicios con los que se agenda,
+            # no al propio usuario del bot. Se usa un contacto genérico "Reserva general"
+            # por usuario para las citas creadas directamente desde el bot.
+            NOMBRE_CONTACTO_BOT = "Reserva general"
             contacto = session.query(Contacto).filter(
                 Contacto.ID_USUARIO == usuario.ID_USUARIO,
-                Contacto.NOMBRE == usuario.NOMBRE,
+                Contacto.NOMBRE == NOMBRE_CONTACTO_BOT,
                 Contacto.ELIMINADO == None,
             ).first()
-            
+
             if not contacto:
                 contacto = crear_contacto(
                     session,
                     id_usuario=usuario.ID_USUARIO,
-                    nombre=usuario.NOMBRE,
-                    email=usuario.EMAIL,
+                    nombre=NOMBRE_CONTACTO_BOT,
+                    email=None,
                 )
                 session.flush()
             

@@ -30,9 +30,11 @@ from BBDD.databasecontroller import (
     get_db,
     init_db,
     obtener_cita,
+    obtener_citas_eliminadas_por_usuario,
     obtener_citas_por_usuario,
     obtener_contacto,
     obtener_contactos,
+    obtener_contactos_eliminados,
     obtener_usuario,
 )
 
@@ -166,6 +168,19 @@ def get_contactos(id_usuario: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail=str(e))
 
 
+@app.get(
+    "/usuarios/{id_usuario}/contactos/eliminados",
+    response_model=list[ContactoOut],
+    tags=["Contactos"],
+)
+def get_contactos_eliminados(id_usuario: int, db: Session = Depends(get_db)):
+    """Lista los contactos eliminados (soft-delete) del usuario."""
+    try:
+        return obtener_contactos_eliminados(db, id_usuario)
+    except (ValueError, PermissionError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 @app.get("/contactos/{id_contacto}", response_model=ContactoOut, tags=["Contactos"])
 def get_contacto(id_contacto: int, db: Session = Depends(get_db)):
     contacto = obtener_contacto(db, id_contacto)
@@ -197,6 +212,15 @@ def get_citas_usuario(id_usuario: int, db: Session = Depends(get_db)):
     """Lista todas las citas activas del usuario, ordenadas por fecha."""
     try:
         return obtener_citas_por_usuario(db, id_usuario)
+    except (ValueError, PermissionError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/usuarios/{id_usuario}/citas/eliminadas", response_model=list[CitaOut], tags=["Citas"])
+def get_citas_eliminadas_usuario(id_usuario: int, db: Session = Depends(get_db)):
+    """Lista todas las citas eliminadas (soft-delete) del usuario, ordenadas por fecha."""
+    try:
+        return obtener_citas_eliminadas_por_usuario(db, id_usuario)
     except (ValueError, PermissionError) as e:
         raise HTTPException(status_code=400, detail=str(e))
 

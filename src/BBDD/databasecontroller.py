@@ -212,7 +212,10 @@ def crear_usuario(
 
 
 def obtener_usuario(session: Session, id_usuario: int) -> Usuario | None:
-    return session.get(Usuario, id_usuario)
+    usuario = session.get(Usuario, id_usuario)
+    if usuario is None or usuario.ELIMINADO is not None:
+        return None
+    return usuario
 
 
 def eliminar_usuario(session: Session, id_usuario: int) -> bool:
@@ -254,6 +257,16 @@ def obtener_contacto(session: Session, id_contacto: int) -> Contacto | None:
     if contacto is None or contacto.ELIMINADO is not None:
         return None
     return contacto
+
+
+def obtener_contactos_eliminados(session: Session, id_usuario: int) -> list[Contacto]:
+    usuario = _get_usuario_activo(session, id_usuario)
+    _verificar_acceso(usuario, TIPOS_INDIVIDUALES)
+    return (
+        session.query(Contacto)
+        .filter(Contacto.ID_USUARIO == id_usuario, Contacto.ELIMINADO != None)
+        .all()
+    )
 
 
 def eliminar_contacto(session: Session, id_contacto: int) -> bool:
@@ -306,6 +319,18 @@ def obtener_cita(session: Session, id_cita: int) -> CitaInd | None:
     if cita is None or cita.ELIMINADO is not None:
         return None
     return cita
+
+
+def obtener_citas_eliminadas_por_usuario(session: Session, id_usuario: int) -> list[CitaInd]:
+    usuario = _get_usuario_activo(session, id_usuario)
+    _verificar_acceso(usuario, TIPOS_INDIVIDUALES)
+    return (
+        session.query(CitaInd)
+        .join(Contacto, CitaInd.ID_CONTACTO == Contacto.ID_CONTACTO)
+        .filter(Contacto.ID_USUARIO == id_usuario, CitaInd.ELIMINADO != None)
+        .order_by(CitaInd.FECHA)
+        .all()
+    )
 
 
 def actualizar_cita(
