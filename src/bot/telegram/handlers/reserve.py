@@ -12,6 +12,7 @@ from src.bot.telegram.constants import CALENDAR_STEPS, MODO_TEXTO, MODO_AUDIO
 from src.bot.telegram.keyboards import main_menu_keyboard
 from src.bot.telegram.handlers.commands import handle_action_back_menu
 
+
 async def enviar_recordatorio_cita(context: ContextTypes.DEFAULT_TYPE) -> None:
     """Esta función es la que el bot ejecuta cuando pasan los 2 segundos."""
     job = context.job
@@ -22,7 +23,10 @@ async def enviar_recordatorio_cita(context: ContextTypes.DEFAULT_TYPE) -> None:
     except Exception as e:
         print(f"❌ Error al enviar el mensaje: {e}")
 
-async def handle_calendar_and_time(query, context: ContextTypes.DEFAULT_TYPE, update: Update) -> bool:
+
+async def handle_calendar_and_time(
+    query, context: ContextTypes.DEFAULT_TYPE, update: Update
+) -> bool:
     """Maneja la selección de fecha y hora del calendario."""
     if query.data.startswith("time_"):
         selected_time = query.data.split("_")[1]
@@ -47,10 +51,20 @@ async def handle_calendar_and_time(query, context: ContextTypes.DEFAULT_TYPE, up
         )
 
         if response_message.startswith("❌"):
-            error_keyboard = InlineKeyboardMarkup([
-                    [InlineKeyboardButton("↻ Elegir otro día", callback_data="action_reserve")],
-                    [InlineKeyboardButton("⫶☰ Menú Principal", callback_data="action_back_menu")],
-                ])
+            error_keyboard = InlineKeyboardMarkup(
+                [
+                    [
+                        InlineKeyboardButton(
+                            "↻ Elegir otro día", callback_data="action_reserve"
+                        )
+                    ],
+                    [
+                        InlineKeyboardButton(
+                            "⫶☰ Menú Principal", callback_data="action_back_menu"
+                        )
+                    ],
+                ]
+            )
             await query.edit_message_text(
                 text=response_message, reply_markup=error_keyboard
             )
@@ -59,28 +73,37 @@ async def handle_calendar_and_time(query, context: ContextTypes.DEFAULT_TYPE, up
             user_mode = context.user_data.get("pref_mode", MODO_TEXTO)
 
             context.user_data["last_reserva_text"] = response_message
-            
+
             if user_mode == MODO_AUDIO:
                 await query.edit_message_text("🎙️ Generando audio de confirmación...")
 
                 audio_path = await VoiceService.text_to_speech(response_message)
 
-                audio_keyboard = InlineKeyboardMarkup([
-                    [InlineKeyboardButton("📖 Ver en texto", callback_data="show_text_reserva")],
-                    [InlineKeyboardButton("⫶☰ Menú Principal", callback_data="action_back_menu")],
-                ])
+                audio_keyboard = InlineKeyboardMarkup(
+                    [
+                        [
+                            InlineKeyboardButton(
+                                "📖 Ver en texto", callback_data="show_text_reserva"
+                            )
+                        ],
+                        [
+                            InlineKeyboardButton(
+                                "⫶☰ Menú Principal", callback_data="action_back_menu"
+                            )
+                        ],
+                    ]
+                )
 
                 with open(audio_path, "rb") as audio_file:
                     await context.bot.send_voice(
                         chat_id=update.effective_chat.id,
                         voice=audio_file,
-                        reply_markup=audio_keyboard
+                        reply_markup=audio_keyboard,
                     )
                 await query.delete_message()
             else:
                 await query.edit_message_text(
-                    text=response_message,
-                    reply_markup=main_menu_keyboard()
+                    text=response_message, reply_markup=main_menu_keyboard()
                 )
 
             context.job_queue.run_once(
@@ -98,17 +121,26 @@ async def handle_calendar_and_time(query, context: ContextTypes.DEFAULT_TYPE, up
 
         if not result and key:
             keyboard_dict = json.loads(key)
-            keyboard_buttons = [[InlineKeyboardButton(text=btn["text"], callback_data=btn["callback_data"]) 
-                                 for btn in row] for row in keyboard_dict.get("inline_keyboard", [])]
-            keyboard_buttons.append([
-                InlineKeyboardButton("↻ Reiniciar", callback_data="action_reserve"),
-                InlineKeyboardButton("⫶☰ Menú", callback_data="action_back_menu"),
-            ])
+            keyboard_buttons = [
+                [
+                    InlineKeyboardButton(
+                        text=btn["text"], callback_data=btn["callback_data"]
+                    )
+                    for btn in row
+                ]
+                for row in keyboard_dict.get("inline_keyboard", [])
+            ]
+            keyboard_buttons.append(
+                [
+                    InlineKeyboardButton("↻ Reiniciar", callback_data="action_reserve"),
+                    InlineKeyboardButton("⫶☰ Menú", callback_data="action_back_menu"),
+                ]
+            )
 
             try:
                 await query.edit_message_text(
                     text=f"Selecciona una fecha {CALENDAR_STEPS[step]}:",
-                    reply_markup=InlineKeyboardMarkup(keyboard_buttons)
+                    reply_markup=InlineKeyboardMarkup(keyboard_buttons),
                 )
             except BadRequest:
                 pass
@@ -157,10 +189,20 @@ async def handle_calendar_and_time(query, context: ContextTypes.DEFAULT_TYPE, up
             text_hour = f"Fecha seleccionada: {result}\n⏰ Ahora, selecciona una hora:"
             if is_today and not buttons[:-1]:
                 text_hour = f"❌ Lo siento, ya no quedan huecos disponibles para hoy ({result})."
-                reply_markup = InlineKeyboardMarkup([
-                        [InlineKeyboardButton("↻ Elegir otro día", callback_data="action_reserve")],
-                        [InlineKeyboardButton("⫶☰ Menú Principal", callback_data="action_back_menu")],
-                    ])
+                reply_markup = InlineKeyboardMarkup(
+                    [
+                        [
+                            InlineKeyboardButton(
+                                "↻ Elegir otro día", callback_data="action_reserve"
+                            )
+                        ],
+                        [
+                            InlineKeyboardButton(
+                                "⫶☰ Menú Principal", callback_data="action_back_menu"
+                            )
+                        ],
+                    ]
+                )
             else:
                 reply_markup = InlineKeyboardMarkup(buttons)
 
@@ -169,8 +211,9 @@ async def handle_calendar_and_time(query, context: ContextTypes.DEFAULT_TYPE, up
         else:
             await handle_action_back_menu(query, context)
         return True
-    
+
     return False
+
 
 async def handle_action_reserve(query, context: ContextTypes.DEFAULT_TYPE) -> None:
     current_calendar = DetailedTelegramCalendar(min_date=date.today())
@@ -184,16 +227,26 @@ async def handle_action_reserve(query, context: ContextTypes.DEFAULT_TYPE) -> No
     keyboard_dict["inline_keyboard"].append(navigation_row)
 
     try:
-        keyboard_buttons = [[InlineKeyboardButton(text=btn["text"], callback_data=btn["callback_data"]) 
-                             for btn in row] for row in keyboard_dict.get("inline_keyboard", [])]
+        keyboard_buttons = [
+            [
+                InlineKeyboardButton(
+                    text=btn["text"], callback_data=btn["callback_data"]
+                )
+                for btn in row
+            ]
+            for row in keyboard_dict.get("inline_keyboard", [])
+        ]
         await query.edit_message_text(
             text=f"Selecciona una fecha {CALENDAR_STEPS[step]}:",
-            reply_markup=InlineKeyboardMarkup(keyboard_buttons)
+            reply_markup=InlineKeyboardMarkup(keyboard_buttons),
         )
     except BadRequest:
         pass
 
-async def handle_action_my_appointments(query, context: ContextTypes.DEFAULT_TYPE) -> None:
+
+async def handle_action_my_appointments(
+    query, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     questions = (
         " *Mis citas*\n\n"
         "1️⃣ *20/03/2023* Fisio Juan\n"
@@ -204,4 +257,6 @@ async def handle_action_my_appointments(query, context: ContextTypes.DEFAULT_TYP
 
     keyboard = [[InlineKeyboardButton("Volver", callback_data="action_back_menu")]]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    await query.edit_message_text(text=questions, reply_markup=reply_markup, parse_mode="Markdown")
+    await query.edit_message_text(
+        text=questions, reply_markup=reply_markup, parse_mode="Markdown"
+    )

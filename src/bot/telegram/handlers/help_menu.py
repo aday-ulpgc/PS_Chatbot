@@ -1,6 +1,7 @@
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
+
 async def handle_action_menu_help(query, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Reemplaza el menú principal por el submenú de opciones de ayuda.
 
@@ -9,10 +10,27 @@ async def handle_action_menu_help(query, context: ContextTypes.DEFAULT_TYPE) -> 
                                usado para editar el mensaje actual.
     """
     keyboard = [
-        [InlineKeyboardButton("❓ Preguntas frecuentes", callback_data="action_help_faq")],
-        [InlineKeyboardButton("🛠️ Soporte técnico", url="https://forms.gle/Fu9HuBVJA747nW9E8")],
-        [InlineKeyboardButton("📖 Guía de uso", url="https://docs.google.com/document/d/16ryO0SMthEtiy3AFTEKQJK7v4IODzlgunb8nVP7bI1Q/edit?usp=sharing")],
-        [InlineKeyboardButton("🔙 Volver al menú principal", callback_data="action_back_menu")],
+        [
+            InlineKeyboardButton(
+                "❓ Preguntas frecuentes", callback_data="action_help_faq"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                "🛠️ Soporte técnico", url="https://forms.gle/Fu9HuBVJA747nW9E8"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                "📖 Guía de uso",
+                url="https://docs.google.com/document/d/16ryO0SMthEtiy3AFTEKQJK7v4IODzlgunb8nVP7bI1Q/edit?usp=sharing",
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                "🔙 Volver al menú principal", callback_data="action_back_menu"
+            )
+        ],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 

@@ -2,7 +2,6 @@
 """Script de prueba para verificar funcionalidad de DELETE y GET citas eliminadas."""
 
 import requests
-import json
 from datetime import datetime, timedelta
 
 # URL base de la API
@@ -18,7 +17,7 @@ usuario_data = {
     "TIPO": "I",
     "NOMBRE": "Usuario Prueba API",
     "EMAIL": f"prueba_api_{datetime.now().timestamp()}@test.com",
-    "CONTRASENA": "password123"
+    "CONTRASENA": "password123",
 }
 
 response = requests.post(f"{BASE_URL}/usuarios", json=usuario_data)
@@ -32,12 +31,11 @@ else:
 
 # ── PASO 2: Crear un contacto ──────────────────────────────────────────────
 print("\n📝 PASO 2: Crear contacto...")
-contacto_data = {
-    "NOMBRE": "Dr. Test",
-    "EMAIL": "dr.test@clinic.com"
-}
+contacto_data = {"NOMBRE": "Dr. Test", "EMAIL": "dr.test@clinic.com"}
 
-response = requests.post(f"{BASE_URL}/usuarios/{id_usuario}/contactos", json=contacto_data)
+response = requests.post(
+    f"{BASE_URL}/usuarios/{id_usuario}/contactos", json=contacto_data
+)
 if response.status_code == 201:
     contacto = response.json()
     id_contacto = contacto["ID_CONTACTO"]
@@ -54,7 +52,7 @@ cita_data = {
     "ID_CONTACTO": id_contacto,
     "FECHA": fecha_cita.isoformat(),
     "DESCRIPCION": "Cita de prueba para DELETE",
-    "PRIORIDAD": 1
+    "PRIORIDAD": 1,
 }
 
 response = requests.post(f"{BASE_URL}/citas", json=cita_data)
@@ -86,7 +84,7 @@ else:
 print("\n🗑️  PASO 5: ELIMINAR la cita (Soft Delete)...")
 response = requests.delete(f"{BASE_URL}/citas/{id_cita}")
 if response.status_code == 204:
-    print(f"✅ Cita eliminada (status 204 No Content)")
+    print("✅ Cita eliminada (status 204 No Content)")
 else:
     print(f"❌ Error al eliminar cita: {response.status_code}")
 
@@ -98,9 +96,9 @@ if response.status_code == 200:
     print(f"✅ Citas activas obtenidas: {len(citas_activas)}")
     cita_encontrada = any(c["ID_CITA"] == id_cita for c in citas_activas)
     if cita_encontrada:
-        print(f"❌ ERROR: La cita eliminada sigue en activas!")
+        print("❌ ERROR: La cita eliminada sigue en activas!")
     else:
-        print(f"✅ CORRECTO: La cita NO aparece en citas activas")
+        print("✅ CORRECTO: La cita NO aparece en citas activas")
 else:
     print(f"❌ Error al obtener citas: {response.text}")
 
@@ -110,20 +108,22 @@ response = requests.get(f"{BASE_URL}/usuarios/{id_usuario}/citas/eliminadas")
 if response.status_code == 200:
     citas_eliminadas = response.json()
     print(f"✅ Citas eliminadas obtenidas: {len(citas_eliminadas)}")
-    
+
     cita_encontrada = None
     for c in citas_eliminadas:
         if c["ID_CITA"] == id_cita:
             cita_encontrada = c
             break
-    
+
     if cita_encontrada:
-        print(f"✅ CORRECTO: Cita eliminada encontrada!")
+        print("✅ CORRECTO: Cita eliminada encontrada!")
         print(f"   - ID_CITA: {cita_encontrada['ID_CITA']}")
         print(f"   - Descripción: {cita_encontrada['DESCRIPCION']}")
-        print(f"   - ELIMINADO: {cita_encontrada['ELIMINADO']} (tiene fecha = eliminada)")
+        print(
+            f"   - ELIMINADO: {cita_encontrada['ELIMINADO']} (tiene fecha = eliminada)"
+        )
     else:
-        print(f"❌ ERROR: La cita eliminada NO aparece en citas eliminadas!")
+        print("❌ ERROR: La cita eliminada NO aparece en citas eliminadas!")
 else:
     print(f"❌ Error al obtener citas eliminadas: {response.text}")
 
@@ -134,6 +134,10 @@ print("=" * 80)
 # ── Mostrar queries de verificación en DBeaver ─────────────────────────────
 print("\n📊 QUERIES PARA VERIFICAR EN DBEAVER:")
 print("\n1️⃣  Ver la cita deleted (ELIMINADO tiene fecha):")
-print(f"   SELECT ID_CITA, DESCRIPCION, ELIMINADO FROM CITAS_IND WHERE ID_CITA = {id_cita};")
+print(
+    f"   SELECT ID_CITA, DESCRIPCION, ELIMINADO FROM CITAS_IND WHERE ID_CITA = {id_cita};"
+)
 print("\n2️⃣  Ver todas las citas del usuario (incluyendo eliminadas):")
-print(f"   SELECT ID_CITA, DESCRIPCION, ELIMINADO FROM CITAS_IND WHERE ID_USUARIO = {id_usuario};")
+print(
+    f"   SELECT ID_CITA, DESCRIPCION, ELIMINADO FROM CITAS_IND WHERE ID_USUARIO = {id_usuario};"
+)

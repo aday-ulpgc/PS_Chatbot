@@ -1,6 +1,7 @@
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from src.bot.telegram.constants import MODO_TEXTO, MODO_AUDIO
 
+
 def main_menu_keyboard() -> InlineKeyboardMarkup:
     """Devuelve los botones del menú principal"""
     keyboard = [
@@ -11,14 +12,15 @@ def main_menu_keyboard() -> InlineKeyboardMarkup:
     ]
     return InlineKeyboardMarkup(keyboard)
 
+
 def settings_menu_keyboard(current_mode: str) -> InlineKeyboardMarkup:
     """Devuelve los botones del menú de configuración"""
     label_texto = f"{'✅ ' if current_mode == MODO_TEXTO else ''}Modo Texto 📝"
     label_audio = f"{'✅ ' if current_mode == MODO_AUDIO else ''}Modo Audio 🎙️"
-    
+
     keyboard = [
         [InlineKeyboardButton(label_texto, callback_data="set_mode_texto")],
         [InlineKeyboardButton(label_audio, callback_data="set_mode_audio")],
-        [InlineKeyboardButton("🔙 Volver", callback_data="action_back_menu")]
+        [InlineKeyboardButton("🔙 Volver", callback_data="action_back_menu")],
     ]
     return InlineKeyboardMarkup(keyboard)

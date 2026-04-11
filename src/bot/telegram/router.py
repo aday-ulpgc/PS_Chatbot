@@ -1,9 +1,21 @@
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from src.bot.telegram.handlers.reserve import handle_action_reserve, handle_action_my_appointments, handle_calendar_and_time
-from src.bot.telegram.handlers.settings import handle_action_settings, handle_set_mode_texto, handle_set_mode_audio, handle_show_text_reserva
-from src.bot.telegram.handlers.help_menu import handle_action_menu_help, handle_action_faq
+from src.bot.telegram.handlers.reserve import (
+    handle_action_reserve,
+    handle_action_my_appointments,
+    handle_calendar_and_time,
+)
+from src.bot.telegram.handlers.settings import (
+    handle_action_settings,
+    handle_set_mode_texto,
+    handle_set_mode_audio,
+    handle_show_text_reserva,
+)
+from src.bot.telegram.handlers.help_menu import (
+    handle_action_menu_help,
+    handle_action_faq,
+)
 from src.bot.telegram.handlers.commands import handle_action_back_menu
 
 CALLBACK_ROUTES = {
@@ -18,7 +30,10 @@ CALLBACK_ROUTES = {
     "action_back_menu": handle_action_back_menu,
 }
 
-async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+
+async def menu_callback_handler(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """Procesa los eventos de los botones del menú interactivo."""
     query = update.callback_query
     if query is None:
