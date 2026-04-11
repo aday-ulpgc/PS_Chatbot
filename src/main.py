@@ -15,9 +15,9 @@ import uvicorn
 from dotenv import load_dotenv
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler
 
-from src.bot.telegram_handler import start_command, menu_callback_handler
+from src.bot.telegram.handlers.commands import start_command
+from src.bot.telegram.router import menu_callback_handler
 from src.api import app as fastapi_app
-
 
 def main() -> None:
     """Inicializa y arranca el bot de Telegram.
