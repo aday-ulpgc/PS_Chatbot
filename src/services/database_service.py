@@ -3,7 +3,7 @@
 import sys
 import os
 from datetime import datetime
-from BBDD.databasecontroller import (
+from src.BBDD.databasecontroller import (
     get_session,
     Usuario,
     Contacto,

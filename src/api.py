@@ -19,7 +19,7 @@ from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
-from BBDD.databasecontroller import (
+from src.BBDD.databasecontroller import (
     actualizar_cita,
     crear_cita,
     crear_contacto,
