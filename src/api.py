@@ -19,7 +19,7 @@ from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
-from BBDD.databasecontroller import (
+from src.BBDD.databasecontroller import (
     actualizar_cita,
     crear_cita,
     crear_contacto,
@@ -41,6 +41,7 @@ from BBDD.databasecontroller import (
 
 # ── Ciclo de vida ──────────────────────────────────────────────────────────────
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator:
     init_db()
@@ -56,6 +57,7 @@ app = FastAPI(
 
 
 # ── Schemas Pydantic ───────────────────────────────────────────────────────────
+
 
 class UsuarioCreate(BaseModel):
     TIPO: str = "I"
@@ -117,6 +119,7 @@ class CitaOut(BaseModel):
 
 # ── Endpoints: USUARIOS ────────────────────────────────────────────────────────
 
+
 @app.post("/usuarios", response_model=UsuarioOut, status_code=201, tags=["Usuarios"])
 def post_usuario(body: UsuarioCreate, db: Session = Depends(get_db)):
     """Registra un nuevo usuario. La contraseña se almacena con hash bcrypt."""
@@ -138,10 +141,13 @@ def get_usuario(id_usuario: int, db: Session = Depends(get_db)):
 def delete_usuario(id_usuario: int, db: Session = Depends(get_db)):
     """Soft delete: registra la fecha de baja en ELIMINADO."""
     if not eliminar_usuario(db, id_usuario):
-        raise HTTPException(status_code=404, detail="Usuario no encontrado o ya eliminado")
+        raise HTTPException(
+            status_code=404, detail="Usuario no encontrado o ya eliminado"
+        )
 
 
 # ── Endpoints: CONTACTOS ───────────────────────────────────────────────────────
+
 
 @app.post(
     "/usuarios/{id_usuario}/contactos",
@@ -195,16 +201,26 @@ def get_contacto(id_contacto: int, db: Session = Depends(get_db)):
 def delete_contacto(id_contacto: int, db: Session = Depends(get_db)):
     """Soft delete: registra la fecha de baja en ELIMINADO."""
     if not eliminar_contacto(db, id_contacto):
-        raise HTTPException(status_code=404, detail="Contacto no encontrado o ya eliminado")
+        raise HTTPException(
+            status_code=404, detail="Contacto no encontrado o ya eliminado"
+        )
 
 
 # ── Endpoints: CITAS ───────────────────────────────────────────────────────────
+
 
 @app.post("/citas", response_model=CitaOut, status_code=201, tags=["Citas"])
 def post_cita(body: CitaCreate, db: Session = Depends(get_db)):
     """Crea una nueva cita. ID_CONTACTO es opcional."""
     try:
-        return crear_cita(db, body.ID_USUARIO, body.FECHA, body.ID_CONTACTO, body.DESCRIPCION, body.PRIORIDAD)
+        return crear_cita(
+            db,
+            body.ID_USUARIO,
+            body.FECHA,
+            body.ID_CONTACTO,
+            body.DESCRIPCION,
+            body.PRIORIDAD,
+        )
     except (ValueError, PermissionError) as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -218,7 +234,11 @@ def get_citas_usuario(id_usuario: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@app.get("/usuarios/{id_usuario}/citas/eliminadas", response_model=list[CitaOut], tags=["Citas"])
+@app.get(
+    "/usuarios/{id_usuario}/citas/eliminadas",
+    response_model=list[CitaOut],
+    tags=["Citas"],
+)
 def get_citas_eliminadas_usuario(id_usuario: int, db: Session = Depends(get_db)):
     """Lista todas las citas eliminadas (soft-delete) del usuario, ordenadas por fecha."""
     try:

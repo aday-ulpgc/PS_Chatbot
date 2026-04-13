@@ -20,7 +20,15 @@ from typing import Generator
 
 from dotenv import load_dotenv
 import bcrypt
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, create_engine, text
+from sqlalchemy import (
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    create_engine,
+    text,
+)
 from sqlalchemy.orm import DeclarativeBase, Session, relationship
 
 # ── Configuración ──────────────────────────────────────────────────────────────
@@ -61,14 +69,17 @@ def hash_password(password: str) -> str:
     """Hash a password using bcrypt."""
     if len(password) > 72:
         password = password[:72]
-    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a password against its hash."""
     if len(plain_password) > 72:
         plain_password = plain_password[:72]
-    return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
+    return bcrypt.checkpw(
+        plain_password.encode("utf-8"), hashed_password.encode("utf-8")
+    )
+
 
 # ── Control de acceso por tipo ─────────────────────────────────────────────────
 # Añadir aquí nuevos tipos de usuario que deban acceder a contactos/citas.
@@ -76,6 +87,7 @@ TIPOS_INDIVIDUALES: list[str] = ["I"]
 
 
 # ── Modelos ORM ────────────────────────────────────────────────────────────────
+
 
 class Base(DeclarativeBase):
     pass
@@ -85,24 +97,24 @@ class Usuario(Base):
     __tablename__ = "USUARIOS"
 
     ID_USUARIO = Column(Integer, primary_key=True, autoincrement=True)
-    TIPO       = Column(String(10), nullable=False, default="I")
-    NOMBRE     = Column(String(100), nullable=False)
-    EMAIL      = Column(String(200), nullable=False, unique=True)
+    TIPO = Column(String(10), nullable=False, default="I")
+    NOMBRE = Column(String(100), nullable=False)
+    EMAIL = Column(String(200), nullable=False, unique=True)
     CONTRASENA = Column("CONTRASEÑA", String(255), nullable=False)
-    ELIMINADO  = Column(DateTime, nullable=True, default=None)
+    ELIMINADO = Column(DateTime, nullable=True, default=None)
 
     contactos = relationship("Contacto", back_populates="usuario")
-    citas     = relationship("CitaInd", back_populates="usuario")
+    citas = relationship("CitaInd", back_populates="usuario")
 
 
 class Contacto(Base):
     __tablename__ = "CONTACTOS"
 
     ID_CONTACTO = Column(Integer, primary_key=True, autoincrement=True)
-    ID_USUARIO  = Column(Integer, ForeignKey("USUARIOS.ID_USUARIO"), nullable=True)
-    NOMBRE      = Column(String(100), nullable=False)
-    EMAIL       = Column(String(200), nullable=True)
-    ELIMINADO   = Column(DateTime, nullable=True, default=None)
+    ID_USUARIO = Column(Integer, ForeignKey("USUARIOS.ID_USUARIO"), nullable=True)
+    NOMBRE = Column(String(100), nullable=False)
+    EMAIL = Column(String(200), nullable=True)
+    ELIMINADO = Column(DateTime, nullable=True, default=None)
 
     usuario = relationship("Usuario", back_populates="contactos")
 
@@ -110,18 +122,21 @@ class Contacto(Base):
 class CitaInd(Base):
     __tablename__ = "CITAS_IND"
 
-    ID_CITA     = Column(Integer, primary_key=True, autoincrement=True)
-    ID_USUARIO  = Column(Integer, ForeignKey("USUARIOS.ID_USUARIO"), nullable=False)
+    ID_CITA = Column(Integer, primary_key=True, autoincrement=True)
+    ID_USUARIO = Column(Integer, ForeignKey("USUARIOS.ID_USUARIO"), nullable=False)
     ID_CONTACTO = Column(Integer, nullable=True)
-    DESCRIPCION = Column("DESCRIPCIÓN", String(500), nullable=False, default="Cita reservada")
-    FECHA       = Column(DateTime, nullable=False)
-    PRIORIDAD   = Column(Integer, nullable=True, default=1)
-    ELIMINADO   = Column(DateTime, nullable=True, default=None)
+    DESCRIPCION = Column(
+        "DESCRIPCIÓN", String(500), nullable=False, default="Cita reservada"
+    )
+    FECHA = Column(DateTime, nullable=False)
+    PRIORIDAD = Column(Integer, nullable=True, default=1)
+    ELIMINADO = Column(DateTime, nullable=True, default=None)
 
     usuario = relationship("Usuario", back_populates="citas")
 
 
 # ── Gestión de sesión ──────────────────────────────────────────────────────────
+
 
 @contextmanager
 def get_session() -> Generator[Session, None, None]:
@@ -148,6 +163,7 @@ def get_db() -> Generator[Session, None, None]:
 
 # ── Inicialización / migración ─────────────────────────────────────────────────
 
+
 def init_db() -> None:
     """Aplica migraciones pendientes y crea tablas inexistentes.
 
@@ -156,11 +172,15 @@ def init_db() -> None:
     try:
         with engine.connect() as conn:
             try:
-                conn.execute(text("ALTER TABLE CONTACTOS ADD COLUMN ID_USUARIO INT NULL"))
-                conn.execute(text(
-                    "ALTER TABLE CONTACTOS ADD CONSTRAINT fk_contactos_usuario "
-                    "FOREIGN KEY (ID_USUARIO) REFERENCES USUARIOS(ID_USUARIO)"
-                ))
+                conn.execute(
+                    text("ALTER TABLE CONTACTOS ADD COLUMN ID_USUARIO INT NULL")
+                )
+                conn.execute(
+                    text(
+                        "ALTER TABLE CONTACTOS ADD CONSTRAINT fk_contactos_usuario "
+                        "FOREIGN KEY (ID_USUARIO) REFERENCES USUARIOS(ID_USUARIO)"
+                    )
+                )
                 conn.commit()
             except Exception:
                 conn.rollback()  # Columna/FK ya existe, se ignora
@@ -173,6 +193,7 @@ def init_db() -> None:
 
 
 # ── Helpers internos ───────────────────────────────────────────────────────────
+
 
 def _verificar_acceso(usuario: Usuario, tipos_permitidos: list[str]) -> None:
     """Lanza PermissionError si el tipo de usuario no está en la lista permitida."""
@@ -193,6 +214,7 @@ def _get_usuario_activo(session: Session, id_usuario: int) -> Usuario:
 
 
 # ── CRUD USUARIOS ──────────────────────────────────────────────────────────────
+
 
 def crear_usuario(
     session: Session,
@@ -229,6 +251,7 @@ def eliminar_usuario(session: Session, id_usuario: int) -> bool:
 
 # ── CRUD CONTACTOS ─────────────────────────────────────────────────────────────
 
+
 def crear_contacto(
     session: Session,
     id_usuario: int,
@@ -248,7 +271,7 @@ def obtener_contactos(session: Session, id_usuario: int) -> list[Contacto]:
     _verificar_acceso(usuario, TIPOS_INDIVIDUALES)
     return (
         session.query(Contacto)
-        .filter(Contacto.ID_USUARIO == id_usuario, Contacto.ELIMINADO == None)
+        .filter(Contacto.ID_USUARIO == id_usuario, Contacto.ELIMINADO is None)
         .all()
     )
 
@@ -265,7 +288,7 @@ def obtener_contactos_eliminados(session: Session, id_usuario: int) -> list[Cont
     _verificar_acceso(usuario, TIPOS_INDIVIDUALES)
     return (
         session.query(Contacto)
-        .filter(Contacto.ID_USUARIO == id_usuario, Contacto.ELIMINADO != None)
+        .filter(Contacto.ID_USUARIO == id_usuario, Contacto.ELIMINADO is not None)
         .all()
     )
 
@@ -279,6 +302,7 @@ def eliminar_contacto(session: Session, id_contacto: int) -> bool:
 
 
 # ── CRUD CITAS_IND ─────────────────────────────────────────────────────────────
+
 
 def crear_cita(
     session: Session,
@@ -307,7 +331,7 @@ def obtener_citas_por_usuario(session: Session, id_usuario: int) -> list[CitaInd
     _verificar_acceso(usuario, TIPOS_INDIVIDUALES)
     return (
         session.query(CitaInd)
-        .filter(CitaInd.ID_USUARIO == id_usuario, CitaInd.ELIMINADO == None)
+        .filter(CitaInd.ID_USUARIO == id_usuario, CitaInd.ELIMINADO is None)
         .order_by(CitaInd.FECHA)
         .all()
     )
@@ -320,12 +344,14 @@ def obtener_cita(session: Session, id_cita: int) -> CitaInd | None:
     return cita
 
 
-def obtener_citas_eliminadas_por_usuario(session: Session, id_usuario: int) -> list[CitaInd]:
+def obtener_citas_eliminadas_por_usuario(
+    session: Session, id_usuario: int
+) -> list[CitaInd]:
     usuario = _get_usuario_activo(session, id_usuario)
     _verificar_acceso(usuario, TIPOS_INDIVIDUALES)
     return (
         session.query(CitaInd)
-        .filter(CitaInd.ID_USUARIO == id_usuario, CitaInd.ELIMINADO != None)
+        .filter(CitaInd.ID_USUARIO == id_usuario, CitaInd.ELIMINADO is not None)
         .order_by(CitaInd.FECHA)
         .all()
     )

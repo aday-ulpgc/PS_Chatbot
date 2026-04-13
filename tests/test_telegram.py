@@ -3,7 +3,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from telegram import CallbackQuery, Update, Message, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from datetime import date
-from src.bot.telegram_handler import handle_action_menu_help, start_command
+from src.bot.telegram.handlers.commands import start_command
+from src.bot.telegram.handlers.help_menu import handle_action_menu_help
+from src.bot.telegram.router import menu_callback_handler
 
 
 def test_sprint_zero_environment():
@@ -30,17 +32,19 @@ async def test_start():
     )
     assert "reply_markup" in reply
     assert isinstance(reply["reply_markup"], InlineKeyboardMarkup)
-    assert len(reply["reply_markup"].inline_keyboard) == 3
+    assert len(reply["reply_markup"].inline_keyboard) == 4
     assert reply["reply_markup"].inline_keyboard[0][0].text == "📅 Hacer una reserva"
     assert reply["reply_markup"].inline_keyboard[1][0].text == "📋 Mis citas"
-    assert reply["reply_markup"].inline_keyboard[2][0].text == "❓ Ayuda"
+    assert reply["reply_markup"].inline_keyboard[2][0].text == "⚙️ Ajustes de Chat"
+    assert reply["reply_markup"].inline_keyboard[3][0].text == "❓ Ayuda"
 
 
 @pytest.mark.asyncio
 async def test_handle_action_menu_help():
     query = AsyncMock(spec=CallbackQuery)
     query.data = "action_help"
-    await handle_action_menu_help(query)
+    context = MagicMock(spec=ContextTypes.DEFAULT_TYPE)
+    await handle_action_menu_help(query, context)
     query.edit_message_text.assert_called_once()
     reply = query.edit_message_text.call_args.kwargs
     assert "Sección Ayuda. ¿Que necesitas?" in reply["text"]
@@ -56,7 +60,6 @@ async def test_handle_action_menu_help():
 @pytest.mark.asyncio
 async def test_guardar_fecha_en_contexto():
     """Verifica que al elegir fecha, se guarda en la 'memoria' del bot."""
-    from src.bot.telegram_handler import menu_callback_handler
 
     update = MagicMock()
     context = MagicMock()
@@ -69,9 +72,9 @@ async def test_guardar_fecha_en_contexto():
     update.callback_query = query
 
     with patch(
-        "src.bot.telegram_handler.DetailedTelegramCalendar.process"
+        "src.bot.telegram.handlers.reserve.DetailedTelegramCalendar.process"
     ) as mock_process, patch(
-        "src.bot.telegram_handler.DetailedTelegramCalendar.func"
+        "src.bot.telegram.handlers.reserve.DetailedTelegramCalendar.func"
     ) as mock_func:
         mock_process.return_value = (date(2026, 6, 26), None, None)
 
