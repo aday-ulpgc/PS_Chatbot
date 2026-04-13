@@ -1,15 +1,20 @@
+import os
+
+from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 import uvicorn
 from bot.whatsapp.client import WhatsAppClient
 
 app = FastAPI(title="SaaS-Bot WhatsApp")
 
-# --- CREDENCIALES ---
-VERIFY_TOKEN = "patata123"
-META_TOKEN = "EAAVFDHsPbhYBRAtctSpdZBBq0vDw2xoa2wYuZAfZAyVZBvyK5O6v1gfXT99MRUSSdZCtK0gDHpR6cXyuz9fpyPDr8whXVRu2rPU1GP5LZAlczZBriZBDROZCFQKCtMQJ5Txr3BMYzlh6KKX0PxSksN7vwuwwzXPtZA1ZCWp8X7vSja4oYaxgsH3R93hMTnZBdLmkNLlhxZCMisAkSvbK6vZAAB73m2qidd62Wa0ZBCT6QtU3uRT8Xs3zXeGNEgTb4chS0ZCOicPIpXzb12h7UJVfz8LxZCkQ4"  # ¡Pon tu token real!
-ID_TELEFONO = "1024526427418217" 
 
-cliente_wa = WhatsAppClient(token=META_TOKEN, phone_id=ID_TELEFONO)
+dotenv_path: str = os.path.join(os.path.dirname(__file__), "..", "env", ".env")
+load_dotenv(dotenv_path=dotenv_path)
+
+meta_token: str | None = os.getenv("META_TOKEN")
+phone_id: str | None = os.getenv("ID_TELEFONO")
+verify_token: str | None = os.getenv("VERIFY_TOKEN")
+cliente_wa = WhatsAppClient(token=meta_token, phone_id=phone_id)
 
 @app.get("/")
 def home():
@@ -22,7 +27,7 @@ async def verificar_webhook(request: Request):
     token = request.query_params.get("hub.verify_token")
     challenge = request.query_params.get("hub.challenge")
 
-    if mode == "subscribe" and token == VERIFY_TOKEN:
+    if mode == "subscribe" and token == verify_token:
         return int(challenge)
     return "Error de verificación", 403
 
