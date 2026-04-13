@@ -3,20 +3,19 @@
 
 import sys
 import os
+
+_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+if _root not in sys.path:
+    sys.path.insert(0, _root)
+
 from datetime import datetime
-from BBDD.databasecontroller import (
+from src.BBDD.databasecontroller import (
     get_session,
     crear_contacto,
     crear_cita,
     Usuario,
     Contacto,
 )
-
-
-# Agregar src al path
-_src_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "src")
-if _src_path not in sys.path:
-    sys.path.insert(0, _src_path)
 
 
 def test_insert_cita():

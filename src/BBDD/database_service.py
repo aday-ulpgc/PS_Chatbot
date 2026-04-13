@@ -1,9 +1,7 @@
 """Servicio para gestionar la base de datos desde el bot de Telegram."""
 
-import sys
-import os
 from datetime import datetime
-from src.BBDD.databasecontroller import (
+from .databasecontroller import (
     get_session,
     Usuario,
     Contacto,
@@ -11,11 +9,6 @@ from src.BBDD.databasecontroller import (
     crear_contacto,
     crear_cita,
 )
-
-# Agregar el directorio src al path para importaciones correctas
-_src_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if _src_path not in sys.path:
-    sys.path.insert(0, _src_path)
 
 
 def obtener_o_crear_usuario_telegram(

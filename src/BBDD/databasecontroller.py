@@ -84,6 +84,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 # ── Control de acceso por tipo ─────────────────────────────────────────────────
 # Añadir aquí nuevos tipos de usuario que deban acceder a contactos/citas.
 TIPOS_INDIVIDUALES: list[str] = ["I"]
+TIPOS_CORPORATIVOS: list[str] = ["C"]
 
 
 # ── Modelos ORM ────────────────────────────────────────────────────────────────
@@ -105,6 +106,7 @@ class Usuario(Base):
 
     contactos = relationship("Contacto", back_populates="usuario")
     citas = relationship("CitaInd", back_populates="usuario")
+    empleados = relationship("Empleado", back_populates="usuario")
 
 
 class Contacto(Base):
@@ -129,10 +131,55 @@ class CitaInd(Base):
         "DESCRIPCIÓN", String(500), nullable=False, default="Cita reservada"
     )
     FECHA = Column(DateTime, nullable=False)
+    DURACION = Column(Integer, nullable=True, default=None)  # minutos
     PRIORIDAD = Column(Integer, nullable=True, default=1)
     ELIMINADO = Column(DateTime, nullable=True, default=None)
 
     usuario = relationship("Usuario", back_populates="citas")
+
+
+class Empleado(Base):
+    __tablename__ = "EMPLEADOS"
+
+    ID_EMPLEADO = Column(Integer, primary_key=True, autoincrement=True)
+    ID_USUARIO = Column(Integer, ForeignKey("USUARIOS.ID_USUARIO"), nullable=True)
+    ID_ADMIN = Column(Integer, ForeignKey("EMPLEADOS.ID_EMPLEADO"), nullable=True)
+    TIPO = Column(String(1), nullable=False)  # 'A' = Admin | 'E' = Empleado
+    NOMBRE = Column(String(100), nullable=False)
+    CONTRASENA_CORP = Column("CONTRASEÑA_CORPORATIVA", String(255), nullable=False)
+    ELIMINADO = Column(DateTime, nullable=True, default=None)
+
+    usuario = relationship("Usuario", back_populates="empleados")
+    clientes = relationship("Cliente", back_populates="empleado_usual", foreign_keys="Cliente.ID_EMPLEADO_USUAL")
+    citas = relationship("CitaCorp", back_populates="empleado")
+
+
+class Cliente(Base):
+    __tablename__ = "CLIENTES"
+
+    ID_CLIENTE = Column(Integer, primary_key=True, autoincrement=True)
+    ID_EMPLEADO_USUAL = Column(Integer, ForeignKey("EMPLEADOS.ID_EMPLEADO"), nullable=True)
+    DNI = Column(String(9), nullable=False, unique=True)
+    NOMBRE = Column(String(100), nullable=False)
+    ELIMINADO = Column(DateTime, nullable=True, default=None)
+
+    empleado_usual = relationship("Empleado", back_populates="clientes", foreign_keys=[ID_EMPLEADO_USUAL])
+    citas = relationship("CitaCorp", back_populates="cliente")
+
+
+class CitaCorp(Base):
+    __tablename__ = "CITAS_COR"
+
+    ID_CITA = Column(Integer, primary_key=True, autoincrement=True)
+    ID_EMPLEADO = Column(Integer, ForeignKey("EMPLEADOS.ID_EMPLEADO"), nullable=False)
+    ID_CLIENTE = Column(Integer, ForeignKey("CLIENTES.ID_CLIENTE"), nullable=False)
+    FECHA = Column(DateTime, nullable=False)
+    DURACION = Column(Integer, nullable=True, default=None)  # minutos
+    DESCRIPCION = Column("DESCRIPCIÓN", String(500), nullable=True, default="Cita reservada")
+    ELIMINADO = Column(DateTime, nullable=True, default=None)
+
+    empleado = relationship("Empleado", back_populates="citas")
+    cliente = relationship("Cliente", back_populates="citas")
 
 
 # ── Gestión de sesión ──────────────────────────────────────────────────────────
@@ -311,6 +358,7 @@ def crear_cita(
     id_contacto: int | None = None,
     descripcion: str | None = None,
     prioridad: int = 1,
+    duracion: int | None = None,
 ) -> CitaInd:
     usuario = _get_usuario_activo(session, id_usuario)
     _verificar_acceso(usuario, TIPOS_INDIVIDUALES)
@@ -320,6 +368,7 @@ def crear_cita(
         FECHA=fecha,
         DESCRIPCION=descripcion,
         PRIORIDAD=prioridad,
+        DURACION=duracion,
     )
     session.add(cita)
     session.flush()
@@ -363,6 +412,7 @@ def actualizar_cita(
     fecha: datetime | None = None,
     descripcion: str | None = None,
     prioridad: int | None = None,
+    duracion: int | None = None,
 ) -> CitaInd | None:
     cita = session.get(CitaInd, id_cita)
     if cita is None or cita.ELIMINADO is not None:
@@ -373,11 +423,204 @@ def actualizar_cita(
         cita.DESCRIPCION = descripcion
     if prioridad is not None:
         cita.PRIORIDAD = prioridad
+    if duracion is not None:
+        cita.DURACION = duracion
     return cita
 
 
 def eliminar_cita(session: Session, id_cita: int) -> bool:
     cita = session.get(CitaInd, id_cita)
+    if cita is None or cita.ELIMINADO is not None:
+        return False
+    cita.ELIMINADO = datetime.now(timezone.utc)
+    return True
+
+
+# ── CRUD EMPLEADOS ─────────────────────────────────────────────────────────────
+
+
+def _get_empleado_activo(session: Session, id_empleado: int) -> Empleado:
+    empleado = session.get(Empleado, id_empleado)
+    if empleado is None:
+        raise ValueError(f"Empleado {id_empleado} no encontrado")
+    if empleado.ELIMINADO is not None:
+        raise ValueError("El empleado está dado de baja")
+    return empleado
+
+
+def crear_empleado(
+    session: Session,
+    id_usuario: int,
+    tipo: str,
+    nombre: str,
+    contrasena: str,
+    id_admin: int | None = None,
+) -> Empleado:
+    usuario = _get_usuario_activo(session, id_usuario)
+    _verificar_acceso(usuario, TIPOS_CORPORATIVOS)
+    empleado = Empleado(
+        ID_USUARIO=id_usuario,
+        ID_ADMIN=id_admin,
+        TIPO=tipo,
+        NOMBRE=nombre,
+        CONTRASENA_CORP=hash_password(contrasena),
+    )
+    session.add(empleado)
+    session.flush()
+    return empleado
+
+
+def obtener_empleados(session: Session, id_usuario: int) -> list[Empleado]:
+    usuario = _get_usuario_activo(session, id_usuario)
+    _verificar_acceso(usuario, TIPOS_CORPORATIVOS)
+    return (
+        session.query(Empleado)
+        .filter(Empleado.ID_USUARIO == id_usuario, Empleado.ELIMINADO.is_(None))
+        .all()
+    )
+
+
+def obtener_empleado(session: Session, id_empleado: int) -> Empleado | None:
+    empleado = session.get(Empleado, id_empleado)
+    if empleado is None or empleado.ELIMINADO is not None:
+        return None
+    return empleado
+
+
+def eliminar_empleado(session: Session, id_empleado: int) -> bool:
+    empleado = session.get(Empleado, id_empleado)
+    if empleado is None or empleado.ELIMINADO is not None:
+        return False
+    empleado.ELIMINADO = datetime.now(timezone.utc)
+    return True
+
+
+# ── CRUD CLIENTES ─────────────────────────────────────────────────────────────
+
+
+def crear_cliente(
+    session: Session,
+    id_empleado: int,
+    dni: str,
+    nombre: str,
+    id_empleado_usual: int | None = None,
+) -> Cliente:
+    _get_empleado_activo(session, id_empleado)
+    cliente = Cliente(
+        ID_EMPLEADO_USUAL=id_empleado_usual if id_empleado_usual is not None else id_empleado,
+        DNI=dni,
+        NOMBRE=nombre,
+    )
+    session.add(cliente)
+    session.flush()
+    return cliente
+
+
+def obtener_clientes_por_empleado(session: Session, id_empleado: int) -> list[Cliente]:
+    _get_empleado_activo(session, id_empleado)
+    return (
+        session.query(Cliente)
+        .filter(Cliente.ID_EMPLEADO_USUAL == id_empleado, Cliente.ELIMINADO.is_(None))
+        .all()
+    )
+
+
+def obtener_cliente(session: Session, id_cliente: int) -> Cliente | None:
+    cliente = session.get(Cliente, id_cliente)
+    if cliente is None or cliente.ELIMINADO is not None:
+        return None
+    return cliente
+
+
+def eliminar_cliente(session: Session, id_cliente: int) -> bool:
+    cliente = session.get(Cliente, id_cliente)
+    if cliente is None or cliente.ELIMINADO is not None:
+        return False
+    cliente.ELIMINADO = datetime.now(timezone.utc)
+    return True
+
+
+# ── CRUD CITAS_COR ────────────────────────────────────────────────────────────
+
+
+def crear_cita_corp(
+    session: Session,
+    id_empleado: int,
+    id_cliente: int,
+    fecha: datetime,
+    descripcion: str | None = None,
+    duracion: int | None = None,
+) -> CitaCorp:
+    _get_empleado_activo(session, id_empleado)
+    cliente = session.get(Cliente, id_cliente)
+    if cliente is None or cliente.ELIMINADO is not None:
+        raise ValueError(f"Cliente {id_cliente} no encontrado o dado de baja")
+    cita = CitaCorp(
+        ID_EMPLEADO=id_empleado,
+        ID_CLIENTE=id_cliente,
+        FECHA=fecha,
+        DESCRIPCION=descripcion,
+        DURACION=duracion,
+    )
+    session.add(cita)
+    session.flush()
+    return cita
+
+
+def obtener_citas_corp_por_usuario(session: Session, id_usuario: int) -> list[CitaCorp]:
+    """Devuelve todas las citas corporativas activas de todos los empleados del usuario."""
+    usuario = _get_usuario_activo(session, id_usuario)
+    _verificar_acceso(usuario, TIPOS_CORPORATIVOS)
+    return (
+        session.query(CitaCorp)
+        .join(Empleado, CitaCorp.ID_EMPLEADO == Empleado.ID_EMPLEADO)
+        .filter(Empleado.ID_USUARIO == id_usuario, CitaCorp.ELIMINADO.is_(None))
+        .order_by(CitaCorp.FECHA)
+        .all()
+    )
+
+
+def obtener_citas_corp_eliminadas_por_usuario(session: Session, id_usuario: int) -> list[CitaCorp]:
+    """Devuelve todas las citas corporativas eliminadas de todos los empleados del usuario."""
+    usuario = _get_usuario_activo(session, id_usuario)
+    _verificar_acceso(usuario, TIPOS_CORPORATIVOS)
+    return (
+        session.query(CitaCorp)
+        .join(Empleado, CitaCorp.ID_EMPLEADO == Empleado.ID_EMPLEADO)
+        .filter(Empleado.ID_USUARIO == id_usuario, CitaCorp.ELIMINADO.isnot(None))
+        .order_by(CitaCorp.FECHA)
+        .all()
+    )
+
+
+def obtener_cita_corp(session: Session, id_cita: int) -> CitaCorp | None:
+    cita = session.get(CitaCorp, id_cita)
+    if cita is None or cita.ELIMINADO is not None:
+        return None
+    return cita
+
+
+def actualizar_cita_corp(
+    session: Session,
+    id_cita: int,
+    fecha: datetime | None = None,
+    descripcion: str | None = None,
+    duracion: int | None = None,
+) -> CitaCorp | None:
+    cita = session.get(CitaCorp, id_cita)
+    if cita is None or cita.ELIMINADO is not None:
+        return None
+    if fecha is not None:
+        cita.FECHA = fecha
+    if descripcion is not None:
+        cita.DESCRIPCION = descripcion
+    if duracion is not None:
+        cita.DURACION = duracion
+    return cita
+
+
+def eliminar_cita_corp(session: Session, id_cita: int) -> bool:
+    cita = session.get(CitaCorp, id_cita)
     if cita is None or cita.ELIMINADO is not None:
         return False
     cita.ELIMINADO = datetime.now(timezone.utc)
