@@ -3,13 +3,12 @@
 
 import sys
 import os
-from BBDD.databasecontroller import get_session, crear_usuario, Usuario
 
+_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+if _root not in sys.path:
+    sys.path.insert(0, _root)
 
-# Agregar src al path
-_src_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "src")
-if _src_path not in sys.path:
-    sys.path.insert(0, _src_path)
+from src.BBDD.databasecontroller import get_session, crear_usuario, Usuario
 
 
 def test_db():
