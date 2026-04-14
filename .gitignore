@@ -10,3 +10,4 @@ token.json
 .pytest_cache/
 .ruff_cache/
 .vscode/
+.mp3
