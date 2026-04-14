@@ -380,7 +380,7 @@ def obtener_citas_por_usuario(session: Session, id_usuario: int) -> list[CitaInd
     _verificar_acceso(usuario, TIPOS_INDIVIDUALES)
     return (
         session.query(CitaInd)
-        .filter(CitaInd.ID_USUARIO == id_usuario, CitaInd.ELIMINADO is None)
+        .filter(CitaInd.ID_USUARIO == id_usuario, CitaInd.ELIMINADO.is_(None))
         .order_by(CitaInd.FECHA)
         .all()
     )
