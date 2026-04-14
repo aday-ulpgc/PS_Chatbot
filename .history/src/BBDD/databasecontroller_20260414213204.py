@@ -148,7 +148,7 @@ class Empleado(Base):
     ID_ADMIN = Column(Integer, ForeignKey("EMPLEADOS.ID_EMPLEADO"), nullable=True)
     TIPO = Column(String(1), nullable=False)  # 'A' = Admin | 'E' = Empleado
     NOMBRE = Column(String(100), nullable=False)
-    CONTRASENA_CORP = Column("CONTRASEÑA_CORPORATIVA", String(255), nullable=True)
+    CONTRASENA_CORP = Column("CONTRASEÑA_CORPORATIVA", String(255), nullable=False)
     ELIMINADO = Column(DateTime, nullable=True, default=None)
 
     usuario = relationship("Usuario", back_populates="empleados")

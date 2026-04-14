@@ -65,10 +65,8 @@ else:
     )
 
 
-def hash_password(password: str | None) -> str | None:
+def hash_password(password: str) -> str:
     """Hash a password using bcrypt."""
-    if type(password) is None:
-        return None
     if len(password) > 72:
         password = password[:72]
     return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
@@ -148,7 +146,7 @@ class Empleado(Base):
     ID_ADMIN = Column(Integer, ForeignKey("EMPLEADOS.ID_EMPLEADO"), nullable=True)
     TIPO = Column(String(1), nullable=False)  # 'A' = Admin | 'E' = Empleado
     NOMBRE = Column(String(100), nullable=False)
-    CONTRASENA_CORP = Column("CONTRASEÑA_CORPORATIVA", String(255), nullable=True)
+    CONTRASENA_CORP = Column("CONTRASEÑA_CORPORATIVA", String(255), nullable=False)
     ELIMINADO = Column(DateTime, nullable=True, default=None)
 
     usuario = relationship("Usuario", back_populates="empleados")

@@ -147,7 +147,7 @@ class CitaOut(BaseModel):
 class EmpleadoCreate(BaseModel):
     TIPO: str = "E"  # 'A' = Admin | 'E' = Empleado
     NOMBRE: str
-    CONTRASENA_CORP: str | None = None
+    CONTRASENA_CORP: str | None = None,
     ID_ADMIN: Optional[int] = None
 
 

@@ -103,7 +103,7 @@ class Usuario(Base):
     TIPO = Column(String(10), nullable=False, default="I")
     NOMBRE = Column(String(100), nullable=False)
     EMAIL = Column(String(200), nullable=False, unique=True)
-    CONTRASENA = Column("CONTRASEÑA", String(255), nullable=False)
+    CONTRASENA = Column("CONTRASEÑA", String(255), nullable=True)
     ELIMINADO = Column(DateTime, nullable=True, default=None)
 
     contactos = relationship("Contacto", back_populates="usuario")
