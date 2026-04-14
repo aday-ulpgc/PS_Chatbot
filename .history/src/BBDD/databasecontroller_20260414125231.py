@@ -461,7 +461,7 @@ def crear_empleado(
     
     empleado = Empleado(
         # ID_USUARIO= ??? -> Aquí deberías tener un nuevo ID para el empleado o dejar que la DB lo genere
-        ID_USUARIO=id_usuario, # ASIGNAR el ID de la clínica como el administrador
+        ID_USUARIO_ADM=id_usuario, # ASIGNAR el ID de la clínica como el administrador
         TIPO=tipo,
         NOMBRE=nombre,
         CONTRASENA_CORP=hash_password(contrasena),
@@ -564,7 +564,7 @@ def crear_cita_corp(
         DURACION=duracion,
     )
     session.add(cita)
-    session.commit()
+    session.flush()
     return cita
 
 

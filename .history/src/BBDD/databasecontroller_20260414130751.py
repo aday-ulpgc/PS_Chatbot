@@ -450,25 +450,30 @@ def _get_empleado_activo(session: Session, id_empleado: int) -> Empleado:
 
 def crear_empleado(
     session: Session,
-    id_usuario: int, # Este es el ID de la clínica/admin que viene de la URL
-    tipo: str,
-    nombre: str,
-    contrasena: str,
-    id_admin: int | None = None,
+    id_usuario: int,  # Este es el ID del jefe (viene de la URL)
+    data: dict        # Recibimos el JSON del test
 ) -> Empleado:
-    usuario = _get_usuario_activo(session, id_usuario)
-    _verificar_acceso(usuario, TIPOS_CORPORATIVOS)
-    
+    usuario_admin = _get_usuario_activo(session, id_usuario)
+    _verificar_acceso(usuario_admin, TIPOS_CORPORATIVOS)
+
+    # Creamos el empleado asegurándonos de que ID_USUARIO sea nuevo
+    # o dejando que la base de datos lo genere automáticamente
     empleado = Empleado(
-        # ID_USUARIO= ??? -> Aquí deberías tener un nuevo ID para el empleado o dejar que la DB lo genere
-        ID_USUARIO=id_usuario, # ASIGNAR el ID de la clínica como el administrador
-        TIPO=tipo,
-        NOMBRE=nombre,
-        CONTRASENA_CORP=hash_password(contrasena),
+        # ID_USUARIO=id_nuevo,  <-- Esto debería generarse solo o crearse antes en USUARIOS
+        ID_USUARIO=id_usuario, # Aquí guardamos quién es su jefe
+        TIPO=data.get("TIPO"),
+        NOMBRE=data.get("NOMBRE"),
+        CONTRASENA_CORP=hash_password(data.get("CONTRASENA_CORP")),
     )
-    session.add(empleado)
-    session.flush() # Esto dispara el error si los IDs están mal
-    return empleado
+    
+    try:
+        session.add(empleado)
+        session.commit() # Usamos commit para asegurar que se guarde
+        return empleado
+    except Exception as e:
+        session.rollback()
+        print(f"Error real en DB: {e}") # Esto saldrá en la terminal de tu servidor
+        raise
 
 
 def obtener_empleados(session: Session, id_usuario: int) -> list[Empleado]:
@@ -564,7 +569,7 @@ def crear_cita_corp(
         DURACION=duracion,
     )
     session.add(cita)
-    session.commit()
+    session.flush()
     return cita
 
 

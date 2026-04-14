@@ -450,7 +450,7 @@ def _get_empleado_activo(session: Session, id_empleado: int) -> Empleado:
 
 def crear_empleado(
     session: Session,
-    id_usuario: int, # Este es el ID de la clínica/admin que viene de la URL
+    id_usuario: int,
     tipo: str,
     nombre: str,
     contrasena: str,
@@ -458,16 +458,15 @@ def crear_empleado(
 ) -> Empleado:
     usuario = _get_usuario_activo(session, id_usuario)
     _verificar_acceso(usuario, TIPOS_CORPORATIVOS)
-    
     empleado = Empleado(
-        # ID_USUARIO= ??? -> Aquí deberías tener un nuevo ID para el empleado o dejar que la DB lo genere
-        ID_USUARIO=id_usuario, # ASIGNAR el ID de la clínica como el administrador
+        ID_USUARIO_ADM=id_usuario,
+        ID_ADMIN=id_admin,
         TIPO=tipo,
         NOMBRE=nombre,
         CONTRASENA_CORP=hash_password(contrasena),
     )
     session.add(empleado)
-    session.flush() # Esto dispara el error si los IDs están mal
+    session.commit()
     return empleado
 
 
@@ -564,7 +563,7 @@ def crear_cita_corp(
         DURACION=duracion,
     )
     session.add(cita)
-    session.commit()
+    session.flush()
     return cita
 
 
