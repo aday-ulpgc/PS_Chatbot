@@ -285,14 +285,14 @@ def crear_usuario(
 
 def obtener_usuario(session: Session, id_usuario: int) -> Usuario | None:
     usuario = session.get(Usuario, id_usuario)
-    if usuario is None or usuario.ELIMINADO != None:
+    if usuario is None or usuario.ELIMINADO is not None:
         return None
     return usuario
 
 
 def eliminar_usuario(session: Session, id_usuario: int) -> bool:
     usuario = session.get(Usuario, id_usuario)
-    if usuario is None or usuario.ELIMINADO != None:
+    if usuario is None or usuario.ELIMINADO is not None:
         return False
     usuario.ELIMINADO = datetime.now(timezone.utc)
     session.commit()
@@ -321,14 +321,14 @@ def obtener_contactos(session: Session, id_usuario: int) -> list[Contacto]:
     _verificar_acceso(usuario, TIPOS_INDIVIDUALES)
     return (
         session.query(Contacto)
-        .filter(Contacto.ID_USUARIO == id_usuario, Contacto.ELIMINADO == None)
+        .filter(Contacto.ID_USUARIO == id_usuario, Contacto.ELIMINADO is None)
         .all()
     )
 
 
 def obtener_contacto(session: Session, id_contacto: int) -> Contacto | None:
     contacto = session.get(Contacto, id_contacto)
-    if contacto is None or contacto.ELIMINADO != None:
+    if contacto is None or contacto.ELIMINADO is not None:
         return None
     return contacto
 
@@ -338,14 +338,14 @@ def obtener_contactos_eliminados(session: Session, id_usuario: int) -> list[Cont
     _verificar_acceso(usuario, TIPOS_INDIVIDUALES)
     return (
         session.query(Contacto)
-        .filter(Contacto.ID_USUARIO == id_usuario, Contacto.ELIMINADO != None)
+        .filter(Contacto.ID_USUARIO == id_usuario, Contacto.ELIMINADO is not None)
         .all()
     )
 
 
 def eliminar_contacto(session: Session, id_contacto: int) -> bool:
     contacto = session.get(Contacto, id_contacto)
-    if contacto is None or contacto.ELIMINADO != None:
+    if contacto is None or contacto.ELIMINADO is not None:
         return False
     contacto.ELIMINADO = datetime.now(timezone.utc)
     return True
@@ -391,7 +391,7 @@ def obtener_citas_por_usuario(session: Session, id_usuario: int) -> list[CitaInd
 
 def obtener_cita(session: Session, id_cita: int) -> CitaInd | None:
     cita = session.get(CitaInd, id_cita)
-    if cita is None or cita.ELIMINADO != None:
+    if cita is None or cita.ELIMINADO is not None:
         return None
     return cita
 
@@ -433,7 +433,7 @@ def actualizar_cita(
 
 def eliminar_cita(session: Session, id_cita: int) -> bool:
     cita = session.get(CitaInd, id_cita)
-    if cita is None or cita.ELIMINADO != None:
+    if cita is None or cita.ELIMINADO is not None:
         return False
     cita.ELIMINADO = datetime.now(timezone.utc)
     return True
@@ -486,14 +486,14 @@ def obtener_empleados(session: Session, id_usuario: int) -> list[Empleado]:
 
 def obtener_empleado(session: Session, id_empleado: int) -> Empleado | None:
     empleado = session.get(Empleado, id_empleado)
-    if empleado is None or empleado.ELIMINADO != None:
+    if empleado is None or empleado.ELIMINADO is not None:
         return None
     return empleado
 
 
 def eliminar_empleado(session: Session, id_empleado: int) -> bool:
     empleado = session.get(Empleado, id_empleado)
-    if empleado is None or empleado.ELIMINADO != None:
+    if empleado is None or empleado.ELIMINADO is not None:
         return False
     empleado.ELIMINADO = datetime.now(timezone.utc)
     return True
@@ -531,14 +531,14 @@ def obtener_clientes_por_empleado(session: Session, id_empleado: int) -> list[Cl
 
 def obtener_cliente(session: Session, id_cliente: int) -> Cliente | None:
     cliente = session.get(Cliente, id_cliente)
-    if cliente is None or cliente.ELIMINADO != None:
+    if cliente is None or cliente.ELIMINADO is not None:
         return None
     return cliente
 
 
 def eliminar_cliente(session: Session, id_cliente: int) -> bool:
     cliente = session.get(Cliente, id_cliente)
-    if cliente is None or cliente.ELIMINADO != None:
+    if cliente is None or cliente.ELIMINADO is not None:
         return False
     cliente.ELIMINADO = datetime.now(timezone.utc)
     return True
@@ -557,7 +557,7 @@ def crear_cita_corp(
 ) -> CitaCorp:
     _get_empleado_activo(session, id_empleado)
     cliente = session.get(Cliente, id_cliente)
-    if cliente is None or cliente.ELIMINADO != None:
+    if cliente is None or cliente.ELIMINADO is not None:
         raise ValueError(f"Cliente {id_cliente} no encontrado o dado de baja")
     cita = CitaCorp(
         ID_EMPLEADO=id_empleado,
@@ -599,7 +599,7 @@ def obtener_citas_corp_eliminadas_por_usuario(session: Session, id_usuario: int)
 
 def obtener_cita_corp(session: Session, id_cita: int) -> CitaCorp | None:
     cita = session.get(CitaCorp, id_cita)
-    if cita is None or cita.ELIMINADO != None:
+    if cita is None or cita.ELIMINADO is not None:
         return None
     return cita
 
@@ -612,7 +612,7 @@ def actualizar_cita_corp(
     duracion: int | None = None,
 ) -> CitaCorp | None:
     cita = session.get(CitaCorp, id_cita)
-    if cita is None or cita.ELIMINADO != None:
+    if cita is None or cita.ELIMINADO is not None:
         return None
     if fecha is not None:
         cita.FECHA = fecha
@@ -625,7 +625,7 @@ def actualizar_cita_corp(
 
 def eliminar_cita_corp(session: Session, id_cita: int) -> bool:
     cita = session.get(CitaCorp, id_cita)
-    if cita is None or cita.ELIMINADO != None:
+    if cita is None or cita.ELIMINADO is not None:
         return False
     cita.ELIMINADO = datetime.now(timezone.utc)
     return True
