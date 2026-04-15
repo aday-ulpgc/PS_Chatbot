@@ -67,7 +67,7 @@ else:
 
 def hash_password(password: str | None) -> str | None:
     """Hash a password using bcrypt."""
-    if type(password) is None:
+    if password is None:
         return None
     if len(password) > 72:
         password = password[:72]
@@ -463,11 +463,11 @@ def crear_empleado(
     _verificar_acceso(usuario, TIPOS_CORPORATIVOS)
     
     empleado = Empleado(
-        # ID_USUARIO= ??? -> Aquí deberías tener un nuevo ID para el empleado o dejar que la DB lo genere
-        ID_USUARIO=id_usuario, # ASIGNAR el ID de la clínica como el administrador
+        ID_USUARIO=id_usuario,
         TIPO=tipo,
         NOMBRE=nombre,
         CONTRASENA_CORP=hash_password(contrasena),
+        ID_ADMIN=id_admin,
     )
     session.add(empleado)
     session.flush() # Esto dispara el error si los IDs están mal
