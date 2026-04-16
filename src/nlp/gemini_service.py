@@ -32,7 +32,7 @@ class NLPService:
     async def procesar_mensaje(historial_mensajes: list, datos_calendario: str = "L-V 09:00 a 19:00") -> dict:
         # Configuración
         api_key = os.getenv("GEMINI_API_KEY")
-        modelo = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+        modelo = os.getenv("GEMINI_MODEL", "gemini-3-flash-preview")
         
         # URL Directa de la API de Google
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent?key={api_key}"
