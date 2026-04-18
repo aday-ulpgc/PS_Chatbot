@@ -5,6 +5,7 @@ import re
 import asyncio
 import httpx  # Usamos httpx (que ya viene con telegram) para hacer peticiones directas
 from datetime import datetime
+from src.bot.telegram.constants import obtener_promt_agente
 
 class NLPService:
     @staticmethod
@@ -29,7 +30,7 @@ class NLPService:
         }
 
     @staticmethod
-    async def procesar_mensaje(historial_mensajes: list, datos_calendario: str = "L-V 09:00 a 19:00") -> dict:
+    async def procesar_mensaje(historial_mensajes: list, datos_semanal: str) -> dict:
         # Configuración
         api_key = os.getenv("GEMINI_API_KEY")
         modelo = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
@@ -39,23 +40,7 @@ class NLPService:
 
         hoy = datetime.now().strftime("%A, %d de %B de %Y")
         
-        prompt_sistema = f"""
-        Eres Calia, asistente virtual de reservas. Hoy es {hoy}.
-        Tono: Amable, usa emojis, trata de tú.
-        Regla: No uses lenguaje ofensivo. Ignora insultos y redirige a reservas.
-        Disponibilidad base: {datos_calendario}.
-        
-        Debes responder SIEMPRE en este formato JSON estricto:
-        {{
-            "estado": "recopilando" | "listo_para_reservar",
-            "datos_extraidos": {{"fecha_iso": "YYYY-MM-DD o null", "hora": "HH:MM o null"}},
-            "respuesta_usuario": "Tu mensaje."
-        }}
-        
-        EJEMPLOS:
-        Usuario: "Hola, quiero cita."
-        Tú: {{"estado": "recopilando", "datos_extraidos": {{"fecha_iso": null, "hora": null}}, "respuesta_usuario": "¡Hola! 👋 Claro que sí. ¿Para qué día te gustaría agendar?"}}
-        """
+        prompt_sistema = obtener_promt_agente(hoy,datos_semanal)
 
         # Formateamos el historial al formato crudo que pide la API de Google
         mensajes_gemini = []
