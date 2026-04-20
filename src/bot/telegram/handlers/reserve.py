@@ -1,6 +1,6 @@
 import json
 import asyncio
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 from telegram_bot_calendar import DetailedTelegramCalendar
@@ -11,18 +11,7 @@ from src.services.voice_service import VoiceService
 from src.bot.telegram.constants import CALENDAR_STEPS, MODO_TEXTO, MODO_AUDIO
 from src.bot.telegram.keyboards import main_menu_keyboard
 from src.bot.telegram.handlers.commands import handle_action_back_menu
-
-
-async def enviar_recordatorio_cita(context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Esta función es la que el bot ejecuta cuando pasan los 2 segundos."""
-    job = context.job
-    try:
-        await context.bot.send_message(
-            chat_id=job.chat_id, text=f"⏰ PRUEBA\n{job.data}"
-        )
-    except Exception as e:
-        print(f"❌ Error al enviar el mensaje: {e}")
-
+from src.BBDD.database_service import guardar_cita_en_db, obtener_o_crear_usuario_telegram
 
 async def handle_calendar_and_time(
     query, context: ContextTypes.DEFAULT_TYPE, update: Update
@@ -105,14 +94,22 @@ async def handle_calendar_and_time(
                 await query.edit_message_text(
                     text=response_message, reply_markup=main_menu_keyboard()
                 )
-
-            context.job_queue.run_once(
-                enviar_recordatorio_cita,
-                when=2,
-                chat_id=update.effective_chat.id,
-                data=f"Cita el {selected_data} a las {selected_time}",
-                name=f"remind_{update.effective_chat.id}",
+            
+            # Guarda en la base de datos para los recordatorios diarios
+            fecha_dt = datetime.strptime(selected_data, "%Y-%m-%d")
+            
+            obtener_o_crear_usuario_telegram(
+                telegram_id=update.effective_user.id,
+                nombre=update.effective_user.full_name
             )
+            
+            guardar_cita_en_db(
+                telegram_id=update.effective_user.id,
+                fecha=fecha_dt,
+                hora=selected_time,
+                descripcion="Reserva desde Telegram MVP"
+            )
+
         return True
 
     if DetailedTelegramCalendar.func()(query):

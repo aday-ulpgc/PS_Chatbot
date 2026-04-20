@@ -11,3 +11,4 @@ token.json
 .ruff_cache/
 .vscode/
 .mp3
+.db

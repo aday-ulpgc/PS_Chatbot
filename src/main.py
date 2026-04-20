@@ -7,6 +7,7 @@ de Telegram esté presente y arranca el bot en modo polling.
 import os
 import sys
 import threading
+import datetime
 
 # Aseguramos que la raíz del proyecto esté en el path para que los imports desde 'src.' funcionen correctamente
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -18,6 +19,7 @@ from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandle
 from src.bot.telegram.handlers.commands import start_command
 from src.bot.telegram.router import menu_callback_handler
 from src.api import app as fastapi_app
+from src.bot.telegram.handlers.reminders import check_daily_reminders
 
 
 def main() -> None:
@@ -43,6 +45,10 @@ def main() -> None:
 
     app = ApplicationBuilder().token(token).build()
 
+    # Programación de los recordatorios - todos los días a las 08:00 de la mañana
+    hora_recordatorio = datetime.time(hour=8, minute=0, second=0)
+    app.job_queue.run_daily(check_daily_reminders, time=hora_recordatorio)
+    
     app.add_handler(CommandHandler("start", start_command))
     app.add_handler(CallbackQueryHandler(menu_callback_handler))
 
