@@ -120,9 +120,6 @@ class CitaCreate(BaseModel):
     ID_CLIENTE: Optional[int] = None
     # Ambos tipos
     DURACION: Optional[int] = None  # minutos
-    # Control de disponibilidad:
-    # 0 = sin comprobación; N > 0 = busca hueco en ±N días
-    bloqueante: int = 0
 
 
 class CitaUpdate(BaseModel):
@@ -354,10 +351,17 @@ def _buscar_disponibilidad(
 
 
 @app.post("/citas", response_model=CitaOut, status_code=201, tags=["Citas"])
-def post_cita(body: CitaCreate, db: Session = Depends(get_db)):
+def post_cita(
+    body: CitaCreate,
+    bloqueante: int = Query(
+        default=0,
+        description="0 = sin comprobación de disponibilidad. N > 0 = busca hueco libre en ±N días.",
+    ),
+    db: Session = Depends(get_db),
+):
     """Crea una cita.
-    - Tipo I: usa ID_USUARIO + FECHA (+ ID_CONTACTO, DESCRIPCION, PRIORIDAD opcionales).
-    - Tipo C: usa ID_EMPLEADO + ID_CLIENTE + FECHA (+ DESCRIPCION opcional).
+    - Tipo I: usa ID_USUARIO en el body + FECHA (+ ID_CONTACTO, DESCRIPCION, PRIORIDAD opcionales).
+    - Tipo C: usa ID_EMPLEADO + ID_CLIENTE en el body + FECHA (+ DESCRIPCION opcional).
 
     Si `bloqueante` es 0 (valor por defecto) se inserta sin comprobación de disponibilidad.
     Si `bloqueante` es N > 0 se verifica que el slot esté libre en el calendario;
@@ -382,12 +386,12 @@ def post_cita(body: CitaCreate, db: Session = Depends(get_db)):
             )
 
         # ── Comprobación de disponibilidad (solo si bloqueante != 0) ─────────────────
-        if body.bloqueante != 0:
+        if bloqueante != 0:
             duracion_efectiva = body.DURACION if body.DURACION is not None else 60
-            range_start = (fecha_ref - timedelta(days=body.bloqueante)).replace(
+            range_start = (fecha_ref - timedelta(days=bloqueante)).replace(
                 hour=0, minute=0, second=0, microsecond=0
             )
-            range_end = (fecha_ref + timedelta(days=body.bloqueante)).replace(
+            range_end = (fecha_ref + timedelta(days=bloqueante)).replace(
                 hour=23, minute=59, second=59, microsecond=0
             )
 
