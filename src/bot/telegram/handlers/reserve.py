@@ -11,7 +11,7 @@ from src.services.voice_service import VoiceService
 from src.bot.telegram.constants import CALENDAR_STEPS, MODO_TEXTO, MODO_AUDIO
 from src.bot.telegram.keyboards import main_menu_keyboard
 from src.bot.telegram.handlers.commands import handle_action_back_menu
-from src.BBDD.database_service import guardar_cita_en_db, obtener_o_crear_usuario_telegram
+from src.BBDD.database_service import guardar_cita_en_db, obtener_o_crear_usuario_telegram, obtener_horas_ocupadas
 
 async def handle_calendar_and_time(
     query, context: ContextTypes.DEFAULT_TYPE, update: Update
@@ -149,21 +149,21 @@ async def handle_calendar_and_time(
             is_today = result == date.today()
 
             available_hours = [
-                "9:00",
-                "10:00",
-                "11:00",
-                "12:00",
-                "16:00",
-                "17:00",
-                "18:00",
-                "19:00",
+                "9:00", "10:00", "11:00", "12:00", 
+                "16:00", "17:00", "18:00", "19:00",
             ]
+
+            horas_ocupadas = obtener_horas_ocupadas(str(result))
+
             buttons = []
             row = []
 
             for h in available_hours:
                 hour_int = int(h.split(":")[0])
                 if is_today and hour_int <= now.hour:
+                    continue
+
+                if h in horas_ocupadas:
                     continue
 
                 row.append(InlineKeyboardButton(h, callback_data=f"time_{h}"))
@@ -176,16 +176,13 @@ async def handle_calendar_and_time(
 
             buttons.append(
                 [
-                    InlineKeyboardButton(
-                        "↻ Cambiar Fecha", callback_data="action_reserve"
-                    ),
+                    InlineKeyboardButton("↻ Cambiar Fecha", callback_data="action_reserve"),
                     InlineKeyboardButton("⫶☰ Menú", callback_data="action_back_menu"),
                 ]
             )
-
-            text_hour = f"Fecha seleccionada: {result}\n⏰ Ahora, selecciona una hora:"
-            if is_today and not buttons[:-1]:
-                text_hour = f"❌ Lo siento, ya no quedan huecos disponibles para hoy ({result})."
+           
+            if not buttons[:-1]:
+                text_hour = f"❌ Lo siento, ya no quedan huecos libres para el día ({result})."
                 reply_markup = InlineKeyboardMarkup(
                     [
                         [
@@ -201,6 +198,7 @@ async def handle_calendar_and_time(
                     ]
                 )
             else:
+                text_hour = f"Fecha seleccionada: {result}\n⏰ Ahora, selecciona una hora:"
                 reply_markup = InlineKeyboardMarkup(buttons)
 
             await query.edit_message_text(text=text_hour, reply_markup=reply_markup)
