@@ -12,10 +12,11 @@ Documentación interactiva disponible en: http://localhost:8000/docs
 """
 
 from contextlib import asynccontextmanager
+from datetime import date as date_type
 from datetime import datetime
 from typing import AsyncGenerator, Optional
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Query
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
@@ -302,18 +303,46 @@ def post_cita(body: CitaCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail=str(e))
 
 
+def _parse_fecha(fecha_str: Optional[str]) -> datetime:
+    """Parsea un string de fecha ISO 8601. Si solo se indica fecha sin hora, asume 00:00.
+    Si no se indica nada, devuelve la fecha y hora actuales.
+    """
+    if fecha_str is None:
+        return datetime.now()
+    try:
+        return datetime.fromisoformat(fecha_str)
+    except ValueError:
+        pass
+    try:
+        d = date_type.fromisoformat(fecha_str)
+        return datetime(d.year, d.month, d.day, 0, 0, 0)
+    except ValueError:
+        raise HTTPException(
+            status_code=422,
+            detail="Formato de fecha inválido. Use ISO 8601 (YYYY-MM-DD o YYYY-MM-DDTHH:MM:SS)",
+        )
+
+
 @app.get("/usuarios/{id_usuario}/citas", response_model=list[CitaOut], tags=["Citas"])
-def get_citas_usuario(id_usuario: int, db: Session = Depends(get_db)):
-    """Lista todas las citas activas del usuario, ordenadas por fecha.
+def get_citas_usuario(
+    id_usuario: int,
+    anterior: bool = Query(default=False, description="false → próximas citas desde la fecha dada; true → citas anteriores a la fecha dada"),
+    fecha: Optional[str] = Query(default=None, description="Fecha de referencia en ISO 8601 (YYYY-MM-DD o YYYY-MM-DDTHH:MM:SS). Por defecto: ahora. Si solo se indica fecha, se asume 00:00."),
+    db: Session = Depends(get_db),
+):
+    """Lista las citas activas del usuario filtradas por fecha de referencia.
+    - anterior=false (defecto): citas desde 'fecha' en adelante, más cercanas primero.
+    - anterior=true: citas anteriores a 'fecha', más cercanas primero.
     Tipo I: citas individuales. Tipo C: citas de todos sus empleados.
     """
+    fecha_dt = _parse_fecha(fecha)
     try:
         usuario = obtener_usuario(db, id_usuario)
         if usuario is None:
             raise HTTPException(status_code=404, detail="Usuario no encontrado")
         if usuario.TIPO == "C":
-            return obtener_citas_corp_por_usuario(db, id_usuario)
-        return obtener_citas_por_usuario(db, id_usuario)
+            return obtener_citas_corp_por_usuario(db, id_usuario, fecha_dt, anterior)
+        return obtener_citas_por_usuario(db, id_usuario, fecha_dt, anterior)
     except (ValueError, PermissionError) as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -323,17 +352,25 @@ def get_citas_usuario(id_usuario: int, db: Session = Depends(get_db)):
     response_model=list[CitaOut],
     tags=["Citas"],
 )
-def get_citas_eliminadas_usuario(id_usuario: int, db: Session = Depends(get_db)):
-    """Lista todas las citas eliminadas del usuario.
+def get_citas_eliminadas_usuario(
+    id_usuario: int,
+    anterior: bool = Query(default=False, description="false → próximas citas desde la fecha dada; true → citas anteriores a la fecha dada"),
+    fecha: Optional[str] = Query(default=None, description="Fecha de referencia en ISO 8601 (YYYY-MM-DD o YYYY-MM-DDTHH:MM:SS). Por defecto: ahora. Si solo se indica fecha, se asume 00:00."),
+    db: Session = Depends(get_db),
+):
+    """Lista las citas eliminadas del usuario filtradas por fecha de referencia.
+    - anterior=false (defecto): citas desde 'fecha' en adelante, más cercanas primero.
+    - anterior=true: citas anteriores a 'fecha', más cercanas primero.
     Tipo I: citas individuales eliminadas. Tipo C: citas corp eliminadas.
     """
+    fecha_dt = _parse_fecha(fecha)
     try:
         usuario = obtener_usuario(db, id_usuario)
         if usuario is None:
             raise HTTPException(status_code=404, detail="Usuario no encontrado")
         if usuario.TIPO == "C":
-            return obtener_citas_corp_eliminadas_por_usuario(db, id_usuario)
-        return obtener_citas_eliminadas_por_usuario(db, id_usuario)
+            return obtener_citas_corp_eliminadas_por_usuario(db, id_usuario, fecha_dt, anterior)
+        return obtener_citas_eliminadas_por_usuario(db, id_usuario, fecha_dt, anterior)
     except (ValueError, PermissionError) as e:
         raise HTTPException(status_code=400, detail=str(e))
 

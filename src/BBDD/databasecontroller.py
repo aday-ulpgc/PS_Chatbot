@@ -378,15 +378,24 @@ def crear_cita(
     return cita
 
 
-def obtener_citas_por_usuario(session: Session, id_usuario: int) -> list[CitaInd]:
+def obtener_citas_por_usuario(
+    session: Session,
+    id_usuario: int,
+    fecha: datetime | None = None,
+    anterior: bool = False,
+) -> list[CitaInd]:
+    if fecha is None:
+        fecha = datetime.now()
     usuario = _get_usuario_activo(session, id_usuario)
     _verificar_acceso(usuario, TIPOS_INDIVIDUALES)
-    return (
-        session.query(CitaInd)
-        .filter(CitaInd.ID_USUARIO == id_usuario, CitaInd.ELIMINADO.is_(None))
-        .order_by(CitaInd.FECHA)
-        .all()
+    q = session.query(CitaInd).filter(
+        CitaInd.ID_USUARIO == id_usuario, CitaInd.ELIMINADO.is_(None)
     )
+    if anterior:
+        q = q.filter(CitaInd.FECHA < fecha).order_by(CitaInd.FECHA.desc())
+    else:
+        q = q.filter(CitaInd.FECHA >= fecha).order_by(CitaInd.FECHA.asc())
+    return q.all()
 
 
 def obtener_cita(session: Session, id_cita: int) -> CitaInd | None:
@@ -397,16 +406,23 @@ def obtener_cita(session: Session, id_cita: int) -> CitaInd | None:
 
 
 def obtener_citas_eliminadas_por_usuario(
-    session: Session, id_usuario: int
+    session: Session,
+    id_usuario: int,
+    fecha: datetime | None = None,
+    anterior: bool = False,
 ) -> list[CitaInd]:
+    if fecha is None:
+        fecha = datetime.now()
     usuario = _get_usuario_activo(session, id_usuario)
     _verificar_acceso(usuario, TIPOS_INDIVIDUALES)
-    return (
-        session.query(CitaInd)
-        .filter(CitaInd.ID_USUARIO == id_usuario, CitaInd.ELIMINADO is not None)
-        .order_by(CitaInd.FECHA)
-        .all()
+    q = session.query(CitaInd).filter(
+        CitaInd.ID_USUARIO == id_usuario, CitaInd.ELIMINADO.isnot(None)
     )
+    if anterior:
+        q = q.filter(CitaInd.FECHA < fecha).order_by(CitaInd.FECHA.desc())
+    else:
+        q = q.filter(CitaInd.FECHA >= fecha).order_by(CitaInd.FECHA.asc())
+    return q.all()
 
 
 def actualizar_cita(
@@ -571,30 +587,50 @@ def crear_cita_corp(
     return cita
 
 
-def obtener_citas_corp_por_usuario(session: Session, id_usuario: int) -> list[CitaCorp]:
+def obtener_citas_corp_por_usuario(
+    session: Session,
+    id_usuario: int,
+    fecha: datetime | None = None,
+    anterior: bool = False,
+) -> list[CitaCorp]:
     """Devuelve todas las citas corporativas activas de todos los empleados del usuario."""
+    if fecha is None:
+        fecha = datetime.now()
     usuario = _get_usuario_activo(session, id_usuario)
     _verificar_acceso(usuario, TIPOS_CORPORATIVOS)
-    return (
+    q = (
         session.query(CitaCorp)
         .join(Empleado, CitaCorp.ID_EMPLEADO == Empleado.ID_EMPLEADO)
         .filter(Empleado.ID_USUARIO == id_usuario, CitaCorp.ELIMINADO.is_(None))
-        .order_by(CitaCorp.FECHA)
-        .all()
     )
+    if anterior:
+        q = q.filter(CitaCorp.FECHA < fecha).order_by(CitaCorp.FECHA.desc())
+    else:
+        q = q.filter(CitaCorp.FECHA >= fecha).order_by(CitaCorp.FECHA.asc())
+    return q.all()
 
 
-def obtener_citas_corp_eliminadas_por_usuario(session: Session, id_usuario: int) -> list[CitaCorp]:
+def obtener_citas_corp_eliminadas_por_usuario(
+    session: Session,
+    id_usuario: int,
+    fecha: datetime | None = None,
+    anterior: bool = False,
+) -> list[CitaCorp]:
     """Devuelve todas las citas corporativas eliminadas de todos los empleados del usuario."""
+    if fecha is None:
+        fecha = datetime.now()
     usuario = _get_usuario_activo(session, id_usuario)
     _verificar_acceso(usuario, TIPOS_CORPORATIVOS)
-    return (
+    q = (
         session.query(CitaCorp)
         .join(Empleado, CitaCorp.ID_EMPLEADO == Empleado.ID_EMPLEADO)
         .filter(Empleado.ID_USUARIO == id_usuario, CitaCorp.ELIMINADO.isnot(None))
-        .order_by(CitaCorp.FECHA)
-        .all()
     )
+    if anterior:
+        q = q.filter(CitaCorp.FECHA < fecha).order_by(CitaCorp.FECHA.desc())
+    else:
+        q = q.filter(CitaCorp.FECHA >= fecha).order_by(CitaCorp.FECHA.asc())
+    return q.all()
 
 
 def obtener_cita_corp(session: Session, id_cita: int) -> CitaCorp | None:
