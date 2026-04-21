@@ -1,4 +1,5 @@
 # src/bot/telegram/handlers/nlp.py
+import base64
 import asyncio
 from telegram import Update
 from telegram.ext import ContextTypes
@@ -6,26 +7,35 @@ from src.nlp.gemini_service import NLPService
 from src.services import calendar_service
 
 async def handle_texto_libre(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    texto_usuario = update.message.text
-    
-    # 1. Indicador de "Escribiendo..."
     await update.message.chat.send_action(action="typing")
     
-    disponibilidad_semanal = await asyncio.to_thread(calendar_service.get_weekly_availability, 7)
+    datos_semanal = await asyncio.to_thread(calendar_service.get_weekly_availability, 7)
+    texto_usuario = ""
+    audio_b64 = None
+    
+    # 1. Detectar si es Voz o Texto
+    if update.message.voice:
+        # Descargamos el audio de Telegram en memoria (sin guardarlo en disco)
+        voice_file = await update.message.voice.get_file()
+        audio_bytes = await voice_file.download_as_bytearray()
+        
+        # Lo codificamos a Base64 para enviarlo a Google
+        audio_b64 = base64.b64encode(audio_bytes).decode('utf-8')
+        texto_usuario = "[El usuario ha enviado una nota de voz. Escúchala para extraer la intención]"
+    else:
+        texto_usuario = update.message.text
 
-    # 2. Gestionar la memoria (Historial)
+    # 2. Gestión de la Memoria
     if "historial" not in context.user_data:
         context.user_data["historial"] = []
     
     context.user_data["historial"].append({"rol": "usuario", "texto": texto_usuario})
     
-    # Mantenemos solo los últimos 10 mensajes para no saturar el token limit
     if len(context.user_data["historial"]) > 10:
         context.user_data["historial"] = context.user_data["historial"][-10:]
     
-    # 3. Procesar con la IA
-    respuesta_agente = await NLPService.procesar_mensaje(context.user_data["historial"],
-                                                         datos_semanal=disponibilidad_semanal)
+    # 3. Procesar con Gemini (AÑADIMOS EL AUDIO COMO PARÁMETRO)
+    respuesta_agente = await NLPService.procesar_mensaje(context.user_data["historial"], datos_semanal=datos_semanal, audio_b64=audio_b64)
     
     # 4. Guardar lo que dijo la IA en la memoria
     texto_respuesta = respuesta_agente.get("respuesta_usuario", "Ha habido un error de comunicación.")

@@ -30,15 +30,15 @@ class NLPService:
         }
 
     @staticmethod
-    async def procesar_mensaje(historial_mensajes: list, datos_semanal: str) -> dict:
+    async def procesar_mensaje(historial_mensajes: list, datos_semanal: str, audio_b64: str = None) -> dict:
         # Configuración
         api_key = os.getenv("GEMINI_API_KEY")
-        modelo = os.getenv("GEMINI_MODEL", "gemini-3-flash-preview")
+        modelo = os.getenv("GEMINI_MODEL", "gemini-3-pro-preview")
         
         # URL Directa de la API de Google
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent?key={api_key}"
 
-        hoy = datetime.now().strftime("%A, %d de %B de %Y")
+        hoy = datetime.now().strftime("%A, %d de %B de %Y %H:%M")
         
         prompt_sistema = obtener_promt_agente(hoy,datos_semanal)
 
@@ -47,7 +47,13 @@ class NLPService:
         for m in historial_mensajes:
             role = "user" if m["rol"] == "usuario" else "model"
             mensajes_gemini.append({"role": role, "parts": [{"text": m["texto"]}]})
-
+        if audio_b64:
+            mensajes_gemini[-1]["parts"].append({
+                "inlineData": {
+                    "mimeType": "audio/ogg", 
+                    "data": audio_b64
+                }
+            })
         # Construimos el cuerpo de la petición (Payload)
         payload = {
             "contents": mensajes_gemini,

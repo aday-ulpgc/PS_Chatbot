@@ -47,7 +47,7 @@ def main() -> None:
 
     app.add_handler(CommandHandler("start", start_command))
     app.add_handler(CallbackQueryHandler(menu_callback_handler))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_texto_libre))
+    app.add_handler(MessageHandler((filters.TEXT | filters.VOICE) & ~filters.COMMAND, handle_texto_libre))
     api_thread = threading.Thread(
         target=uvicorn.run,
         kwargs={"app": fastapi_app, "host": "0.0.0.0", "port": 8000},
