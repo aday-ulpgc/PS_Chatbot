@@ -1,6 +1,9 @@
 import json
 import asyncio
+import os
+import re
 from datetime import date, datetime
+
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 from telegram_bot_calendar import DetailedTelegramCalendar
@@ -9,8 +12,48 @@ from telegram.error import BadRequest
 from src.services import calendar_service
 from src.services.voice_service import VoiceService
 from src.bot.telegram.constants import CALENDAR_STEPS, MODO_TEXTO, MODO_AUDIO
-from src.bot.telegram.keyboards import main_menu_keyboard
 from src.bot.telegram.handlers.commands import handle_action_back_menu
+
+
+MESES_ES = {
+    1: "enero",
+    2: "febrero",
+    3: "marzo",
+    4: "abril",
+    5: "mayo",
+    6: "junio",
+    7: "julio",
+    8: "agosto",
+    9: "septiembre",
+    10: "octubre",
+    11: "noviembre",
+    12: "diciembre",
+}
+
+
+def formatear_fecha_para_voz(texto: str) -> str:
+    """Convierte fechas YYYY-MM-DD a un formato más natural en español."""
+
+    def reemplazo(match):
+        fecha_str = match.group(0)
+        fecha = datetime.strptime(fecha_str, "%Y-%m-%d")
+        return f"{fecha.day} de {MESES_ES[fecha.month]} de {fecha.year}"
+
+    return re.sub(r"\b\d{4}-\d{2}-\d{2}\b", reemplazo, texto)
+
+
+def formatear_hora_para_voz(texto: str) -> str:
+    """Convierte horas del estilo 16:00 a un formato más natural."""
+    return (
+        texto.replace("9:00", "9 en punto")
+        .replace("10:00", "10 en punto")
+        .replace("11:00", "11 en punto")
+        .replace("12:00", "12 en punto")
+        .replace("16:00", "4 de la tarde")
+        .replace("17:00", "5 de la tarde")
+        .replace("18:00", "6 de la tarde")
+        .replace("19:00", "7 de la tarde")
+    )
 
 
 async def enviar_recordatorio_cita(context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -22,6 +65,53 @@ async def enviar_recordatorio_cita(context: ContextTypes.DEFAULT_TYPE) -> None:
         )
     except Exception as e:
         print(f"❌ Error al enviar el mensaje: {e}")
+
+
+async def send_with_optional_audio(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    texto: str,
+    reply_markup: InlineKeyboardMarkup | None = None,
+) -> None:
+    """Envía siempre texto y, si el modo audio está activo, también audio."""
+    user_mode = context.user_data.get("pref_mode", MODO_TEXTO)
+    print(f"[DEBUG] pref_mode actual: {user_mode}")
+
+    if update.callback_query:
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text=texto,
+            reply_markup=reply_markup,
+        )
+    elif update.message:
+        await update.message.reply_text(
+            text=texto,
+            reply_markup=reply_markup,
+        )
+
+    if user_mode == MODO_AUDIO:
+        try:
+            texto_para_audio = formatear_fecha_para_voz(texto)
+            texto_para_audio = formatear_hora_para_voz(texto_para_audio)
+            print(f"[DEBUG] Texto para audio: {texto_para_audio}")
+
+            audio_path = await VoiceService.text_to_speech(texto_para_audio)
+            print(f"[DEBUG] Audio generado en: {audio_path}")
+
+            with open(audio_path, "rb") as audio_file:
+                await context.bot.send_audio(
+                    chat_id=update.effective_chat.id,
+                    audio=audio_file,
+                    title="Confirmación de reserva",
+                )
+
+            if os.path.exists(audio_path):
+                os.remove(audio_path)
+
+            print("[DEBUG] Audio enviado correctamente")
+
+        except Exception as e:
+            print(f"❌ Error al generar/enviar audio: {e}")
 
 
 async def handle_calendar_and_time(
@@ -39,7 +129,12 @@ async def handle_calendar_and_time(
             return True
 
         await query.edit_message_text(
-            text=f"✅ ¡Resumen de tu solicitud!\n📅 Fecha: {selected_data}\n⏰ Hora: {selected_time}\n\n⏳ Procesando reserva en Google Calendar..."
+            text=(
+                f"✅ ¡Resumen de tu solicitud!\n"
+                f"📅 Fecha: {selected_data}\n"
+                f"⏰ Hora: {selected_time}\n\n"
+                f"⏳ Procesando reserva en Google Calendar..."
+            )
         )
 
         name_and_id = f"{update.effective_user.full_name} ({update.effective_user.id})"
@@ -69,42 +164,24 @@ async def handle_calendar_and_time(
                 text=response_message, reply_markup=error_keyboard
             )
         else:
-            # Obtener modo del usuario (TEXTO o AUDIO)
-            user_mode = context.user_data.get("pref_mode", MODO_TEXTO)
-
-            context.user_data["last_reserva_text"] = response_message
-
-            if user_mode == MODO_AUDIO:
-                await query.edit_message_text("🎙️ Generando audio de confirmación...")
-
-                audio_path = await VoiceService.text_to_speech(response_message)
-
-                audio_keyboard = InlineKeyboardMarkup(
+            menu_keyboard = InlineKeyboardMarkup(
+                [
                     [
-                        [
-                            InlineKeyboardButton(
-                                "📖 Ver en texto", callback_data="show_text_reserva"
-                            )
-                        ],
-                        [
-                            InlineKeyboardButton(
-                                "⫶☰ Menú Principal", callback_data="action_back_menu"
-                            )
-                        ],
+                        InlineKeyboardButton(
+                            "⫶☰ Menú Principal", callback_data="action_back_menu"
+                        )
                     ]
-                )
+                ]
+            )
 
-                with open(audio_path, "rb") as audio_file:
-                    await context.bot.send_voice(
-                        chat_id=update.effective_chat.id,
-                        voice=audio_file,
-                        reply_markup=audio_keyboard,
-                    )
-                await query.delete_message()
-            else:
-                await query.edit_message_text(
-                    text=response_message, reply_markup=main_menu_keyboard()
-                )
+            await query.delete_message()
+
+            await send_with_optional_audio(
+                update,
+                context,
+                response_message,
+                reply_markup=menu_keyboard,
+            )
 
             context.job_queue.run_once(
                 enviar_recordatorio_cita,
@@ -188,7 +265,9 @@ async def handle_calendar_and_time(
 
             text_hour = f"Fecha seleccionada: {result}\n⏰ Ahora, selecciona una hora:"
             if is_today and not buttons[:-1]:
-                text_hour = f"❌ Lo siento, ya no quedan huecos disponibles para hoy ({result})."
+                text_hour = (
+                    f"❌ Lo siento, ya no quedan huecos disponibles para hoy ({result})."
+                )
                 reply_markup = InlineKeyboardMarkup(
                     [
                         [
