@@ -10,9 +10,9 @@ async def handle_texto_libre(update: Update, context: ContextTypes.DEFAULT_TYPE)
     
     # 1. Indicador de "Escribiendo..."
     await update.message.chat.send_action(action="typing")
-    
-    disponibilidad_semanal = await asyncio.to_thread(calendar_service.get_weekly_availability, 7)
 
+    disponibilidad_semanal = await asyncio.to_thread(calendar_service.get_weekly_availability, 7)
+    
     # 2. Gestionar la memoria (Historial)
     if "historial" not in context.user_data:
         context.user_data["historial"] = []
@@ -24,8 +24,7 @@ async def handle_texto_libre(update: Update, context: ContextTypes.DEFAULT_TYPE)
         context.user_data["historial"] = context.user_data["historial"][-10:]
     
     # 3. Procesar con la IA
-    respuesta_agente = await NLPService.procesar_mensaje(context.user_data["historial"],
-                                                         datos_semanal=disponibilidad_semanal)
+    respuesta_agente = await NLPService.procesar_mensaje(context.user_data["historial"], datos_semanal=disponibilidad_semanal)
     
     # 4. Guardar lo que dijo la IA en la memoria
     texto_respuesta = respuesta_agente.get("respuesta_usuario", "Ha habido un error de comunicación.")

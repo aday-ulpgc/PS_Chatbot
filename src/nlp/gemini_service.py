@@ -38,7 +38,7 @@ class NLPService:
         # URL Directa de la API de Google
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent?key={api_key}"
 
-        hoy = datetime.now().strftime("%A, %d de %B de %Y")
+        hoy = datetime.now().strftime("%A, %d de %B de %Y a las %H:%M")
         
         prompt_sistema = obtener_promt_agente(hoy,datos_semanal)
 
