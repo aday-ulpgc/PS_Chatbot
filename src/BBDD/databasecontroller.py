@@ -15,7 +15,7 @@ Restricción de tipo:
 
 import os
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Generator
 
 from dotenv import load_dotenv
@@ -455,6 +455,26 @@ def eliminar_cita(session: Session, id_cita: int) -> bool:
     return True
 
 
+def get_citas_ind_en_rango(
+    session: Session,
+    fecha_inicio: datetime,
+    fecha_fin: datetime,
+) -> list[CitaInd]:
+    """Devuelve todas las CITAS_IND activas en el rango [fecha_inicio, fecha_fin).
+    Se amplía 1 día hacia atrás para capturar citas que empezaron antes pero
+    podrían solapar con el inicio del rango.
+    """
+    return (
+        session.query(CitaInd)
+        .filter(
+            CitaInd.ELIMINADO.is_(None),
+            CitaInd.FECHA >= fecha_inicio - timedelta(days=1),
+            CitaInd.FECHA < fecha_fin,
+        )
+        .all()
+    )
+
+
 # ── CRUD EMPLEADOS ─────────────────────────────────────────────────────────────
 
 
@@ -665,3 +685,25 @@ def eliminar_cita_corp(session: Session, id_cita: int) -> bool:
         return False
     cita.ELIMINADO = datetime.now(timezone.utc)
     return True
+
+
+def get_citas_cor_en_rango(
+    session: Session,
+    id_empleado: int,
+    fecha_inicio: datetime,
+    fecha_fin: datetime,
+) -> list[CitaCorp]:
+    """Devuelve las CITAS_COR activas de un empleado en el rango [fecha_inicio, fecha_fin).
+    Se amplía 1 día hacia atrás para capturar citas que empezaron antes pero
+    podrían solapar con el inicio del rango.
+    """
+    return (
+        session.query(CitaCorp)
+        .filter(
+            CitaCorp.ID_EMPLEADO == id_empleado,
+            CitaCorp.ELIMINADO.is_(None),
+            CitaCorp.FECHA >= fecha_inicio - timedelta(days=1),
+            CitaCorp.FECHA < fecha_fin,
+        )
+        .all()
+    )

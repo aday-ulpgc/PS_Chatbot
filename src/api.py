@@ -13,7 +13,7 @@ Documentación interactiva disponible en: http://localhost:8000/docs
 
 from contextlib import asynccontextmanager
 from datetime import date as date_type
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import AsyncGenerator, Optional
 
 from fastapi import Depends, FastAPI, HTTPException, Query
@@ -25,6 +25,8 @@ from src.BBDD.databasecontroller import (
     actualizar_cita_corp,
     crear_cita,
     crear_cita_corp,
+    get_citas_cor_en_rango,
+    get_citas_ind_en_rango,
     crear_cliente,
     crear_contacto,
     crear_empleado,
@@ -110,7 +112,7 @@ class CitaCreate(BaseModel):
     # Tipo I: requiere ID_USUARIO; ID_CONTACTO opcional
     ID_USUARIO: int
     ID_CONTACTO: Optional[int] = None
-    FECHA: datetime
+    FECHA: Optional[datetime] = None  # por omisión: datetime.now()
     DESCRIPCION: Optional[str] = None
     PRIORIDAD: int = 1
     # Tipo C: requiere ID_EMPLEADO + ID_CLIENTE
@@ -118,6 +120,9 @@ class CitaCreate(BaseModel):
     ID_CLIENTE: Optional[int] = None
     # Ambos tipos
     DURACION: Optional[int] = None  # minutos
+    # Control de disponibilidad:
+    # 0 = sin comprobación; N > 0 = busca hueco en ±N días
+    bloqueante: int = 0
 
 
 class CitaUpdate(BaseModel):
@@ -271,34 +276,170 @@ def delete_contacto(id_contacto: int, db: Session = Depends(get_db)):
 # ── Endpoints: CITAS (compartidos, dispatch por TIPO de usuario) ───────────────
 
 
+def _buscar_disponibilidad(
+    citas: list,
+    fecha_ref: datetime,
+    duracion_min: int,
+    range_start: datetime,
+    range_end: datetime,
+) -> tuple[str, Optional[datetime], Optional[datetime]]:
+    """Busca disponibilidad para una cita de `duracion_min` minutos en `fecha_ref`.
+
+    Devuelve una tupla (estado, antes, después):
+    - ("available", None, None): el slot original está libre, se puede insertar.
+    - ("unavailable", dt_antes, dt_después): slot ocupado; dt_* son los huecos
+      alternativos más cercanos (pueden ser None si no existe en esa dirección).
+    - ("no_space", None, None): no hay ningún hueco válido en el rango.
+    """
+    dur = timedelta(minutes=duracion_min)
+
+    # Construir intervalos ocupados (datetime naive)
+    intervals: list[tuple[datetime, datetime]] = []
+    for c in citas:
+        start = c.FECHA.replace(tzinfo=None) if c.FECHA.tzinfo is not None else c.FECHA
+        end = start + timedelta(minutes=c.DURACION if c.DURACION is not None else 60)
+        intervals.append((start, end))
+
+    intervals.sort(key=lambda x: x[0])
+
+    # Mergear intervalos solapados
+    merged: list[list[datetime]] = []
+    for start, end in intervals:
+        if merged and start <= merged[-1][1]:
+            merged[-1][1] = max(merged[-1][1], end)
+        else:
+            merged.append([start, end])
+
+    # Calcular huecos libres dentro de [range_start, range_end]
+    free_gaps: list[tuple[datetime, datetime]] = []
+    cursor = range_start
+    for busy_start, busy_end in merged:
+        if busy_start >= range_end:
+            break
+        if busy_end <= range_start:
+            continue
+        gap_end = min(busy_start, range_end)
+        if gap_end > cursor:
+            free_gaps.append((cursor, gap_end))
+        cursor = max(cursor, busy_end)
+    if cursor < range_end:
+        free_gaps.append((cursor, range_end))
+
+    # Filtrar huecos que pueden albergar la cita
+    viable = [(gs, ge) for gs, ge in free_gaps if ge - gs >= dur]
+
+    # ¿El slot original está libre?
+    slot_end = fecha_ref + dur
+    for gs, ge in viable:
+        if gs <= fecha_ref and ge >= slot_end:
+            return ("available", None, None)
+
+    # Buscar candidatos antes y después
+    before_candidate: Optional[datetime] = None
+    after_candidate: Optional[datetime] = None
+
+    for gs, ge in viable:
+        latest_start = ge - dur
+        if latest_start < fecha_ref:  # hueco está antes de fecha_ref
+            if before_candidate is None or latest_start > before_candidate:
+                before_candidate = latest_start
+        elif gs > fecha_ref:  # hueco está después de fecha_ref
+            if after_candidate is None or gs < after_candidate:
+                after_candidate = gs
+
+    if before_candidate is None and after_candidate is None:
+        return ("no_space", None, None)
+
+    return ("unavailable", before_candidate, after_candidate)
+
+
 @app.post("/citas", response_model=CitaOut, status_code=201, tags=["Citas"])
 def post_cita(body: CitaCreate, db: Session = Depends(get_db)):
     """Crea una cita.
     - Tipo I: usa ID_USUARIO + FECHA (+ ID_CONTACTO, DESCRIPCION, PRIORIDAD opcionales).
     - Tipo C: usa ID_EMPLEADO + ID_CLIENTE + FECHA (+ DESCRIPCION opcional).
+
+    Si `bloqueante` es 0 (valor por defecto) se inserta sin comprobación de disponibilidad.
+    Si `bloqueante` es N > 0 se verifica que el slot esté libre en el calendario;
+    si está ocupado se devuelven alternativas dentro de ±N días.
     """
+    fecha_ref = body.FECHA if body.FECHA is not None else datetime.now()
+    # Asegurar datetime naive para consistencia con la BD
+    if fecha_ref.tzinfo is not None:
+        fecha_ref = fecha_ref.replace(tzinfo=None)
+
     try:
         usuario = obtener_usuario(db, body.ID_USUARIO)
         if usuario is None:
             raise HTTPException(status_code=404, detail="Usuario no encontrado")
-        if usuario.TIPO == "C":
-            if body.ID_EMPLEADO is None or body.ID_CLIENTE is None:
+
+        es_corp = usuario.TIPO == "C"
+
+        if es_corp and (body.ID_EMPLEADO is None or body.ID_CLIENTE is None):
+            raise HTTPException(
+                status_code=400,
+                detail="Tipo C requiere ID_EMPLEADO e ID_CLIENTE",
+            )
+
+        # ── Comprobación de disponibilidad (solo si bloqueante != 0) ─────────────────
+        if body.bloqueante != 0:
+            duracion_efectiva = body.DURACION if body.DURACION is not None else 60
+            range_start = (fecha_ref - timedelta(days=body.bloqueante)).replace(
+                hour=0, minute=0, second=0, microsecond=0
+            )
+            range_end = (fecha_ref + timedelta(days=body.bloqueante)).replace(
+                hour=23, minute=59, second=59, microsecond=0
+            )
+
+            if es_corp:
+                citas = get_citas_cor_en_rango(db, body.ID_EMPLEADO, range_start, range_end)
+            else:
+                citas = get_citas_ind_en_rango(db, range_start, range_end)
+
+            estado, antes, despues = _buscar_disponibilidad(
+                citas, fecha_ref, duracion_efectiva, range_start, range_end
+            )
+
+            if estado == "no_space":
                 raise HTTPException(
-                    status_code=400,
-                    detail="Tipo C requiere ID_EMPLEADO e ID_CLIENTE",
+                    status_code=409,
+                    detail="Cita no guardada. Ninguna cita disponible para este periodo.",
                 )
+
+            if estado == "unavailable":
+                fmt = "%d/%m/%Y %H:%M"
+                alternativas = [
+                    (abs((dt - fecha_ref).total_seconds()), dt)
+                    for dt in (antes, despues)
+                    if dt is not None
+                ]
+                alternativas.sort(key=lambda x: x[0])
+                fechas_str = "  ".join(dt.strftime(fmt) for _, dt in alternativas)
+                raise HTTPException(
+                    status_code=409,
+                    detail=(
+                        f"Horario no disponible. "
+                        f"Otras fechas cercanas que podrían interesarte: {fechas_str}"
+                    ),
+                )
+            # estado == "available" → continuar con la inserción normal
+
+        # ── Inserción ──────────────────────────────────────────────────
+        if es_corp:
             return crear_cita_corp(
-                db, body.ID_EMPLEADO, body.ID_CLIENTE, body.FECHA, body.DESCRIPCION, body.DURACION
+                db, body.ID_EMPLEADO, body.ID_CLIENTE, fecha_ref, body.DESCRIPCION, body.DURACION
             )
         return crear_cita(
             db,
             body.ID_USUARIO,
-            body.FECHA,
+            fecha_ref,
             body.ID_CONTACTO,
             body.DESCRIPCION,
             body.PRIORIDAD,
             body.DURACION,
         )
+    except HTTPException:
+        raise
     except (ValueError, PermissionError) as e:
         raise HTTPException(status_code=400, detail=str(e))
 
