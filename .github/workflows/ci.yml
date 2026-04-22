@@ -38,7 +38,7 @@ jobs:
       run: pytest tests/ --junitxml=pytest-results.xml
 
     - name: Publicar resultados de los test
-      uses: nricoMi/publish-unit-test-result-action@v2
+      uses: EnricoMi/publish-unit-test-result-action@v2
       if: always() 
       with:
         files: pytest-results.xml
