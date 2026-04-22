@@ -1,7 +1,9 @@
+import os
 from telegram.ext import ContextTypes
 
 from src.bot.telegram.constants import MODO_TEXTO, MODO_AUDIO, WELCOME_TEXT
 from src.bot.telegram.keyboards import main_menu_keyboard
+from src.services.voice_service import VoiceService
 
 
 async def handle_toggle_audio_main(query, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -11,16 +13,41 @@ async def handle_toggle_audio_main(query, context: ContextTypes.DEFAULT_TYPE) ->
     if current_mode == MODO_AUDIO:
         context.user_data["pref_mode"] = MODO_TEXTO
         await query.answer(text="Audio desactivado 🔇")
+
+        await query.edit_message_text(
+            text=WELCOME_TEXT,
+            reply_markup=main_menu_keyboard(MODO_TEXTO),
+        )
     else:
         context.user_data["pref_mode"] = MODO_AUDIO
         await query.answer(text="Audio activado 🎤")
 
-    new_mode = context.user_data["pref_mode"]
+        await query.edit_message_text(
+            text=WELCOME_TEXT,
+            reply_markup=main_menu_keyboard(MODO_AUDIO),
+        )
 
-    await query.edit_message_text(
-        text=WELCOME_TEXT,
-        reply_markup=main_menu_keyboard(new_mode),
-    )
+        try:
+            texto_bienvenida_audio = (
+                "Hola, soy Calia, tu asistente de reservas. "
+                "El modo audio ha sido activado. "
+                "Puedes hacer una reserva, consultar tus citas o pedir ayuda."
+            )
+
+            audio_path = await VoiceService.text_to_speech(texto_bienvenida_audio)
+
+            with open(audio_path, "rb") as audio_file:
+                await context.bot.send_audio(
+                    chat_id=query.message.chat_id,
+                    audio=audio_file,
+                    title="Bienvenida de Calia",
+                )
+
+            if os.path.exists(audio_path):
+                os.remove(audio_path)
+
+        except Exception as e:
+            print(f"❌ Error al generar/enviar audio de activación: {e}")
 
 
 async def handle_show_text_reserva(query, context: ContextTypes.DEFAULT_TYPE) -> None:
