@@ -1,6 +1,6 @@
 import json
 import asyncio
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 from telegram_bot_calendar import DetailedTelegramCalendar
@@ -11,7 +11,12 @@ from src.services.voice_service import VoiceService
 from src.bot.telegram.constants import CALENDAR_STEPS, MODO_TEXTO, MODO_AUDIO
 from src.bot.telegram.keyboards import main_menu_keyboard
 from src.bot.telegram.handlers.commands import handle_action_back_menu
-from src.BBDD.database_service import guardar_cita_en_db, obtener_o_crear_usuario_telegram, obtener_horas_ocupadas
+from src.BBDD.database_service import (
+    guardar_cita_en_db,
+    obtener_o_crear_usuario_telegram,
+    obtener_horas_ocupadas,
+)
+
 
 async def handle_calendar_and_time(
     query, context: ContextTypes.DEFAULT_TYPE, update: Update
@@ -94,20 +99,20 @@ async def handle_calendar_and_time(
                 await query.edit_message_text(
                     text=response_message, reply_markup=main_menu_keyboard()
                 )
-            
+
             # Guarda en la base de datos para los recordatorios diarios
             fecha_dt = datetime.strptime(selected_data, "%Y-%m-%d")
-            
+
             obtener_o_crear_usuario_telegram(
                 telegram_id=update.effective_user.id,
-                nombre=update.effective_user.full_name
+                nombre=update.effective_user.full_name,
             )
-            
+
             guardar_cita_en_db(
                 telegram_id=update.effective_user.id,
                 fecha=fecha_dt,
                 hora=selected_time,
-                descripcion="Reserva desde Telegram MVP"
+                descripcion="Reserva desde Telegram MVP",
             )
 
         return True
@@ -149,8 +154,14 @@ async def handle_calendar_and_time(
             is_today = result == date.today()
 
             available_hours = [
-                "9:00", "10:00", "11:00", "12:00", 
-                "16:00", "17:00", "18:00", "19:00",
+                "9:00",
+                "10:00",
+                "11:00",
+                "12:00",
+                "16:00",
+                "17:00",
+                "18:00",
+                "19:00",
             ]
 
             horas_ocupadas = obtener_horas_ocupadas(str(result))
@@ -176,13 +187,17 @@ async def handle_calendar_and_time(
 
             buttons.append(
                 [
-                    InlineKeyboardButton("↻ Cambiar Fecha", callback_data="action_reserve"),
+                    InlineKeyboardButton(
+                        "↻ Cambiar Fecha", callback_data="action_reserve"
+                    ),
                     InlineKeyboardButton("⫶☰ Menú", callback_data="action_back_menu"),
                 ]
             )
-           
+
             if not buttons[:-1]:
-                text_hour = f"❌ Lo siento, ya no quedan huecos libres para el día ({result})."
+                text_hour = (
+                    f"❌ Lo siento, ya no quedan huecos libres para el día ({result})."
+                )
                 reply_markup = InlineKeyboardMarkup(
                     [
                         [
@@ -198,7 +213,9 @@ async def handle_calendar_and_time(
                     ]
                 )
             else:
-                text_hour = f"Fecha seleccionada: {result}\n⏰ Ahora, selecciona una hora:"
+                text_hour = (
+                    f"Fecha seleccionada: {result}\n⏰ Ahora, selecciona una hora:"
+                )
                 reply_markup = InlineKeyboardMarkup(buttons)
 
             await query.edit_message_text(text=text_hour, reply_markup=reply_markup)
