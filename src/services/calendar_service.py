@@ -10,8 +10,8 @@ TIMEZONE = "Atlantic/Canary"
 class GoogleCalendarService:
     """Servicio especializado en la interacción con la API de Google Calendar."""
 
-    def __init__(self):
-        self.calendar_id = os.getenv("CALENDAR_ID")
+    def __init__(self, calendar_id: str = None):
+        self.calendar_id = calendar_id or os.getenv("CALENDAR_ID") 
         self.service = self._authenticate()
 
     def _authenticate(self):
