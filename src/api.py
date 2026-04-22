@@ -123,7 +123,7 @@ class CitaUpdate(BaseModel):
     FECHA: Optional[datetime] = None
     DESCRIPCION: Optional[str] = None
     PRIORIDAD: Optional[int] = None  # solo tipo I
-    DURACION: Optional[int] = None   # ambos tipos, minutos
+    DURACION: Optional[int] = None  # ambos tipos, minutos
 
 
 class CitaOut(BaseModel):
@@ -287,7 +287,12 @@ def post_cita(body: CitaCreate, db: Session = Depends(get_db)):
                     detail="Tipo C requiere ID_EMPLEADO e ID_CLIENTE",
                 )
             return crear_cita_corp(
-                db, body.ID_EMPLEADO, body.ID_CLIENTE, body.FECHA, body.DESCRIPCION, body.DURACION
+                db,
+                body.ID_EMPLEADO,
+                body.ID_CLIENTE,
+                body.FECHA,
+                body.DESCRIPCION,
+                body.DURACION,
             )
         return crear_cita(
             db,
@@ -355,10 +360,14 @@ def put_cita(id_cita: int, body: CitaUpdate, db: Session = Depends(get_db)):
     """Actualiza una cita. Busca primero en CITAS_IND, luego en CITAS_COR.
     PRIORIDAD solo aplica a citas individuales.
     """
-    cita = actualizar_cita(db, id_cita, body.FECHA, body.DESCRIPCION, body.PRIORIDAD, body.DURACION)
+    cita = actualizar_cita(
+        db, id_cita, body.FECHA, body.DESCRIPCION, body.PRIORIDAD, body.DURACION
+    )
     if cita is not None:
         return cita
-    cita = actualizar_cita_corp(db, id_cita, body.FECHA, body.DESCRIPCION, body.DURACION)
+    cita = actualizar_cita_corp(
+        db, id_cita, body.FECHA, body.DESCRIPCION, body.DURACION
+    )
     if cita is None:
         raise HTTPException(status_code=404, detail="Cita no encontrada")
     return cita
@@ -470,4 +479,3 @@ def delete_cliente(id_cliente: int, db: Session = Depends(get_db)):
         raise HTTPException(
             status_code=404, detail="Cliente no encontrado o ya eliminado"
         )
-

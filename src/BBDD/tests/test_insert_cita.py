@@ -8,8 +8,8 @@ _root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."
 if _root not in sys.path:
     sys.path.insert(0, _root)
 
-from datetime import datetime
-from src.BBDD.databasecontroller import (
+from datetime import datetime  # noqa: E402
+from src.BBDD.databasecontroller import (  # noqa: E402
     get_session,
     crear_contacto,
     crear_cita,
