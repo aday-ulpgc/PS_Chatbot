@@ -35,6 +35,8 @@ jobs:
       run: ruff check .
       
     - name: Tests (Pytest)
+      env:
+        DB_URL: ${{ secrets.DB_URL }}
       run: pytest tests/ --junitxml=pytest-results.xml
 
     - name: Publicar resultados de los test
