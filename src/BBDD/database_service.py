@@ -8,6 +8,7 @@ from .databasecontroller import (
     crear_usuario,
     crear_contacto,
     crear_cita,
+    CitaInd
 )
 
 
@@ -119,3 +120,25 @@ def guardar_cita_en_db(
     except Exception as e:
         print(f"❌ Error al guardar cita en DB: {e}")
         return False
+
+
+
+def obtener_horas_ocupadas(fecha_str: str) -> list[str]:
+    """Consulta la BD y devuelve una lista de horas ocupadas para una fecha dada."""
+    try:
+        with get_session() as session:
+
+            citas_activas = session.query(CitaInd).filter(CitaInd.ELIMINADO.is_(None)).all()
+            
+            horas_ocupadas = []
+            for cita in citas_activas:
+
+                if cita.FECHA.strftime("%Y-%m-%d") == fecha_str:
+
+                    hora_formateada = f"{cita.FECHA.hour}:{cita.FECHA.minute:02d}"
+                    horas_ocupadas.append(hora_formateada)
+                    
+            return horas_ocupadas
+    except Exception as e:
+        print(f"❌ Error al leer horas ocupadas: {e}")
+        return []
