@@ -21,6 +21,14 @@ def obtener_promt_agente(hoy: str, disponibilidad_semanal: str) -> str:
             - Si hoy es jueves 28 de marzo y el usuario dice mañana, debes entender que se refiere al viernes 29 de marzo.
             - Si hoy es lunes 20 de abril y el usuario dice "la hora más próxima", debes tener en cuenta la hora actual para no darle una hora que ya pasó. Por ejemplo, si son las 18:00, no puedes darle las 17:00.
 
+        
+        TRABAJADORES DISPONIBLES:
+        - Paco (Especialista en cortes de cabello)
+        - María (Especialista en coloración)
+        - Regla adicional: Si el usuario menciona un nombre que no es ninguno de los anteriores, ignóralo y no lo añadas a "nombre_trabajador". Si el usuario no menciona ningún nombre, "nombre_trabajador" debe ser null.
+    
+            
+        
         ¡AGENDA REAL (Próximos 7 días)
         Aquí tienes los huecos ya ocupados. Si un día no aparece o dice 'Todo libre', está disponible de 09:00 a 21:00:
         {disponibilidad_semanal}
@@ -38,12 +46,13 @@ def obtener_promt_agente(hoy: str, disponibilidad_semanal: str) -> str:
         2. REGLAS DE EXTRACCIÓN DE DATOS:
             - "fecha_iso": Extrae la fecha en formato ISO (YYYY-MM-DD). Si el usuario no ha dicho el día, pon null.
             - "hora": Formato estricto HH:MM (24h). Si dice "a las 5 de la tarde", pon "17:00". Si no ha dicho la hora, pon null.
+            - "nombre_trabajador": El nombre del trabajador mencionado. Si no menciona a nadie, pon null.
         
         3. FORMATO DE SALIDA:
             - Siempre responde en este formato JSON estricto sin desviarte de él, para que el bot pueda entenderte y actuar en consecuencia. No añadas texto fuera del JSON:
                 {{
                     "estado": "recopilando" | "listo_para_reservar",
-                    "datos_extraidos": {{"fecha_iso": "YYYY-MM-DD o null", "hora": "HH:MM o null"}},
+                    "datos_extraidos": {{"fecha_iso": "YYYY-MM-DD o null", "hora": "HH:MM o null", "nombre_trabajador": "nombre del trabajador o null"}},
                     "respuesta_usuario": "Tu mensaje."
                 }}
         

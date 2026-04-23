@@ -10,8 +10,8 @@ TIMEZONE = "Atlantic/Canary"
 class GoogleCalendarService:
     """Servicio especializado en la interacción con la API de Google Calendar."""
 
-    def __init__(self, calendar_id: str = None):
-        self.calendar_id = calendar_id or os.getenv("CALENDAR_ID") 
+    def __init__(self, gmail_trabajador: str = None):
+        self.calendar_id = gmail_trabajador or os.getenv("CALENDAR_ID") 
         self.service = self._authenticate()
 
     def _authenticate(self):
@@ -63,7 +63,7 @@ class GoogleCalendarService:
     
     
 
-    def create_event(self, user_id: str, start_dt: datetime, end_dt: datetime):
+    def create_event(self, user_id: str, start_dt: datetime, end_dt: datetime) -> dict:
         """Inserta un nuevo evento en el calendario configurado."""
         event_body = {
             "summary": f"Reserva de {user_id}",
@@ -78,13 +78,13 @@ class GoogleCalendarService:
         )
 
 
-def create_reservation(user_id: str, date: str, hour: str) -> str:
+def create_reservation(user_id: str, date: str, hour: str, gmail_trabajador: str = None) -> str:
     """
     Función de fachada (Facade) que orquestra la reserva.
     Mantiene los mensajes de retorno en español para el usuario del bot.
     """
     try:
-        calendar = GoogleCalendarService()
+        calendar = GoogleCalendarService(gmail_trabajador)
 
         if not calendar.calendar_id:
             return (
@@ -109,13 +109,13 @@ def create_reservation(user_id: str, date: str, hour: str) -> str:
         return "❌ Lo siento, hubo un problema técnico al crear la reserva."
 
 
-def get_weekly_availability(days=7) -> str:
+def get_weekly_availability(days=7, gmail_trabajador: str = None) -> str:
         """
         Obtiene todos los eventos de los próximos 'X' días y devuelve 
         un resumen legible para que la IA lo entienda.
         """
         try:
-            calendar = GoogleCalendarService()
+            calendar = GoogleCalendarService(gmail_trabajador)
             ahora = datetime.now()
             fin_ventana = ahora + timedelta(days=days)
 

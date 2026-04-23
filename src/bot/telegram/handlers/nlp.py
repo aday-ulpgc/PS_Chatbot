@@ -6,11 +6,20 @@ from telegram.ext import ContextTypes
 from src.nlp.gemini_service import NLPService
 from src.services import calendar_service
 
+TRABAJADORES = {
+    "paco": "paco42538@gmail.com",
+    "maría": "maria42538@gmail.com"
+}
+
+
 async def handle_texto_libre(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.chat.send_action(action="typing")
+    
+    nombre_trabajador_sesion = context.user_data.get("trabajador_actual")
+    gmail_consulta = TRABAJADORES.get(nombre_trabajador_sesion) if nombre_trabajador_sesion else None
 
     # 2. Gestionar la memoria (Historial)
-    datos_semanal = await asyncio.to_thread(calendar_service.get_weekly_availability, 7)
+    datos_semanal = await asyncio.to_thread(calendar_service.get_weekly_availability, 7, gmail_consulta)
     texto_usuario = ""
     audio_b64 = None
     
@@ -46,6 +55,17 @@ async def handle_texto_libre(update: Update, context: ContextTypes.DEFAULT_TYPE)
     estado = respuesta_agente.get("estado")
     datos = respuesta_agente.get("datos_extraidos", {})
     
+    # 5. ACTUALIZAR TRABAJADOR SI LA IA LO HA EXTRAÍDO (aunque no se haya llegado a "listo_para_reservar", porque puede ser relevante para la conversación)
+    nuevo_trabajador = datos.get("nombre_trabajador")
+    if nuevo_trabajador:
+        nuevo_trabajador = nuevo_trabajador.lower()
+        context.user_data["trabajador_actual"] = nuevo_trabajador
+        # Refrescamos el gmail por si hay que reservar AHORA MISMO
+        gmail_reserva = TRABAJADORES.get(nuevo_trabajador)
+    else:
+        # Mantenemos el que ya teníamos en memoria
+        gmail_reserva = gmail_consulta
+
     if estado == "recopilando":
         # Aún faltan datos, el bot solo chatea
         await update.message.reply_text(texto_respuesta)
@@ -57,14 +77,16 @@ async def handle_texto_libre(update: Update, context: ContextTypes.DEFAULT_TYPE)
         fecha = datos.get("fecha_iso")
         hora = datos.get("hora")
         nombre_id = f"{update.effective_user.full_name} ({update.effective_user.id})"
-        
+        nombre_ia = datos.get("nombre_trabajador") or ""
+        gmail_trabajador = TRABAJADORES.get(nombre_ia.lower())
         # Ejecutamos el servicio de calendario que ya tenías creado
         try:
             resultado = await asyncio.to_thread(
                 calendar_service.create_reservation,
                 nombre_id,
                 fecha,
-                hora
+                hora,
+                gmail_trabajador
             )
             
             if resultado.startswith("❌"):
