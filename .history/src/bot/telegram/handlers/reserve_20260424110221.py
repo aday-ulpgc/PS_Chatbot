@@ -1,6 +1,5 @@
 import json
 import asyncio
-import os
 from datetime import date, datetime
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
@@ -285,18 +284,12 @@ async def handle_action_my_appointments(
         # Obtener usuario de Telegram
         user_id = update.effective_user.id
         usuario = obtener_o_crear_usuario_telegram(user_id)
-        user_db_id = usuario.get("id_usuario")
-        
-        if not user_db_id:
-            await query.edit_message_text("❌ Error al obtener tus datos de usuario")
-            return
+        user_db_id = usuario.ID
         
         # Obtener citas del usuario de la BD
-        from src.BBDD.databasecontroller import obtener_citas_por_usuario, get_session
+        from src.BBDD.databasecontroller import obtener_citas_por_usuario_reverse, get_session
         with get_session() as session:
-            citas = obtener_citas_por_usuario(session, user_db_id)
-            # Invertir para mostrar más recientes primero
-            citas = sorted(citas, key=lambda c: c.FECHA, reverse=True)
+            citas = obtener_citas_por_usuario_reverse(session, user_db_id)
             citas_texto = " *📋 Mis citas:*\n\n"
             
             if not citas:
@@ -325,121 +318,3 @@ async def handle_action_my_appointments(
         await query.edit_message_text(
             text="❌ Error al cargar tus citas", reply_markup=reply_markup
         )
-
-
-async def handle_action_view_availability(
-    query, context: ContextTypes.DEFAULT_TYPE, update: Update
-) -> None:
-    """Muestra el calendario para seleccionar una fecha y ver disponibilidad."""
-    try:
-        calendar, step = DetailedTelegramCalendar(min_date=date.today()).build()
-        await query.edit_message_text(
-            text="📅 Selecciona una fecha para ver tu disponibilidad:",
-            reply_markup=calendar
-        )
-        context.user_data["availability_calendar"] = True
-        
-    except Exception as e:
-        print(f"❌ Error en handle_action_view_availability: {e}")
-        keyboard = [[InlineKeyboardButton("Volver", callback_data="action_back_menu")]]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        await query.edit_message_text(
-            text="❌ Error al mostrar calendario", reply_markup=reply_markup
-        )
-
-
-async def handle_availability_calendar_selection(
-    query, context: ContextTypes.DEFAULT_TYPE, update: Update
-) -> None:
-    """Genera y envía la imagen de disponibilidad cuando se selecciona una fecha."""
-    try:
-        # Verificar si es un evento del calendario
-        if not DetailedTelegramCalendar.func()(query):
-            return
-        
-        # Procesar la selección del calendario
-        current_calendar = DetailedTelegramCalendar(min_date=date.today())
-        result, key, step = current_calendar.process(query.data)
-        
-        if not result and key:
-            # Mostrar siguiente paso del calendario
-            keyboard_dict = json.loads(key)
-            keyboard_buttons = [
-                [
-                    InlineKeyboardButton(
-                        text=btn["text"], callback_data=btn["callback_data"]
-                    )
-                    for btn in row
-                ]
-                for row in keyboard_dict.get("inline_keyboard", [])
-            ]
-            keyboard_buttons.append(
-                [
-                    InlineKeyboardButton("↻ Reiniciar", callback_data="action_view_availability"),
-                    InlineKeyboardButton("⫶☰ Menú", callback_data="action_back_menu"),
-                ]
-            )
-            
-            try:
-                await query.edit_message_text(
-                    text="Selecciona una fecha:",
-                    reply_markup=InlineKeyboardMarkup(keyboard_buttons),
-                )
-            except BadRequest:
-                pass
-                
-        elif result:
-            # Fecha seleccionada
-            selected_date = result
-            
-            # Obtener usuario de Telegram
-            user_id = update.effective_user.id
-            usuario = obtener_o_crear_usuario_telegram(user_id)
-            user_db_id = usuario.get("id_usuario")
-            
-            if not user_db_id:
-                await query.edit_message_text("❌ Error al obtener tus datos de usuario")
-                return
-            
-            # Convertir a datetime
-            selected_datetime = datetime.combine(selected_date, datetime.min.time())
-            
-            # Generar imagen de disponibilidad
-            await query.edit_message_text("🎨 Generando imagen de disponibilidad...")
-            
-            imagen_path = await asyncio.to_thread(
-                generar_imagen_disponibilidad, user_db_id, selected_datetime
-            )
-            
-            if imagen_path and os.path.exists(imagen_path):
-                with open(imagen_path, "rb") as img_file:
-                    await context.bot.send_photo(
-                        chat_id=query.message.chat_id,
-                        photo=img_file,
-                        caption=f"📊 Tu disponibilidad el {selected_date.strftime('%A, %d de %B de %Y')}"
-                    )
-                
-                # Mostrar botones para opciones
-                keyboard = [
-                    [InlineKeyboardButton("📅 Otra fecha", callback_data="action_view_availability")],
-                    [InlineKeyboardButton("⫶☰ Menú Principal", callback_data="action_back_menu")]
-                ]
-                reply_markup = InlineKeyboardMarkup(keyboard)
-                await query.edit_message_text(
-                    text="✅ Imagen de disponibilidad enviada",
-                    reply_markup=reply_markup
-                )
-                
-                # Limpiar el flag del calendario
-                context.user_data["availability_calendar"] = False
-            else:
-                await query.edit_message_text("❌ Error al generar la imagen")
-                
-    except Exception as e:
-        print(f"❌ Error en handle_availability_calendar_selection: {e}")
-        keyboard = [[InlineKeyboardButton("Volver", callback_data="action_back_menu")]]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        await query.edit_message_text(
-            text=f"❌ Error: {str(e)}", reply_markup=reply_markup
-        )
-

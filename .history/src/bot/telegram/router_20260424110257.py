@@ -45,22 +45,12 @@ async def menu_callback_handler(
     if query.data != "show_text_reserva":
         await query.answer()
 
-    # Manejar calendario de disponibilidad
-    if context.user_data.get("availability_calendar"):
-        await handle_availability_calendar_selection(query, context, update)
-        return
-
-    # Manejar calendario de reserva
     if await handle_calendar_and_time(query, context, update):
         return
 
     function = CALLBACK_ROUTES.get(query.data)
     if function:
-        try:
-            await function(query, context, update)
-        except TypeError:
-            # Si el handler no espera update, llamarlo sin ese parámetro
-            await function(query, context)
+        await function(query, context)
         return
     else:
         await query.edit_message_text(text="Acción no reconocida.")

@@ -285,18 +285,12 @@ async def handle_action_my_appointments(
         # Obtener usuario de Telegram
         user_id = update.effective_user.id
         usuario = obtener_o_crear_usuario_telegram(user_id)
-        user_db_id = usuario.get("id_usuario")
-        
-        if not user_db_id:
-            await query.edit_message_text("❌ Error al obtener tus datos de usuario")
-            return
+        user_db_id = usuario.ID
         
         # Obtener citas del usuario de la BD
-        from src.BBDD.databasecontroller import obtener_citas_por_usuario, get_session
+        from src.BBDD.databasecontroller import obtener_citas_por_usuario_reverse, get_session
         with get_session() as session:
-            citas = obtener_citas_por_usuario(session, user_db_id)
-            # Invertir para mostrar más recientes primero
-            citas = sorted(citas, key=lambda c: c.FECHA, reverse=True)
+            citas = obtener_citas_por_usuario_reverse(session, user_db_id)
             citas_texto = " *📋 Mis citas:*\n\n"
             
             if not citas:
@@ -332,7 +326,7 @@ async def handle_action_view_availability(
 ) -> None:
     """Muestra el calendario para seleccionar una fecha y ver disponibilidad."""
     try:
-        calendar, step = DetailedTelegramCalendar(min_date=date.today()).build()
+        calendar, step = DetailedTelegramCalendar().build()
         await query.edit_message_text(
             text="📅 Selecciona una fecha para ver tu disponibilidad:",
             reply_markup=calendar
@@ -358,7 +352,7 @@ async def handle_availability_calendar_selection(
             return
         
         # Procesar la selección del calendario
-        current_calendar = DetailedTelegramCalendar(min_date=date.today())
+        current_calendar = DetailedTelegramCalendar()
         result, key, step = current_calendar.process(query.data)
         
         if not result and key:
@@ -395,11 +389,7 @@ async def handle_availability_calendar_selection(
             # Obtener usuario de Telegram
             user_id = update.effective_user.id
             usuario = obtener_o_crear_usuario_telegram(user_id)
-            user_db_id = usuario.get("id_usuario")
-            
-            if not user_db_id:
-                await query.edit_message_text("❌ Error al obtener tus datos de usuario")
-                return
+            user_db_id = usuario.ID
             
             # Convertir a datetime
             selected_datetime = datetime.combine(selected_date, datetime.min.time())

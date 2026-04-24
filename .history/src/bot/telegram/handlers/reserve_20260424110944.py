@@ -332,7 +332,7 @@ async def handle_action_view_availability(
 ) -> None:
     """Muestra el calendario para seleccionar una fecha y ver disponibilidad."""
     try:
-        calendar, step = DetailedTelegramCalendar(min_date=date.today()).build()
+        calendar, step = DetailedTelegramCalendar().build()
         await query.edit_message_text(
             text="📅 Selecciona una fecha para ver tu disponibilidad:",
             reply_markup=calendar
@@ -358,7 +358,7 @@ async def handle_availability_calendar_selection(
             return
         
         # Procesar la selección del calendario
-        current_calendar = DetailedTelegramCalendar(min_date=date.today())
+        current_calendar = DetailedTelegramCalendar()
         result, key, step = current_calendar.process(query.data)
         
         if not result and key:

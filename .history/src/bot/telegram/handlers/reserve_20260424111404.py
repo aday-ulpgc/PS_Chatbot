@@ -358,7 +358,7 @@ async def handle_availability_calendar_selection(
             return
         
         # Procesar la selección del calendario
-        current_calendar = DetailedTelegramCalendar(min_date=date.today())
+        current_calendar = DetailedTelegramCalendar()
         result, key, step = current_calendar.process(query.data)
         
         if not result and key:

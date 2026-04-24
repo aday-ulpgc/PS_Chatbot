@@ -56,11 +56,7 @@ async def menu_callback_handler(
 
     function = CALLBACK_ROUTES.get(query.data)
     if function:
-        try:
-            await function(query, context, update)
-        except TypeError:
-            # Si el handler no espera update, llamarlo sin ese parámetro
-            await function(query, context)
+        await function(query, context, update)
         return
     else:
         await query.edit_message_text(text="Acción no reconocida.")

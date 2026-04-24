@@ -29,6 +29,5 @@ uvicorn[standard]==0.34.0
 requests==2.31.0
 
 # Visualización
-matplotlib>=3.9.0
-
+matplotlib==3.8.4
 
