@@ -1,3 +1,5 @@
+[![CI/CD Pipeline](https://github.com/aday-ulpgc/PS_Chatbot/actions/workflows/ci.yml/badge.svg)](https://github.com/aday-ulpgc/PS_Chatbot/actions)
+
 # SaaS-Bot NLP (Gestión Inteligente de Citas)
 
 Bienvenido al repositorio oficial del **Grupo 06** para la asignatura de Producción de Software (Curso 2025/2026).
