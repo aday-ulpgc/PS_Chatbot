@@ -150,7 +150,11 @@ class Empleado(Base):
     ELIMINADO = Column(DateTime, nullable=True, default=None)
 
     usuario = relationship("Usuario", back_populates="empleados")
-    clientes = relationship("Cliente", back_populates="empleado_usual", foreign_keys="Cliente.ID_EMPLEADO_USUAL")
+    clientes = relationship(
+        "Cliente",
+        back_populates="empleado_usual",
+        foreign_keys="Cliente.ID_EMPLEADO_USUAL",
+    )
     citas = relationship("CitaCorp", back_populates="empleado")
 
 
@@ -158,12 +162,16 @@ class Cliente(Base):
     __tablename__ = "CLIENTES"
 
     ID_CLIENTE = Column(Integer, primary_key=True, autoincrement=True)
-    ID_EMPLEADO_USUAL = Column(Integer, ForeignKey("EMPLEADOS.ID_EMPLEADO"), nullable=True)
+    ID_EMPLEADO_USUAL = Column(
+        Integer, ForeignKey("EMPLEADOS.ID_EMPLEADO"), nullable=True
+    )
     DNI = Column(String(9), nullable=False, unique=True)
     NOMBRE = Column(String(100), nullable=False)
     ELIMINADO = Column(DateTime, nullable=True, default=None)
 
-    empleado_usual = relationship("Empleado", back_populates="clientes", foreign_keys=[ID_EMPLEADO_USUAL])
+    empleado_usual = relationship(
+        "Empleado", back_populates="clientes", foreign_keys=[ID_EMPLEADO_USUAL]
+    )
     citas = relationship("CitaCorp", back_populates="cliente")
 
 
@@ -175,7 +183,9 @@ class CitaCorp(Base):
     ID_CLIENTE = Column(Integer, ForeignKey("CLIENTES.ID_CLIENTE"), nullable=False)
     FECHA = Column(DateTime, nullable=False)
     DURACION = Column(Integer, nullable=True, default=None)  # minutos
-    DESCRIPCION = Column("DESCRIPCIÓN", String(500), nullable=True, default="Cita reservada")
+    DESCRIPCION = Column(
+        "DESCRIPCIÓN", String(500), nullable=True, default="Cita reservada"
+    )
     ELIMINADO = Column(DateTime, nullable=True, default=None)
 
     empleado = relationship("Empleado", back_populates="citas")
@@ -507,7 +517,9 @@ def crear_cliente(
 ) -> Cliente:
     _get_empleado_activo(session, id_empleado)
     cliente = Cliente(
-        ID_EMPLEADO_USUAL=id_empleado_usual if id_empleado_usual is not None else id_empleado,
+        ID_EMPLEADO_USUAL=id_empleado_usual
+        if id_empleado_usual is not None
+        else id_empleado,
         DNI=dni,
         NOMBRE=nombre,
     )
@@ -580,7 +592,9 @@ def obtener_citas_corp_por_usuario(session: Session, id_usuario: int) -> list[Ci
     )
 
 
-def obtener_citas_corp_eliminadas_por_usuario(session: Session, id_usuario: int) -> list[CitaCorp]:
+def obtener_citas_corp_eliminadas_por_usuario(
+    session: Session, id_usuario: int
+) -> list[CitaCorp]:
     """Devuelve todas las citas corporativas eliminadas de todos los empleados del usuario."""
     usuario = _get_usuario_activo(session, id_usuario)
     _verificar_acceso(usuario, TIPOS_CORPORATIVOS)

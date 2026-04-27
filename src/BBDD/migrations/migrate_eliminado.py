@@ -8,8 +8,8 @@ _root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."
 if _root not in sys.path:
     sys.path.insert(0, _root)
 
-from sqlalchemy import text
-from src.BBDD.databasecontroller import engine
+from sqlalchemy import text  # noqa: E402
+from src.BBDD.databasecontroller import engine  # noqa: E402
 
 
 def migrate_eliminado_nullable():

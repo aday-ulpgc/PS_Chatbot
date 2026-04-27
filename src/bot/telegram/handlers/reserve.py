@@ -65,6 +65,11 @@ async def enviar_recordatorio_cita(context: ContextTypes.DEFAULT_TYPE) -> None:
         )
     except Exception as e:
         print(f"❌ Error al enviar el mensaje: {e}")
+from src.BBDD.database_service import (
+    guardar_cita_en_db,
+    obtener_o_crear_usuario_telegram,
+    obtener_horas_ocupadas,
+)
 
 
 async def send_with_optional_audio(
@@ -183,13 +188,21 @@ async def handle_calendar_and_time(
                 reply_markup=menu_keyboard,
             )
 
-            context.job_queue.run_once(
-                enviar_recordatorio_cita,
-                when=2,
-                chat_id=update.effective_chat.id,
-                data=f"Cita el {selected_data} a las {selected_time}",
-                name=f"remind_{update.effective_chat.id}",
+            # Guarda en la base de datos para los recordatorios diarios
+            fecha_dt = datetime.strptime(selected_data, "%Y-%m-%d")
+
+            obtener_o_crear_usuario_telegram(
+                telegram_id=update.effective_user.id,
+                nombre=update.effective_user.full_name,
             )
+
+            guardar_cita_en_db(
+                telegram_id=update.effective_user.id,
+                fecha=fecha_dt,
+                hora=selected_time,
+                descripcion="Reserva desde Telegram MVP",
+            )
+
         return True
 
     if DetailedTelegramCalendar.func()(query):
@@ -238,12 +251,18 @@ async def handle_calendar_and_time(
                 "18:00",
                 "19:00",
             ]
+
+            horas_ocupadas = obtener_horas_ocupadas(str(result))
+
             buttons = []
             row = []
 
             for h in available_hours:
                 hour_int = int(h.split(":")[0])
                 if is_today and hour_int <= now.hour:
+                    continue
+
+                if h in horas_ocupadas:
                     continue
 
                 row.append(InlineKeyboardButton(h, callback_data=f"time_{h}"))
@@ -263,10 +282,9 @@ async def handle_calendar_and_time(
                 ]
             )
 
-            text_hour = f"Fecha seleccionada: {result}\n⏰ Ahora, selecciona una hora:"
-            if is_today and not buttons[:-1]:
+            if not buttons[:-1]:
                 text_hour = (
-                    f"❌ Lo siento, ya no quedan huecos disponibles para hoy ({result})."
+                    f"❌ Lo siento, ya no quedan huecos libres para el día ({result})."
                 )
                 reply_markup = InlineKeyboardMarkup(
                     [
@@ -283,6 +301,9 @@ async def handle_calendar_and_time(
                     ]
                 )
             else:
+                text_hour = (
+                    f"Fecha seleccionada: {result}\n⏰ Ahora, selecciona una hora:"
+                )
                 reply_markup = InlineKeyboardMarkup(buttons)
 
             await query.edit_message_text(text=text_hour, reply_markup=reply_markup)
