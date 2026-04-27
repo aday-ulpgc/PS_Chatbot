@@ -36,18 +36,14 @@ class NLPService:
     async def procesar_mensaje(
         historial_mensajes: list, datos_semanal: str, audio_b64: str = None
     ) -> dict:
-        # Configuración
         api_key = os.getenv("GEMINI_API_KEY")
         modelo = os.getenv("GEMINI_MODEL", "gemini-3-pro-preview")
-
-        # URL Directa de la API de Google
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent?key={api_key}"
 
         hoy = datetime.now().strftime("%A, %d de %B de %Y a las %H:%M")
 
         prompt_sistema = obtener_promt_agente(hoy, datos_semanal)
 
-        # Formateamos el historial al formato crudo que pide la API de Google
         mensajes_gemini = []
         for m in historial_mensajes:
             role = "user" if m["rol"] == "usuario" else "model"
@@ -56,7 +52,6 @@ class NLPService:
             mensajes_gemini[-1]["parts"].append(
                 {"inlineData": {"mimeType": "audio/ogg", "data": audio_b64}}
             )
-        # Construimos el cuerpo de la petición (Payload)
         payload = {
             "contents": mensajes_gemini,
             "systemInstruction": {"parts": [{"text": prompt_sistema}]},
@@ -81,15 +76,12 @@ class NLPService:
             ],
         }
 
-        # Lanzamos la petición HTTP Directa
         max_reintentos = 3
         for intento in range(max_reintentos):
             try:
-                # httpx es asíncrono y ultra rápido
                 async with httpx.AsyncClient() as client:
                     response = await client.post(url, json=payload, timeout=15.0)
 
-                    # Si la API está saturada (Error 429)
                     if response.status_code == 429:
                         if intento < max_reintentos - 1:
                             await asyncio.sleep(2**intento)
@@ -99,13 +91,10 @@ class NLPService:
                                 "Estoy un poco saturada ahora mismo 🥵. ¿Me lo repites en un minutito?"
                             )
 
-                    # Si falla por cualquier otro motivo
                     response.raise_for_status()
 
-                    # Leemos la respuesta de Google
                     data = response.json()
 
-                    # Comprobamos si Google bloqueó la respuesta por los filtros de seguridad
                     try:
                         candidato = data["candidates"][0]
                         if candidato.get("finishReason") == "SAFETY":
