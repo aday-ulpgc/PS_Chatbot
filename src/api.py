@@ -11,12 +11,14 @@ Arrancar con:
 Documentación interactiva disponible en: http://localhost:8000/docs
 """
 
+import math
 from contextlib import asynccontextmanager
 from datetime import date as date_type
 from datetime import datetime, timedelta
 from typing import AsyncGenerator, Optional
 
 from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
@@ -55,6 +57,8 @@ from src.BBDD.databasecontroller import (
     obtener_usuario,
 )
 
+
+PAGE_SIZE = 9
 
 # ── Ciclo de vida ──────────────────────────────────────────────────────────────
 
@@ -145,6 +149,11 @@ class CitaOut(BaseModel):
     FECHA: datetime
     DURACION: Optional[int] = None  # minutos
     ELIMINADO: Optional[datetime]
+
+
+class CitaPage(BaseModel):
+    items: list[CitaOut]
+    lastpage: int
 
 
 class EmpleadoCreate(BaseModel):
@@ -468,14 +477,15 @@ def _parse_fecha(fecha_str: Optional[str]) -> datetime:
         )
 
 
-@app.get("/usuarios/{id_usuario}/citas", response_model=list[CitaOut], tags=["Citas"])
+@app.get("/usuarios/{id_usuario}/citas", response_model=CitaPage, tags=["Citas"])
 def get_citas_usuario(
     id_usuario: int,
     anterior: bool = Query(default=False, description="false → próximas citas desde la fecha dada; true → citas anteriores a la fecha dada"),
     fecha: Optional[str] = Query(default=None, description="Fecha de referencia en ISO 8601 (YYYY-MM-DD o YYYY-MM-DDTHH:MM:SS). Por defecto: ahora. Si solo se indica fecha, se asume 00:00."),
+    page: int = Query(default=0, description="Página a devolver (1-indexado). 0 = sin paginación, devuelve todos. Tamaño fijo de 9 elementos por página."),
     db: Session = Depends(get_db),
 ):
-    """Lista las citas activas del usuario filtradas por fecha de referencia.
+    """Lista las citas activas del usuario filtradas por fecha de referencia, con paginación.
     - anterior=false (defecto): citas desde 'fecha' en adelante, más cercanas primero.
     - anterior=true: citas anteriores a 'fecha', más cercanas primero.
     Tipo I: citas individuales. Tipo C: citas de todos sus empleados.
@@ -486,24 +496,32 @@ def get_citas_usuario(
         if usuario is None:
             raise HTTPException(status_code=404, detail="Usuario no encontrado")
         if usuario.TIPO == "C":
-            return obtener_citas_corp_por_usuario(db, id_usuario, fecha_dt, anterior)
-        return obtener_citas_por_usuario(db, id_usuario, fecha_dt, anterior)
+            citas = obtener_citas_corp_por_usuario(db, id_usuario, fecha_dt, anterior)
+        else:
+            citas = obtener_citas_por_usuario(db, id_usuario, fecha_dt, anterior)
+        total = len(citas)
+        lastpage = math.ceil(total / PAGE_SIZE) if total > 0 else 1
+        if page == 0:
+            return CitaPage(items=citas, lastpage=lastpage)
+        offset = (page - 1) * PAGE_SIZE
+        return CitaPage(items=citas[offset:offset + PAGE_SIZE], lastpage=lastpage)
     except (ValueError, PermissionError) as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
 @app.get(
     "/usuarios/{id_usuario}/citas/eliminadas",
-    response_model=list[CitaOut],
+    response_model=CitaPage,
     tags=["Citas"],
 )
 def get_citas_eliminadas_usuario(
     id_usuario: int,
     anterior: bool = Query(default=False, description="false → próximas citas desde la fecha dada; true → citas anteriores a la fecha dada"),
     fecha: Optional[str] = Query(default=None, description="Fecha de referencia en ISO 8601 (YYYY-MM-DD o YYYY-MM-DDTHH:MM:SS). Por defecto: ahora. Si solo se indica fecha, se asume 00:00."),
+    page: int = Query(default=0, description="Página a devolver (1-indexado). 0 = sin paginación, devuelve todos. Tamaño fijo de 9 elementos por página."),
     db: Session = Depends(get_db),
 ):
-    """Lista las citas eliminadas del usuario filtradas por fecha de referencia.
+    """Lista las citas eliminadas del usuario filtradas por fecha de referencia, con paginación.
     - anterior=false (defecto): citas desde 'fecha' en adelante, más cercanas primero.
     - anterior=true: citas anteriores a 'fecha', más cercanas primero.
     Tipo I: citas individuales eliminadas. Tipo C: citas corp eliminadas.
@@ -514,8 +532,15 @@ def get_citas_eliminadas_usuario(
         if usuario is None:
             raise HTTPException(status_code=404, detail="Usuario no encontrado")
         if usuario.TIPO == "C":
-            return obtener_citas_corp_eliminadas_por_usuario(db, id_usuario, fecha_dt, anterior)
-        return obtener_citas_eliminadas_por_usuario(db, id_usuario, fecha_dt, anterior)
+            citas = obtener_citas_corp_eliminadas_por_usuario(db, id_usuario, fecha_dt, anterior)
+        else:
+            citas = obtener_citas_eliminadas_por_usuario(db, id_usuario, fecha_dt, anterior)
+        total = len(citas)
+        lastpage = math.ceil(total / PAGE_SIZE) if total > 0 else 1
+        if page == 0:
+            return CitaPage(items=citas, lastpage=lastpage)
+        offset = (page - 1) * PAGE_SIZE
+        return CitaPage(items=citas[offset:offset + PAGE_SIZE], lastpage=lastpage)
     except (ValueError, PermissionError) as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -652,4 +677,61 @@ def delete_cliente(id_cliente: int, db: Session = Depends(get_db)):
         raise HTTPException(
             status_code=404, detail="Cliente no encontrado o ya eliminado"
         )
+
+
+# ── Endpoints: VISUALIZACIÓN ─────────────────────────────────────────────────────
+
+
+@app.get(
+    "/usuarios/{id_usuario}/disponibilidad/dia",
+    response_class=FileResponse,
+    tags=["Visualización"],
+)
+def get_disponibilidad_dia(
+    id_usuario: int,
+    fecha: Optional[str] = Query(default=None, description="Fecha en ISO 8601 (YYYY-MM-DD o YYYY-MM-DDTHH:MM:SS). Por defecto: hoy."),
+):
+    """Devuelve una imagen PNG con la disponibilidad horaria del usuario para un día."""
+    from src.services.visualization_service import generar_imagen_disponibilidad
+    fecha_dt = _parse_fecha(fecha)
+    filepath = generar_imagen_disponibilidad(id_usuario, fecha_dt)
+    if filepath is None:
+        raise HTTPException(status_code=500, detail="Error al generar la imagen")
+    return FileResponse(filepath, media_type="image/png", filename="disponibilidad_dia.png")
+
+
+@app.get(
+    "/usuarios/{id_usuario}/disponibilidad/semana",
+    response_class=FileResponse,
+    tags=["Visualización"],
+)
+def get_disponibilidad_semana(
+    id_usuario: int,
+    fecha: Optional[str] = Query(default=None, description="Fecha de inicio de semana en ISO 8601. Por defecto: hoy."),
+):
+    """Devuelve una imagen PNG con la disponibilidad para 7 días a partir de la fecha."""
+    from src.services.visualization_service import generar_imagen_disponibilidad_semana
+    fecha_dt = _parse_fecha(fecha)
+    filepath = generar_imagen_disponibilidad_semana(id_usuario, fecha_dt)
+    if filepath is None:
+        raise HTTPException(status_code=500, detail="Error al generar la imagen")
+    return FileResponse(filepath, media_type="image/png", filename="disponibilidad_semana.png")
+
+
+@app.get(
+    "/usuarios/{id_usuario}/disponibilidad/semana-completa",
+    response_class=FileResponse,
+    tags=["Visualización"],
+)
+def get_disponibilidad_semana_completa(
+    id_usuario: int,
+    fecha: Optional[str] = Query(default=None, description="Cualquier fecha de la semana en ISO 8601. Por defecto: hoy."),
+):
+    """Devuelve una imagen PNG con la disponibilidad de la semana completa (lunes–domingo) que contiene la fecha."""
+    from src.services.visualization_service import generar_imagen_disponibilidad_semana_24h
+    fecha_dt = _parse_fecha(fecha)
+    filepath = generar_imagen_disponibilidad_semana_24h(id_usuario, fecha_dt)
+    if filepath is None:
+        raise HTTPException(status_code=500, detail="Error al generar la imagen")
+    return FileResponse(filepath, media_type="image/png", filename="disponibilidad_semana_completa.png")
 
