@@ -11,7 +11,7 @@ class GoogleCalendarService:
     """Servicio especializado en la interacción con la API de Google Calendar."""
 
     def __init__(self, gmail_trabajador: str = None):
-        self.calendar_id = gmail_trabajador or os.getenv("CALENDAR_ID") 
+        self.calendar_id = gmail_trabajador or os.getenv("CALENDAR_ID")
         self.service = self._authenticate()
 
     def _authenticate(self):
@@ -60,8 +60,6 @@ class GoogleCalendarService:
             if f"T{formatted_hour}:00" in start_time:
                 return False
         return True
-    
-    
 
     def create_event(self, user_id: str, start_dt: datetime, end_dt: datetime) -> dict:
         """Inserta un nuevo evento en el calendario configurado."""
@@ -78,7 +76,9 @@ class GoogleCalendarService:
         )
 
 
-def create_reservation(user_id: str, date: str, hour: str, gmail_trabajador: str = None) -> str:
+def create_reservation(
+    user_id: str, date: str, hour: str, gmail_trabajador: str = None
+) -> str:
     """
     Función de fachada (Facade) que orquestra la reserva.
     Mantiene los mensajes de retorno en español para el usuario del bot.
@@ -110,51 +110,54 @@ def create_reservation(user_id: str, date: str, hour: str, gmail_trabajador: str
 
 
 def get_weekly_availability(days=7, gmail_trabajador: str = None) -> str:
-        """
-        Obtiene todos los eventos de los próximos 'X' días y devuelve 
-        un resumen legible para que la IA lo entienda.
-        """
-        try:
-            calendar = GoogleCalendarService(gmail_trabajador)
-            ahora = datetime.now()
-            fin_ventana = ahora + timedelta(days=days)
+    """
+    Obtiene todos los eventos de los próximos 'X' días y devuelve
+    un resumen legible para que la IA lo entienda.
+    """
+    try:
+        calendar = GoogleCalendarService(gmail_trabajador)
+        ahora = datetime.now()
+        fin_ventana = ahora + timedelta(days=days)
 
-            
-            events_result = calendar.service.events().list(
+        events_result = (
+            calendar.service.events()
+            .list(
                 calendarId=calendar.calendar_id,
                 timeMin=ahora.isoformat() + "Z",
                 timeMax=fin_ventana.isoformat() + "Z",
                 singleEvents=True,
-                orderBy="startTime"
-            ).execute()
+                orderBy="startTime",
+            )
+            .execute()
+        )
 
-            events = events_result.get("items", [])
-            
+        events = events_result.get("items", [])
 
-            agenda_resumen = {}
-            for event in events:
-                start = event["start"].get("dateTime")
-                if start:
-                    dt = datetime.fromisoformat(start)
-                    fecha = dt.strftime("%Y-%m-%d")
-                    hora = dt.strftime("%H:%M")
-                    
-                    if fecha not in agenda_resumen:
-                        agenda_resumen[fecha] = []
-                    agenda_resumen[fecha].append(hora)
+        agenda_resumen = {}
+        for event in events:
+            start = event["start"].get("dateTime")
+            if start:
+                dt = datetime.fromisoformat(start)
+                fecha = dt.strftime("%Y-%m-%d")
+                hora = dt.strftime("%H:%M")
 
-            
-            texto_disponibilidad = ""
-            for i in range(days):
-                dia_target = (ahora + timedelta(days=i)).strftime("%Y-%m-%d")
-                ocupados = agenda_resumen.get(dia_target, [])
-                if ocupados:
-                    texto_disponibilidad += f"- {dia_target}: Ocupado a las {', '.join(ocupados)}\n"
-                else:
-                    texto_disponibilidad += f"- {dia_target}: Todo libre\n"
-            
-            return texto_disponibilidad
+                if fecha not in agenda_resumen:
+                    agenda_resumen[fecha] = []
+                agenda_resumen[fecha].append(hora)
 
-        except Exception as e:
-            print(f"Error en vista semanal: {e}")
-            return "No disponible."
+        texto_disponibilidad = ""
+        for i in range(days):
+            dia_target = (ahora + timedelta(days=i)).strftime("%Y-%m-%d")
+            ocupados = agenda_resumen.get(dia_target, [])
+            if ocupados:
+                texto_disponibilidad += (
+                    f"- {dia_target}: Ocupado a las {', '.join(ocupados)}\n"
+                )
+            else:
+                texto_disponibilidad += f"- {dia_target}: Todo libre\n"
+
+        return texto_disponibilidad
+
+    except Exception as e:
+        print(f"Error en vista semanal: {e}")
+        return "No disponible."

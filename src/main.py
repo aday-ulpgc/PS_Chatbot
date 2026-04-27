@@ -7,19 +7,24 @@ de Telegram esté presente y arranca el bot en modo polling.
 import os
 import sys
 import threading
-
-os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
-# Aseguramos que la raíz del proyecto esté en el path para que los imports desde 'src.' funcionen correctamente
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
 import uvicorn
 from dotenv import load_dotenv
-from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, filters
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler,
+    CallbackQueryHandler,
+    MessageHandler,
+    filters,
+)
 
 from src.bot.telegram.handlers.commands import start_command
 from src.bot.telegram.router import menu_callback_handler
 from src.bot.telegram.handlers.nlp import handle_texto_libre
 from src.api import app as fastapi_app
+
+os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
+# Aseguramos que la raíz del proyecto esté en el path para que los imports desde 'src.' funcionen correctamente
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 
 def main() -> None:
@@ -47,7 +52,11 @@ def main() -> None:
 
     app.add_handler(CommandHandler("start", start_command))
     app.add_handler(CallbackQueryHandler(menu_callback_handler))
-    app.add_handler(MessageHandler((filters.TEXT | filters.VOICE) & ~filters.COMMAND, handle_texto_libre))
+    app.add_handler(
+        MessageHandler(
+            (filters.TEXT | filters.VOICE) & ~filters.COMMAND, handle_texto_libre
+        )
+    )
     api_thread = threading.Thread(
         target=uvicorn.run,
         kwargs={"app": fastapi_app, "host": "0.0.0.0", "port": 8000},

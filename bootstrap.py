@@ -21,6 +21,7 @@ def get_pip_exe() -> str:
 
 def get_site_packages() -> str:
     import sysconfig
+
     return sysconfig.get_path("purelib")
 
 
@@ -74,13 +75,13 @@ def packages_match_requirements(requirements_path: str) -> bool:
         name_part = req.split("[")[0].strip()
         for op in ("==", ">=", "<=", "!=", "~=", ">", "<"):
             if op in name_part:
-                name_part = name_part[:name_part.index(op)].strip()
+                name_part = name_part[: name_part.index(op)].strip()
                 break
 
         spec_str = ""
         for op in ("==", ">=", "<=", "!=", "~=", ">", "<"):
             if op in req:
-                spec_str = req[req.index(op):]
+                spec_str = req[req.index(op) :]
                 break
 
         name = normalize_name(name_part)
@@ -91,7 +92,9 @@ def packages_match_requirements(requirements_path: str) -> bool:
 
         if spec_str:
             try:
-                if not SpecifierSet(spec_str).contains(installed[name], prereleases=True):
+                if not SpecifierSet(spec_str).contains(
+                    installed[name], prereleases=True
+                ):
                     mismatches.append(f"{req} (instalado: {installed[name]})")
             except Exception:
                 pass
@@ -117,7 +120,9 @@ def install_requirements(requirements_path: str) -> None:
 
 
 def check_and_install_requirements() -> None:
-    requirements_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "requirements.txt")
+    requirements_path = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "requirements.txt"
+    )
 
     if not os.path.exists(requirements_path):
         print(f"✗ No se encontró {requirements_path}")
@@ -140,71 +145,8 @@ if __name__ == "__main__":
     check_and_install_requirements()
 
     from src.main import main
+
     main()
-
-
-
-def parse_requirements(requirements_path: str) -> list[str]:
-    """Lee requirements.txt e ignora comentarios y líneas vacías."""
-    packages = []
-    with open(requirements_path, encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if line and not line.startswith("#"):
-                packages.append(line)
-    return packages
-
-
-def packages_match_requirements(requirements_path: str) -> bool:
-    """Comprueba si lo instalado en el venv coincide con requirements.txt (nombre y versión)."""
-    from packaging.specifiers import SpecifierSet
-
-    installed = get_installed_packages()
-    requirements = parse_requirements(requirements_path)
-    mismatches = []
-
-    for req in requirements:
-        name_part = req.split("[")[0].strip()
-        for op in ("==", ">=", "<=", "!=", "~=", ">", "<"):
-            if op in req:
-                spec_str = req[req.index(op):]
-                break
-        else:
-            spec_str = ""
-
-        name = normalize_name(name_part)
-
-        if name not in installed:
-            mismatches.append(f"{req} (no instalado)")
-            continue
-
-        if spec_str:
-            try:
-                if not SpecifierSet(spec_str).contains(installed[name], prereleases=True):
-                    mismatches.append(f"{req} (instalado: {installed[name]})")
-            except Exception:
-                pass
-
-    if mismatches:
-        print("Diferencias encontradas con requirements.txt:")
-        for m in mismatches:
-            print(f"  - {m}")
-        return False
-    return True
-
-
-def install_requirements(requirements_path: str) -> None:
-    """Instala los requerimientos desde requirements.txt usando el pip del venv."""
-    print("Instalando requerimientos...\n")
-    result = subprocess.run(
-        [get_pip_exe(), "install", "-r", requirements_path],
-        check=False,
-    )
-    if result.returncode != 0:
-        print("\n✗ Error durante la instalación")
-        sys.exit(1)
-    print("\n✓ Requerimientos instalados correctamente\n")
-
 
 
 def check_and_install_requirements() -> None:
@@ -220,7 +162,9 @@ def check_and_install_requirements() -> None:
 
     response = input("\nDescargar requerimientos (y/n): ").strip().lower()
     while response not in ("y", "n"):
-        response = input("Opción inválida. Por favor ingresa 'y' o 'n': ").strip().lower()
+        response = (
+            input("Opción inválida. Por favor ingresa 'y' o 'n': ").strip().lower()
+        )
 
     if response == "y":
         install_requirements(requirements_path)
@@ -232,4 +176,5 @@ if __name__ == "__main__":
     check_and_install_requirements()
 
     from src.main import main
+
     main()

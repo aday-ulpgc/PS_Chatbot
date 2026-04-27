@@ -17,8 +17,6 @@ from src.bot.telegram.handlers.help_menu import (
     handle_action_faq,
 )
 from src.bot.telegram.handlers.commands import handle_action_back_menu
-from telegram.ext import MessageHandler, filters
-from src.bot.telegram.handlers.nlp import handle_texto_libre
 
 CALLBACK_ROUTES = {
     "action_reserve": handle_action_reserve,
