@@ -1,15 +1,21 @@
 """Servicio para gestionar la base de datos desde el bot de Telegram."""
 
+import sys
+import os
 from datetime import datetime
-from .databasecontroller import (
+from src.BBDD.databasecontroller import (
     get_session,
     Usuario,
     Contacto,
     crear_usuario,
     crear_contacto,
     crear_cita,
-    CitaInd,
 )
+
+# Agregar el directorio src al path para importaciones correctas
+_src_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _src_path not in sys.path:
+    sys.path.insert(0, _src_path)
 
 
 def obtener_o_crear_usuario_telegram(
@@ -120,23 +126,3 @@ def guardar_cita_en_db(
     except Exception as e:
         print(f"❌ Error al guardar cita en DB: {e}")
         return False
-
-
-def obtener_horas_ocupadas(fecha_str: str) -> list[str]:
-    """Consulta la BD y devuelve una lista de horas ocupadas para una fecha dada."""
-    try:
-        with get_session() as session:
-            citas_activas = (
-                session.query(CitaInd).filter(CitaInd.ELIMINADO.is_(None)).all()
-            )
-
-            horas_ocupadas = []
-            for cita in citas_activas:
-                if cita.FECHA.strftime("%Y-%m-%d") == fecha_str:
-                    hora_formateada = f"{cita.FECHA.hour}:{cita.FECHA.minute:02d}"
-                    horas_ocupadas.append(hora_formateada)
-
-            return horas_ocupadas
-    except Exception as e:
-        print(f"❌ Error al leer horas ocupadas: {e}")
-        return []

@@ -27,3 +27,4 @@ bcrypt==5.0.0
 
 # Servicios de Voz
 gtts==2.5.1
+
