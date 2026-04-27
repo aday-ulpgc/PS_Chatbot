@@ -690,11 +690,20 @@ def delete_cliente(id_cliente: int, db: Session = Depends(get_db)):
 def get_disponibilidad_dia(
     id_usuario: int,
     fecha: Optional[str] = Query(default=None, description="Fecha en ISO 8601 (YYYY-MM-DD o YYYY-MM-DDTHH:MM:SS). Por defecto: hoy."),
+    db: Session = Depends(get_db),
 ):
     """Devuelve una imagen PNG con la disponibilidad horaria del usuario para un día."""
     from src.services.visualization_service import generar_imagen_disponibilidad
     fecha_dt = _parse_fecha(fecha)
-    filepath = generar_imagen_disponibilidad(id_usuario, fecha_dt)
+    usuario = obtener_usuario(db, id_usuario)
+    if usuario is None:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    citas = obtener_citas_por_usuario(db, id_usuario)
+    citas_data = [
+        {'fecha': c.FECHA, 'duracion': c.DURACION if c.DURACION else 60, 'descripcion': c.DESCRIPCION}
+        for c in citas
+    ]
+    filepath = generar_imagen_disponibilidad(id_usuario, fecha_dt, citas_data)
     if filepath is None:
         raise HTTPException(status_code=500, detail="Error al generar la imagen")
     return FileResponse(filepath, media_type="image/png", filename="disponibilidad_dia.png")
@@ -708,11 +717,20 @@ def get_disponibilidad_dia(
 def get_disponibilidad_semana(
     id_usuario: int,
     fecha: Optional[str] = Query(default=None, description="Fecha de inicio de semana en ISO 8601. Por defecto: hoy."),
+    db: Session = Depends(get_db),
 ):
     """Devuelve una imagen PNG con la disponibilidad para 7 días a partir de la fecha."""
     from src.services.visualization_service import generar_imagen_disponibilidad_semana
     fecha_dt = _parse_fecha(fecha)
-    filepath = generar_imagen_disponibilidad_semana(id_usuario, fecha_dt)
+    usuario = obtener_usuario(db, id_usuario)
+    if usuario is None:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    citas = obtener_citas_por_usuario(db, id_usuario)
+    citas_data = [
+        {'fecha': c.FECHA, 'duracion': c.DURACION if c.DURACION else 60}
+        for c in citas
+    ]
+    filepath = generar_imagen_disponibilidad_semana(id_usuario, fecha_dt, citas_data)
     if filepath is None:
         raise HTTPException(status_code=500, detail="Error al generar la imagen")
     return FileResponse(filepath, media_type="image/png", filename="disponibilidad_semana.png")
@@ -726,11 +744,20 @@ def get_disponibilidad_semana(
 def get_disponibilidad_semana_completa(
     id_usuario: int,
     fecha: Optional[str] = Query(default=None, description="Cualquier fecha de la semana en ISO 8601. Por defecto: hoy."),
+    db: Session = Depends(get_db),
 ):
     """Devuelve una imagen PNG con la disponibilidad de la semana completa (lunes–domingo) que contiene la fecha."""
     from src.services.visualization_service import generar_imagen_disponibilidad_semana_24h
     fecha_dt = _parse_fecha(fecha)
-    filepath = generar_imagen_disponibilidad_semana_24h(id_usuario, fecha_dt)
+    usuario = obtener_usuario(db, id_usuario)
+    if usuario is None:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    citas = obtener_citas_por_usuario(db, id_usuario)
+    citas_data = [
+        {'fecha': c.FECHA, 'duracion': c.DURACION if c.DURACION else 60}
+        for c in citas
+    ]
+    filepath = generar_imagen_disponibilidad_semana_24h(id_usuario, fecha_dt, citas_data)
     if filepath is None:
         raise HTTPException(status_code=500, detail="Error al generar la imagen")
     return FileResponse(filepath, media_type="image/png", filename="disponibilidad_semana_completa.png")
