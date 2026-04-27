@@ -15,6 +15,8 @@ from src.BBDD.database_service import (
     guardar_cita_en_db,
     obtener_o_crear_usuario_telegram,
     obtener_horas_ocupadas,
+    obtener_citas_usuario,
+    cancelar_cita_db
 )
 
 
@@ -256,19 +258,91 @@ async def handle_action_reserve(query, context: ContextTypes.DEFAULT_TYPE) -> No
         pass
 
 
-async def handle_action_my_appointments(
-    query, context: ContextTypes.DEFAULT_TYPE
-) -> None:
-    questions = (
-        " *Mis citas*\n\n"
-        "1️⃣ *20/03/2023* Fisio Juan\n"
-        "2️⃣ *21/03/2023* Fisio Daniel\n"
-        "3️⃣ *3/04/2023* Fisio Juan\n"
-        "4️⃣ *4/04/2023* Fisio Daniel\n"
-    )
 
-    keyboard = [[InlineKeyboardButton("Volver", callback_data="action_back_menu")]]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await query.edit_message_text(
-        text=questions, reply_markup=reply_markup, parse_mode="Markdown"
-    )
+async def handle_action_my_appointments(query, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Muestra las citas con un formato elegante y botones de cancelación."""
+    telegram_id = query.from_user.id
+    citas = await asyncio.to_thread(obtener_citas_usuario, telegram_id)
+
+    keyboard = []
+
+    if not citas:
+        texto_citas = "📋 *Mis Citas*\n\nActualmente no tienes ninguna reserva activa."
+    else:
+        texto_citas = "📋 *Tus Próximas Citas:*\n\n"
+        for i, cita in enumerate(citas, 1):
+            fecha_str = cita["FECHA"].strftime("%d de %B, %Y") 
+            hora_str = cita["FECHA"].strftime("%H:%M")
+            
+            
+            texto_citas += f"🔹 *Cita {i}* — {fecha_str} a las {hora_str}\n\n"
+
+           
+        keyboard.append([
+               InlineKeyboardButton(
+                   "❌ Cancelar Cita ", 
+                   callback_data="action_cancel_menu"
+               )
+           ])
+
+    
+
+    keyboard.append([InlineKeyboardButton("🔙 Volver al Menú", callback_data="action_back_menu")])
+
+    try:
+        await query.edit_message_text(
+            text=texto_citas, 
+            reply_markup=InlineKeyboardMarkup(keyboard), 
+            parse_mode="Markdown"
+        )
+    except BadRequest:
+        pass
+
+
+async def handle_action_cancel_menu(query, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Muestra los botones específicos para elegir qué cita borrar."""
+    telegram_id = query.from_user.id
+    citas = await asyncio.to_thread(obtener_citas_usuario, telegram_id)
+
+    if not citas:
+        await handle_action_my_appointments(query, context)
+        return
+
+    texto = "❌ *Cancelar Cita*\n\nSelecciona la cita que deseas anular:"
+    keyboard = []
+
+    for i, cita in enumerate(citas, 1):
+        # Creamos botones más pequeños con la info clave (Ej: ❌ Cita 1 (25/10 - 10:00))
+        dia = cita["FECHA"].day
+        mes = cita["FECHA"].month
+        hora_str = cita["FECHA"].strftime("%H:%M")
+        btn_text = f"Cita {i} ({dia:02d}/{mes:02d} - {hora_str})"
+
+        keyboard.append([
+            InlineKeyboardButton(btn_text, callback_data=f"cancelcita_{cita['ID_CITA']}")
+        ])
+
+    keyboard.append([InlineKeyboardButton("🔙 Volver a Mis Citas", callback_data="action_my_appointments")])
+
+    try:
+        await query.edit_message_text(
+            text=texto, 
+            reply_markup=InlineKeyboardMarkup(keyboard), 
+            parse_mode="Markdown"
+        )
+    except BadRequest:
+        pass
+
+async def handle_cancel_appointment(query, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Procesa el clic en un botón de 'Cancelar Cita'."""
+    # Extraemos el ID de la cita del callback_data (ej: de "cancelcita_15" sacamos el "15")
+    id_cita = int(query.data.split("_")[1])
+    
+    exito = await asyncio.to_thread(cancelar_cita_db, id_cita)
+
+    if exito:
+        await query.answer("✅ Cita cancelada correctamente", show_alert=True)
+    else:
+        await query.answer("❌ Error al cancelar la cita", show_alert=True)
+
+    await handle_action_my_appointments(query, context)

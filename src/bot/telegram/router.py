@@ -5,6 +5,8 @@ from src.bot.telegram.handlers.reserve import (
     handle_action_reserve,
     handle_action_my_appointments,
     handle_calendar_and_time,
+    handle_cancel_appointment,
+    handle_action_cancel_menu
 )
 from src.bot.telegram.handlers.settings import (
     handle_action_settings,
@@ -28,6 +30,7 @@ CALLBACK_ROUTES = {
     "action_help": handle_action_menu_help,
     "action_help_faq": handle_action_faq,
     "action_back_menu": handle_action_back_menu,
+    "action_cancel_menu": handle_action_cancel_menu,
 }
 
 
@@ -43,6 +46,10 @@ async def menu_callback_handler(
         await query.answer()
 
     if await handle_calendar_and_time(query, context, update):
+        return
+    
+    if query.data.startswith("cancelcita_"):
+        await handle_cancel_appointment(query, context)
         return
 
     function = CALLBACK_ROUTES.get(query.data)
