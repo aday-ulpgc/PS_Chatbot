@@ -74,6 +74,42 @@ class GoogleCalendarService:
             .insert(calendarId=self.calendar_id, body=event_body)
             .execute()
         )
+    
+    def delete_event(self, user_id: str, date_str: str, hour_str: str) -> bool:
+        """Busca y elimina un evento específico en el calendario."""
+        time_min = f"{date_str}T00:00:00Z"
+        time_max = f"{date_str}T23:59:59Z"
+
+        events_result = (
+            self.service.events()
+            .list(
+                calendarId=self.calendar_id,
+                timeMin=time_min,
+                timeMax=time_max,
+                singleEvents=True,
+            )
+            .execute()
+        )
+
+        events = events_result.get("items", [])
+        formatted_hour = hour_str.zfill(5)
+        expected_summary = f"Reserva de {user_id}"
+
+        for event in events:
+            start_time = event["start"].get("dateTime", "")
+            summary = event.get("summary", "")
+            
+            if f"T{formatted_hour}:00" in start_time and summary == expected_summary:
+                event_id = event["id"]
+                self.service.events().delete(
+                    calendarId=self.calendar_id, 
+                    eventId=event_id
+                ).execute()
+                print(f"✅ Evento borrado en Google Calendar: {date_str} a las {hour_str}")
+                return True
+                
+        print("⚠️ No se encontró el evento en Google Calendar para borrarlo.")
+        return False
 
 
 def create_reservation(user_id: str, date: str, hour: str) -> str:
@@ -105,3 +141,22 @@ def create_reservation(user_id: str, date: str, hour: str) -> str:
     except Exception as e:
         print(f"[SYSTEM ERROR]: {e}")
         return "❌ Lo siento, hubo un problema técnico al crear la reserva."
+
+
+def delete_reservation(user_id: str, date: str, hour: str) -> bool:
+    """
+    Función de fachada (Facade) para eliminar una reserva.
+    Es llamada cuando el usuario cancela o modifica desde Telegram.
+    """
+    try:
+        calendar = GoogleCalendarService()
+
+        if not calendar.calendar_id:
+            print("❌ Error: No se ha configurado el CALENDAR_ID.")
+            return False
+
+        return calendar.delete_event(user_id, date, hour)
+
+    except Exception as e:
+        print(f"[SYSTEM ERROR]: Error al intentar borrar la reserva en Google: {e}")
+        return False

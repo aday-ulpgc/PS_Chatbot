@@ -193,3 +193,15 @@ def actualizar_cita_fecha_db(id_cita: int, nueva_fecha: datetime) -> bool:
     except Exception as e:
         print(f"❌ Error al actualizar cita: {e}")
     return False
+
+def obtener_info_cita_db(id_cita: int) -> dict:
+    """Recupera la fecha de una cita específica antes de ser alterada."""
+    try:
+        with get_session() as session:
+            from .databasecontroller import CitaInd
+            cita = session.get(CitaInd, id_cita)
+            if cita and cita.ELIMINADO is None:
+                return {"FECHA": cita.FECHA}
+    except Exception as e:
+        print(f"❌ Error al obtener info de la cita: {e}")
+    return None
