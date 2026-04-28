@@ -46,18 +46,18 @@ async def handle_action_back_menu(query, context: ContextTypes.DEFAULT_TYPE) -> 
             # Limpiar el ID para que no intente reutilizarlo
             context.user_data["week_photo_message_id"] = None
         
-        # También borrar la imagen de disponibilidad del flujo de reserva
-        reserve_photo_id = context.user_data.get("reserve_photo_message_id")
-        if reserve_photo_id:
+        # También borrar TODAS las imágenes de disponibilidad del flujo de reserva
+        for reserve_photo_id in context.user_data.get("reserve_photo_message_ids", []):
             try:
                 await context.bot.delete_message(
                     chat_id=query.message.chat_id,
                     message_id=reserve_photo_id
                 )
             except Exception:
-                pass  # Si no se puede borrar, continuar
-            # Limpiar el ID
-            context.user_data["reserve_photo_message_id"] = None
+                pass
+        context.user_data["reserve_photo_message_ids"] = []
+        context.user_data["reserve_photo_message_id"] = None
+        context.user_data["reserve_photo_generating"] = False
     except Exception:
         pass
     
