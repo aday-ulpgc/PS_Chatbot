@@ -78,10 +78,7 @@ class GoogleCalendarService:
         )
 
     def get_available_hours(self, date_str: str) -> list:
-        """Obtiene todas las horas disponibles del día (9:00 a 20:00).
-        
-        Considera la duración completa de los eventos, no solo la hora de inicio.
-        """
+        """Obtiene todas las horas disponibles del día (9:00 a 20:00)."""
         time_min = f"{date_str}T00:00:00Z"
         time_max = f"{date_str}T23:59:59Z"
 
@@ -99,30 +96,23 @@ class GoogleCalendarService:
         events = events_result.get("items", [])
         occupied_hours = set()
 
-        # Extraer todas las horas ocupadas, considerando la duración del evento
+        # Extraer las horas ocupadas
         for event in events:
             start_time = event["start"].get("dateTime", "")
-            end_time = event["end"].get("dateTime", "")
-            
-            if start_time and end_time:
+            if start_time:
                 try:
-                    # Parsear las horas de inicio y fin
-                    start_hour = int(start_time.split("T")[1][:2])
-                    end_hour = int(end_time.split("T")[1][:2])
-                    
-                    # Marcar todas las horas ocupadas en el rango
-                    # Si un evento es de 16:00-17:00, marca 16 como ocupada
-                    for h in range(start_hour, end_hour):
-                        occupied_hours.add(f"{h:02d}")
+                    hour = start_time.split("T")[1][:2]
+                    occupied_hours.add(hour)
                 except (IndexError, ValueError):
                     pass
 
         # Generar lista de horas disponibles (9:00 a 20:00)
         available_hours = []
         for h in range(9, 21):
+            hour_str = f"{h:02d}:00"
             hour_code = f"{h:02d}"
             if hour_code not in occupied_hours:
-                available_hours.append(f"{h:02d}:00")
+                available_hours.append(hour_str)
 
         return available_hours
 

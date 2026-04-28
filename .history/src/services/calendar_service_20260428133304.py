@@ -78,10 +78,7 @@ class GoogleCalendarService:
         )
 
     def get_available_hours(self, date_str: str) -> list:
-        """Obtiene todas las horas disponibles del día (9:00 a 20:00).
-        
-        Considera la duración completa de los eventos, no solo la hora de inicio.
-        """
+        """Obtiene todas las horas disponibles del día (9:00 a 20:00)."""
         time_min = f"{date_str}T00:00:00Z"
         time_max = f"{date_str}T23:59:59Z"
 
@@ -99,39 +96,28 @@ class GoogleCalendarService:
         events = events_result.get("items", [])
         occupied_hours = set()
 
-        # Extraer todas las horas ocupadas, considerando la duración del evento
+        # Extraer las horas ocupadas
         for event in events:
             start_time = event["start"].get("dateTime", "")
-            end_time = event["end"].get("dateTime", "")
-            
-            if start_time and end_time:
+            if start_time:
                 try:
-                    # Parsear las horas de inicio y fin
-                    start_hour = int(start_time.split("T")[1][:2])
-                    end_hour = int(end_time.split("T")[1][:2])
-                    
-                    # Marcar todas las horas ocupadas en el rango
-                    # Si un evento es de 16:00-17:00, marca 16 como ocupada
-                    for h in range(start_hour, end_hour):
-                        occupied_hours.add(f"{h:02d}")
+                    hour = start_time.split("T")[1][:2]
+                    occupied_hours.add(hour)
                 except (IndexError, ValueError):
                     pass
 
         # Generar lista de horas disponibles (9:00 a 20:00)
         available_hours = []
         for h in range(9, 21):
+            hour_str = f"{h:02d}:00"
             hour_code = f"{h:02d}"
             if hour_code not in occupied_hours:
-                available_hours.append(f"{h:02d}:00")
+                available_hours.append(hour_str)
 
         return available_hours
 
     def find_alternative_hours(self, date_str: str, hour_str: str) -> tuple:
-        """Encuentra las dos horas más cercanas disponibles (anterior y posterior).
-        
-        Returns:
-            Tuple de (hora_anterior_disponible, hora_posterior_disponible)
-        """
+        """Encuentra las dos horas más cercanas disponibles (anterior y posterior)."""
         available_hours = self.get_available_hours(date_str)
         
         if not available_hours:
@@ -139,19 +125,22 @@ class GoogleCalendarService:
 
         # Convertir la hora solicitada a entero para comparación
         requested_hour = int(hour_str.split(":")[0])
-        available_hours_int = [int(h.split(":")[0]) for h in available_hours]
 
-        # Buscar todas las horas ANTES de la solicitada, retornar la más cercana (la máxima)
-        hours_before = [h for h in available_hours_int if h < requested_hour]
+        # Buscar hora anterior
         hour_before = None
-        if hours_before:
-            hour_before = f"{max(hours_before):02d}:00"
+        for h in reversed(available_hours):
+            h_int = int(h.split(":")[0])
+            if h_int < requested_hour:
+                hour_before = h
+                break
 
-        # Buscar todas las horas DESPUÉS de la solicitada, retornar la más cercana (la mínima)
-        hours_after = [h for h in available_hours_int if h > requested_hour]
+        # Buscar hora posterior
         hour_after = None
-        if hours_after:
-            hour_after = f"{min(hours_after):02d}:00"
+        for h in available_hours:
+            h_int = int(h.split(":")[0])
+            if h_int > requested_hour:
+                hour_after = h
+                break
 
         return (hour_before, hour_after)
 

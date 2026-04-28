@@ -152,7 +152,7 @@ def generar_imagen_disponibilidad(user_id: int, fecha: datetime) -> str:
         return None
 
 
-def generar_imagen_disponibilidad_semana(user_id: int, fecha_inicio: datetime) -> str:
+def generar_imagen_disponibilidad_semana(user_id: int, fecha_inicio: datetime, citas_data: list) -> str:
     """
     Genera una imagen de disponibilidad para 7 días a partir de una fecha.
     Una columna por día, eje Y = horas del día. Verde = disponible, Rojo = ocupado.
@@ -160,6 +160,7 @@ def generar_imagen_disponibilidad_semana(user_id: int, fecha_inicio: datetime) -
     Args:
         user_id: ID del usuario
         fecha_inicio: Fecha de inicio de la semana (datetime)
+        citas_data: Lista de dicts con claves 'fecha', 'duracion'
 
     Returns:
         Ruta a la imagen generada
@@ -167,20 +168,6 @@ def generar_imagen_disponibilidad_semana(user_id: int, fecha_inicio: datetime) -
     _asegurar_temp_dir()
 
     try:
-        # Obtener citas del usuario - DENTRO de la sesión
-        with get_session() as session:
-            citas = obtener_citas_por_usuario(session, user_id)
-            
-            # Convertir a diccionarios
-            citas_data = [
-                {
-                    'fecha': c.FECHA,
-                    'duracion': c.DURACION if c.DURACION else 60,
-                    'descripcion': c.DESCRIPCION
-                }
-                for c in citas
-            ]
-        
         dias_semana = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
 
         fig, axes = plt.subplots(1, 7, sharey=True, figsize=(14, 10))

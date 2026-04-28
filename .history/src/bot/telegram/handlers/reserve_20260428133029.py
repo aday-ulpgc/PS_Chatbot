@@ -56,45 +56,29 @@ async def handle_alternative_time_selection(
     query, context: ContextTypes.DEFAULT_TYPE, update: Update,
     alternatives: list, original_date: str
 ) -> None:
-    """Muestra opciones de horas alternativas libres al usuario con opciones izquierda/derecha/otro día."""
+    """Muestra opciones de horas alternativas libres al usuario."""
     try:
         keyboard = []
         
-        # Asumir que el primer alternativo es la hora anterior (izquierda)
-        # y el segundo es la hora posterior (derecha)
-        if len(alternatives) >= 1:
-            # Primera alternativa (hora anterior/izquierda)
-            fecha, hora = alternatives[0]
+        for idx, (fecha, hora) in enumerate(alternatives):
+            # Convertir formato DD/MM/YYYY a YYYY-MM-DD para almacenar
             fecha_obj = datetime.strptime(fecha, "%d/%m/%Y")
-            fecha_iso = fecha_obj.strftime("%Y%m%d")
+            fecha_iso = fecha_obj.strftime("%Y%m%d")  # Usar YYYYMMDD sin guiones para evitar problemas con split
+            
+            # Crear callback con la hora alternativa (alt_time_idx@fechayyyymmdd@hhmm)
             hora_no_sep = hora.replace(":", "")
-            callback_data = f"alt_time_0_{fecha_iso}_{hora_no_sep}"
+            callback_data = f"alt_time_{idx}_{fecha_iso}_{hora_no_sep}"
             
             keyboard.append([
                 InlineKeyboardButton(
-                    f"⬅️ Anterior: {hora}",
+                    f"✅ {fecha} a las {hora}",
                     callback_data=callback_data
                 )
             ])
         
-        if len(alternatives) >= 2:
-            # Segunda alternativa (hora posterior/derecha)
-            fecha, hora = alternatives[1]
-            fecha_obj = datetime.strptime(fecha, "%d/%m/%Y")
-            fecha_iso = fecha_obj.strftime("%Y%m%d")
-            hora_no_sep = hora.replace(":", "")
-            callback_data = f"alt_time_1_{fecha_iso}_{hora_no_sep}"
-            
-            keyboard.append([
-                InlineKeyboardButton(
-                    f"Posterior: {hora} ➡️",
-                    callback_data=callback_data
-                )
-            ])
-        
-        # Agregar opción para elegir otro día
+        # Agregar opción para intentar otra hora
         keyboard.append([
-            InlineKeyboardButton("📅 Otro día", callback_data="action_reserve")
+            InlineKeyboardButton("↻ Elegir otra hora", callback_data="action_reserve")
         ])
         keyboard.append([
             InlineKeyboardButton("⫶☰ Menú Principal", callback_data="action_back_menu")
@@ -103,12 +87,9 @@ async def handle_alternative_time_selection(
         reply_markup = InlineKeyboardMarkup(keyboard)
         
         message_text = "⏰ La hora seleccionada no está disponible.\n\n"
-        message_text += "Elige una de las alternativas más cercanas:\n\n"
+        message_text += "Aquí tienes las horas libres más cercanas:\n\n"
         for idx, (fecha, hora) in enumerate(alternatives, 1):
-            if idx == 1:
-                message_text += f"⬅️ Anterior: {hora}\n"
-            elif idx == 2:
-                message_text += f"Posterior ➡️: {hora}\n"
+            message_text += f"{idx}. {fecha} a las {hora}\n"
         
         await query.edit_message_text(
             text=message_text,
@@ -314,17 +295,6 @@ async def handle_calendar_and_time(
             # Generar imagen de disponibilidad
             if user_info.get("id_usuario"):
                 try:
-                    # Borrar la imagen anterior si existe
-                    reserve_photo_id = context.user_data.get("reserve_photo_message_id")
-                    if reserve_photo_id:
-                        try:
-                            await context.bot.delete_message(
-                                chat_id=query.from_user.id,
-                                message_id=reserve_photo_id
-                            )
-                        except Exception as e:
-                            print(f"⚠️ No se pudo borrar imagen anterior: {e}")
-
                     # Convertir date a datetime
                     fecha_datetime = datetime.combine(result, datetime.min.time())
                     imagen_path = await asyncio.to_thread(

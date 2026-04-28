@@ -314,17 +314,6 @@ async def handle_calendar_and_time(
             # Generar imagen de disponibilidad
             if user_info.get("id_usuario"):
                 try:
-                    # Borrar la imagen anterior si existe
-                    reserve_photo_id = context.user_data.get("reserve_photo_message_id")
-                    if reserve_photo_id:
-                        try:
-                            await context.bot.delete_message(
-                                chat_id=query.from_user.id,
-                                message_id=reserve_photo_id
-                            )
-                        except Exception as e:
-                            print(f"⚠️ No se pudo borrar imagen anterior: {e}")
-
                     # Convertir date a datetime
                     fecha_datetime = datetime.combine(result, datetime.min.time())
                     imagen_path = await asyncio.to_thread(

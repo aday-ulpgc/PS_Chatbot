@@ -1,7 +1,6 @@
 import json
 import asyncio
 import os
-import re
 from datetime import date, datetime, timedelta
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, InputMediaPhoto
 from telegram.ext import ContextTypes
@@ -17,141 +16,13 @@ from src.bot.telegram.handlers.commands import handle_action_back_menu
 from src.BBDD.database_service import obtener_o_crear_usuario_telegram
 
 
-def parse_alternative_times(error_message: str) -> list:
-    """Extrae las horas alternativas libres del mensaje de error.
-    
-    Busca patrones como: "Otras fechas cercanas que podrían interesarte: 12/06/2026 06:00 11/06/2026 23:00"
-    Retorna lista de tuples: [(fecha, hora), (fecha, hora)]
-    """
-    try:
-        # Buscar el patrón de fechas y horas
-        pattern = r'(\d{2}/\d{2}/\d{4})\s+(\d{2}:\d{2})'
-        matches = re.findall(pattern, error_message)
-        
-        if not matches or len(matches) < 2:
-            return []
-        
-        # Convertir a datetime para validar que no sean pasadas
-        now = datetime.now()
-        alternatives = []
-        
-        for fecha_str, hora_str in matches[:2]:  # Solo tomar las primeras 2
-            try:
-                # Parsear fecha: formato DD/MM/YYYY
-                fecha_obj = datetime.strptime(f"{fecha_str} {hora_str}", "%d/%m/%Y %H:%M")
-                
-                # Si ya pasó, no añadirla
-                if fecha_obj > now:
-                    alternatives.append((fecha_str, hora_str))
-            except ValueError:
-                continue
-        
-        return alternatives
-    except Exception as e:
-        print(f"Error parseando alternativas: {e}")
-        return []
-
-
-async def handle_alternative_time_selection(
-    query, context: ContextTypes.DEFAULT_TYPE, update: Update,
-    alternatives: list, original_date: str
-) -> None:
-    """Muestra opciones de horas alternativas libres al usuario con opciones izquierda/derecha/otro día."""
-    try:
-        keyboard = []
-        
-        # Asumir que el primer alternativo es la hora anterior (izquierda)
-        # y el segundo es la hora posterior (derecha)
-        if len(alternatives) >= 1:
-            # Primera alternativa (hora anterior/izquierda)
-            fecha, hora = alternatives[0]
-            fecha_obj = datetime.strptime(fecha, "%d/%m/%Y")
-            fecha_iso = fecha_obj.strftime("%Y%m%d")
-            hora_no_sep = hora.replace(":", "")
-            callback_data = f"alt_time_0_{fecha_iso}_{hora_no_sep}"
-            
-            keyboard.append([
-                InlineKeyboardButton(
-                    f"⬅️ Anterior: {hora}",
-                    callback_data=callback_data
-                )
-            ])
-        
-        if len(alternatives) >= 2:
-            # Segunda alternativa (hora posterior/derecha)
-            fecha, hora = alternatives[1]
-            fecha_obj = datetime.strptime(fecha, "%d/%m/%Y")
-            fecha_iso = fecha_obj.strftime("%Y%m%d")
-            hora_no_sep = hora.replace(":", "")
-            callback_data = f"alt_time_1_{fecha_iso}_{hora_no_sep}"
-            
-            keyboard.append([
-                InlineKeyboardButton(
-                    f"Posterior: {hora} ➡️",
-                    callback_data=callback_data
-                )
-            ])
-        
-        # Agregar opción para elegir otro día
-        keyboard.append([
-            InlineKeyboardButton("📅 Otro día", callback_data="action_reserve")
-        ])
-        keyboard.append([
-            InlineKeyboardButton("⫶☰ Menú Principal", callback_data="action_back_menu")
-        ])
-        
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        
-        message_text = "⏰ La hora seleccionada no está disponible.\n\n"
-        message_text += "Elige una de las alternativas más cercanas:\n\n"
-        for idx, (fecha, hora) in enumerate(alternatives, 1):
-            if idx == 1:
-                message_text += f"⬅️ Anterior: {hora}\n"
-            elif idx == 2:
-                message_text += f"Posterior ➡️: {hora}\n"
-        
-        await query.edit_message_text(
-            text=message_text,
-            reply_markup=reply_markup
-        )
-        
-        # Guardar las alternativas en contexto
-        context.user_data["alternative_times"] = alternatives
-        
-    except Exception as e:
-        print(f"Error en handle_alternative_time_selection: {e}")
-        await query.answer(f"Error: {str(e)}", show_alert=True)
-
-
 async def enviar_recordatorio_cita(context: ContextTypes.DEFAULT_TYPE) -> None:
     """Esta función es la que el bot ejecuta cuando pasan los 2 segundos."""
     job = context.job
     try:
-        # Obtener el message_id del recordatorio anterior si existe
-        reminder_message_id = context.user_data.get("reminder_message_id")
-        message_text = f"⏰ PRUEBA\n{job.data}"
-        
-        if reminder_message_id:
-            # Editar el mensaje anterior en lugar de crear uno nuevo
-            try:
-                await context.bot.edit_message_text(
-                    chat_id=job.chat_id,
-                    message_id=reminder_message_id,
-                    text=message_text
-                )
-            except Exception as edit_error:
-                print(f"⚠️ No se pudo editar el recordatorio anterior: {edit_error}")
-                # Si no se puede editar, enviar uno nuevo
-                msg = await context.bot.send_message(
-                    chat_id=job.chat_id, text=message_text
-                )
-                context.user_data["reminder_message_id"] = msg.message_id
-        else:
-            # Enviar nuevo mensaje
-            msg = await context.bot.send_message(
-                chat_id=job.chat_id, text=message_text
-            )
-            context.user_data["reminder_message_id"] = msg.message_id
+        await context.bot.send_message(
+            chat_id=job.chat_id, text=f"⏰ PRUEBA\n{job.data}"
+        )
     except Exception as e:
         print(f"❌ Error al enviar el mensaje: {e}")
 
@@ -183,18 +54,6 @@ async def handle_calendar_and_time(
         )
 
         if response_message.startswith("❌"):
-            # Verificar si es un error de horario ocupado con alternativas
-            if "Otras fechas cercanas" in response_message or "Otras horas" in response_message:
-                alternatives = parse_alternative_times(response_message)
-                
-                if alternatives and len(alternatives) >= 1:
-                    # Mostrar opciones de horas alternativas
-                    await handle_alternative_time_selection(
-                        query, context, update, alternatives, selected_data
-                    )
-                    return True
-            
-            # Si no hay alternativas o es otro tipo de error, mostrar error normal
             error_keyboard = InlineKeyboardMarkup(
                 [
                     [
@@ -217,18 +76,6 @@ async def handle_calendar_and_time(
             user_mode = context.user_data.get("pref_mode", MODO_TEXTO)
 
             context.user_data["last_reserva_text"] = response_message
-
-            # Borrar la imagen de disponibilidad si existe
-            reserve_photo_id = context.user_data.get("reserve_photo_message_id")
-            if reserve_photo_id:
-                try:
-                    await context.bot.delete_message(
-                        chat_id=update.effective_chat.id,
-                        message_id=reserve_photo_id
-                    )
-                    context.user_data["reserve_photo_message_id"] = None
-                except Exception as e:
-                    print(f"⚠️ Error al borrar imagen de reserva: {e}")
 
             if user_mode == MODO_AUDIO:
                 await query.edit_message_text("🎙️ Generando audio de confirmación...")
@@ -314,17 +161,6 @@ async def handle_calendar_and_time(
             # Generar imagen de disponibilidad
             if user_info.get("id_usuario"):
                 try:
-                    # Borrar la imagen anterior si existe
-                    reserve_photo_id = context.user_data.get("reserve_photo_message_id")
-                    if reserve_photo_id:
-                        try:
-                            await context.bot.delete_message(
-                                chat_id=query.from_user.id,
-                                message_id=reserve_photo_id
-                            )
-                        except Exception as e:
-                            print(f"⚠️ No se pudo borrar imagen anterior: {e}")
-
                     # Convertir date a datetime
                     fecha_datetime = datetime.combine(result, datetime.min.time())
                     imagen_path = await asyncio.to_thread(
@@ -333,17 +169,15 @@ async def handle_calendar_and_time(
                         fecha_datetime
                     )
                     
-                    # Enviar imagen y guardar su message_id
+                    # Enviar imagen
                     if imagen_path:
                         await query.answer()
                         with open(imagen_path, 'rb') as img:
-                            photo_message = await context.bot.send_photo(
+                            await context.bot.send_photo(
                                 chat_id=query.from_user.id,
                                 photo=img,
                                 caption=f"📊 Disponibilidad para {result.strftime('%A, %d de %B')}"
                             )
-                            # Guardar el message_id para borrarlo después
-                            context.user_data["reserve_photo_message_id"] = photo_message.message_id
                 except Exception as e:
                     print(f"⚠️ Error al generar imagen: {e}")
 
@@ -414,118 +248,6 @@ async def handle_calendar_and_time(
     return False
 
 
-async def handle_alternative_time_selection_callback(
-    query, context: ContextTypes.DEFAULT_TYPE, update: Update
-) -> None:
-    """Procesa la selección de una hora alternativa."""
-    try:
-        # Parsear el callback: alt_time_0_20260612_0600
-        parts = query.data.split("_")
-        if len(parts) < 4 or parts[0] != "alt":
-            return
-        
-        idx = int(parts[2])
-        fecha_yyyymmdd = parts[3]  # YYYYMMDD
-        hora_str = parts[4]   # HHMM
-        
-        # Convertir hora de HHMM a HH:MM
-        hora_formatted = f"{hora_str[:2]}:{hora_str[2:]}"
-        
-        # Convertir fecha de YYYYMMDD a:
-        # - ISO format (YYYY-MM-DD) para el API
-        # - Display format (DD/MM/YYYY) para mostrar
-        fecha_obj = datetime.strptime(fecha_yyyymmdd, "%Y%m%d")
-        fecha_iso = fecha_obj.strftime("%Y-%m-%d")
-        fecha_display = fecha_obj.strftime("%d/%m/%Y")
-        
-        # Procesar la reserva con la hora alternativa seleccionada
-        await query.edit_message_text(
-            text=f"✅ ¡Resumen de tu solicitud!\n📅 Fecha: {fecha_display}\n⏰ Hora: {hora_formatted}\n\n⏳ Procesando reserva..."
-        )
-        
-        name_and_id = f"{update.effective_user.full_name} ({update.effective_user.id})"
-        response_message = await asyncio.to_thread(
-            calendar_service.create_reservation,
-            name_and_id,
-            fecha_iso,
-            hora_formatted,
-        )
-        
-        if response_message.startswith("✅"):
-            # Éxito en la reserva
-            user_mode = context.user_data.get("pref_mode", MODO_TEXTO)
-            context.user_data["last_reserva_text"] = response_message
-            
-            # Borrar la imagen de disponibilidad si existe
-            reserve_photo_id = context.user_data.get("reserve_photo_message_id")
-            if reserve_photo_id:
-                try:
-                    await context.bot.delete_message(
-                        chat_id=update.effective_chat.id,
-                        message_id=reserve_photo_id
-                    )
-                    context.user_data["reserve_photo_message_id"] = None
-                except Exception as e:
-                    print(f"⚠️ Error al borrar imagen de reserva: {e}")
-            
-            if user_mode == MODO_AUDIO:
-                await query.edit_message_text("🎙️ Generando audio de confirmación...")
-                
-                audio_path = await VoiceService.text_to_speech(response_message)
-                
-                audio_keyboard = InlineKeyboardMarkup(
-                    [
-                        [
-                            InlineKeyboardButton(
-                                "📖 Ver en texto", callback_data="show_text_reserva"
-                            )
-                        ],
-                        [
-                            InlineKeyboardButton(
-                                "⫶☰ Menú Principal", callback_data="action_back_menu"
-                            )
-                        ],
-                    ]
-                )
-                
-                with open(audio_path, "rb") as audio_file:
-                    await context.bot.send_voice(
-                        chat_id=update.effective_chat.id,
-                        voice=audio_file,
-                        reply_markup=audio_keyboard,
-                    )
-                await query.delete_message()
-            else:
-                await query.edit_message_text(
-                    text=response_message, reply_markup=main_menu_keyboard()
-                )
-        else:
-            # Error nuevamente
-            error_keyboard = InlineKeyboardMarkup(
-                [
-                    [
-                        InlineKeyboardButton(
-                            "↻ Elegir otra hora", callback_data="action_reserve"
-                        )
-                    ],
-                    [
-                        InlineKeyboardButton(
-                            "⫶☰ Menú Principal", callback_data="action_back_menu"
-                        )
-                    ],
-                ]
-            )
-            await query.edit_message_text(
-                text=response_message, reply_markup=error_keyboard
-            )
-        
-    except Exception as e:
-        print(f"Error en handle_alternative_time_selection_callback: {e}")
-        import traceback
-        traceback.print_exc()
-        await query.answer(f"Error: {str(e)}", show_alert=True)
-
-
 async def handle_action_reserve(query, context: ContextTypes.DEFAULT_TYPE) -> None:
     current_calendar = DetailedTelegramCalendar(min_date=date.today())
     calendar, step = current_calendar.build()
@@ -576,16 +298,7 @@ async def handle_action_my_appointments(
             # Invertir para mostrar más recientes primero
             citas = sorted(citas, key=lambda c: c.FECHA, reverse=True)
             
-            # Convertir a diccionarios DENTRO de la sesión para no perder datos
-            citas_dict = [
-                {
-                    'fecha': c.FECHA,
-                    'descripcion': c.DESCRIPCION or 'Sin descripción'
-                }
-                for c in citas
-            ]
-            
-            if not citas_dict:
+            if not citas:
                 keyboard = [
                     [InlineKeyboardButton("📅 Ver disponibilidad", callback_data="action_view_availability")],
                     [InlineKeyboardButton("⫶☰ Volver", callback_data="action_back_menu")]
@@ -601,8 +314,8 @@ async def handle_action_my_appointments(
             # Agrupar citas en bloques de 9
             emojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣']
             bloques = []
-            for i in range(0, len(citas_dict), 9):
-                bloque = citas_dict[i:i+9]
+            for i in range(0, len(citas), 9):
+                bloque = citas[i:i+9]
                 bloques.append(bloque)
             
             # Guardar bloques en contexto para navegación
@@ -612,8 +325,8 @@ async def handle_action_my_appointments(
             # Mostrar primer bloque
             bloque_texto = f"📋 *Mis citas* (grupo 1 de {len(bloques)})\n\n"
             for idx, cita in enumerate(bloques[0]):
-                fecha_str = cita['fecha'].strftime("%d/%m/%Y %H:%M")
-                bloque_texto += f"{emojis[idx]} *{fecha_str}* - {cita['descripcion']}\n"
+                fecha_str = cita.FECHA.strftime("%d/%m/%Y %H:%M")
+                bloque_texto += f"{emojis[idx]} *{fecha_str}* - {cita.DESCRIPCION or 'Sin descripción'}\n"
             
             # Crear botones de navegación
             keyboard = []
@@ -671,78 +384,8 @@ async def handle_action_view_availability(
 async def handle_action_view_availability_day(
     query, context: ContextTypes.DEFAULT_TYPE, update: Update
 ) -> None:
-    """Muestra la última imagen de día o el calendario para seleccionar un día."""
+    """Muestra el calendario para seleccionar un día."""
     try:
-        # Borrar imagen de semana si existe (cambio de vista)
-        try:
-            week_photo_id = context.user_data.get("week_photo_message_id")
-            if week_photo_id:
-                await context.bot.delete_message(
-                    chat_id=query.message.chat_id,
-                    message_id=week_photo_id
-                )
-                context.user_data["week_photo_message_id"] = None
-        except Exception:
-            context.user_data["week_photo_message_id"] = None
-        
-        # Verificar si existe una imagen anterior de día
-        current_day_date = context.user_data.get("current_day_date")
-        day_photo_id = context.user_data.get("day_photo_message_id")
-        
-        # Solo intentar reutilizar la imagen si ambos existen y message_id es válido
-        if current_day_date and day_photo_id and day_photo_id is not None:
-            if not isinstance(current_day_date, date):
-                current_day_date = date.fromisoformat(str(current_day_date))
-            
-            # Obtener usuario
-            user_id = update.effective_user.id
-            usuario = obtener_o_crear_usuario_telegram(user_id)
-            user_db_id = usuario.get("id_usuario")
-            
-            if user_db_id:
-                # Convertir a datetime
-                day_datetime = datetime.combine(current_day_date, datetime.min.time())
-                
-                # Generar imagen del día
-                imagen_path = await asyncio.to_thread(
-                    generar_imagen_disponibilidad, user_db_id, day_datetime
-                )
-                
-                if imagen_path and os.path.exists(imagen_path):
-                    try:
-                        with open(imagen_path, "rb") as img_file:
-                            media = InputMediaPhoto(
-                                media=img_file.read(),
-                                caption=f"📊 Tu disponibilidad el {current_day_date.strftime('%d/%m/%Y')}",
-                                parse_mode="HTML"
-                            )
-                            await context.bot.edit_message_media(
-                                chat_id=query.message.chat_id,
-                                message_id=day_photo_id,
-                                media=media
-                            )
-                        
-                        # Si funcionó, mostrar botones
-                        keyboard = [
-                            [
-                                InlineKeyboardButton("⬅️ Día anterior", callback_data="action_prev_day"),
-                                InlineKeyboardButton("Día siguiente ➡️", callback_data="action_next_day")
-                            ],
-                            [InlineKeyboardButton("📅 Otro día", callback_data="action_view_availability_day")],
-                            [InlineKeyboardButton("⫶☰ Menú Principal", callback_data="action_back_menu")]
-                        ]
-                        reply_markup = InlineKeyboardMarkup(keyboard)
-                        await query.edit_message_text(
-                            text="✅ Última disponibilidad de día guardada",
-                            reply_markup=reply_markup
-                        )
-                        return
-                    except Exception as e:
-                        # Si no se puede editar, limpiar el ID y seguir a crear nueva
-                        print(f"No se pudo editar imagen: {e}")
-                        context.user_data["day_photo_message_id"] = None
-        
-        # Si no existe imagen anterior válida, mostrar calendario
         calendar, step = DetailedTelegramCalendar(min_date=date.today()).build()
         await query.edit_message_text(
             text="📅 Selecciona un día para ver tu disponibilidad:",
@@ -752,8 +395,6 @@ async def handle_action_view_availability_day(
         
     except Exception as e:
         print(f"❌ Error en handle_action_view_availability_day: {e}")
-        import traceback
-        traceback.print_exc()
         keyboard = [[InlineKeyboardButton("Volver", callback_data="action_back_menu")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
         await query.edit_message_text(
@@ -764,83 +405,8 @@ async def handle_action_view_availability_day(
 async def handle_action_view_availability_week(
     query, context: ContextTypes.DEFAULT_TYPE, update: Update
 ) -> None:
-    """Muestra la última imagen de semana o el calendario para seleccionar una semana."""
+    """Muestra el calendario para seleccionar una semana."""
     try:
-        # Borrar imagen de día si existe (cambio de vista)
-        try:
-            day_photo_id = context.user_data.get("day_photo_message_id")
-            if day_photo_id:
-                await context.bot.delete_message(
-                    chat_id=query.message.chat_id,
-                    message_id=day_photo_id
-                )
-                context.user_data["day_photo_message_id"] = None
-        except Exception:
-            context.user_data["day_photo_message_id"] = None
-        
-        # Verificar si existe una imagen anterior de semana
-        current_week_date = context.user_data.get("current_week_date")
-        week_photo_id = context.user_data.get("week_photo_message_id")
-        
-        # Solo intentar reutilizar la imagen si ambos existen y message_id es válido
-        if current_week_date and week_photo_id and week_photo_id is not None:
-            if not isinstance(current_week_date, date):
-                current_week_date = date.fromisoformat(str(current_week_date))
-            
-            # Obtener usuario
-            user_id = update.effective_user.id
-            usuario = obtener_o_crear_usuario_telegram(user_id)
-            user_db_id = usuario.get("id_usuario")
-            
-            if user_db_id:
-                # Convertir a datetime
-                week_datetime = datetime.combine(current_week_date, datetime.min.time())
-                
-                # Generar imagen de la semana
-                imagen_path = await asyncio.to_thread(
-                    generar_imagen_disponibilidad_semana_24h, user_db_id, week_datetime
-                )
-                
-                if imagen_path and os.path.exists(imagen_path):
-                    try:
-                        # Calcular rango de fechas para el caption
-                        lunes = current_week_date - timedelta(days=current_week_date.weekday())
-                        domingo_fecha = lunes + timedelta(days=6)
-                        caption = f"📆 Semana del {lunes.strftime('%d/%m')} al {domingo_fecha.strftime('%d/%m/%Y')}"
-                        
-                        with open(imagen_path, "rb") as img_file:
-                            media = InputMediaPhoto(
-                                media=img_file.read(),
-                                caption=caption,
-                                parse_mode="HTML"
-                            )
-                            await context.bot.edit_message_media(
-                                chat_id=query.message.chat_id,
-                                message_id=week_photo_id,
-                                media=media
-                            )
-                        
-                        # Si funcionó, mostrar botones
-                        keyboard = [
-                            [
-                                InlineKeyboardButton("⬅️ Semana anterior", callback_data="action_prev_week"),
-                                InlineKeyboardButton("Semana siguiente ➡️", callback_data="action_next_week")
-                            ],
-                            [InlineKeyboardButton("📆 Otra semana", callback_data="action_view_availability_week")],
-                            [InlineKeyboardButton("⫶☰ Menú Principal", callback_data="action_back_menu")]
-                        ]
-                        reply_markup = InlineKeyboardMarkup(keyboard)
-                        await query.edit_message_text(
-                            text=f"✅ {caption}",
-                            reply_markup=reply_markup
-                        )
-                        return
-                    except Exception as e:
-                        # Si no se puede editar, limpiar el ID y seguir a crear nueva
-                        print(f"No se pudo editar imagen: {e}")
-                        context.user_data["week_photo_message_id"] = None
-        
-        # Si no existe imagen anterior válida, mostrar calendario
         calendar, step = DetailedTelegramCalendar(min_date=date.today()).build()
         await query.edit_message_text(
             text="📆 Selecciona cualquier día de la semana que deseas ver:",
@@ -850,8 +416,6 @@ async def handle_action_view_availability_week(
         
     except Exception as e:
         print(f"❌ Error en handle_action_view_availability_week: {e}")
-        import traceback
-        traceback.print_exc()
         keyboard = [[InlineKeyboardButton("Volver", callback_data="action_back_menu")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
         await query.edit_message_text(
@@ -925,24 +489,14 @@ async def handle_availability_calendar_selection(
                 
                 if imagen_path and os.path.exists(imagen_path):
                     with open(imagen_path, "rb") as img_file:
-                        photo_message = await context.bot.send_photo(
+                        await context.bot.send_photo(
                             chat_id=query.message.chat_id,
                             photo=img_file,
-                            caption=f"📊 Tu disponibilidad el {selected_date.strftime('%d/%m/%Y')}"
+                            caption=f"📊 Tu disponibilidad el {selected_date.strftime('%A, %d de %B de %Y')}"
                         )
                     
-                    # Guardar el message_id de la foto para poder editarla después
-                    context.user_data["day_photo_message_id"] = photo_message.message_id
-                    
-                    # Guardar la fecha actual del día para navegar
-                    context.user_data["current_day_date"] = selected_date
-                    
-                    # Mostrar botones para opciones con navegación
+                    # Mostrar botones para opciones
                     keyboard = [
-                        [
-                            InlineKeyboardButton("⬅️ Día anterior", callback_data="action_prev_day"),
-                            InlineKeyboardButton("Día siguiente ➡️", callback_data="action_next_day")
-                        ],
                         [InlineKeyboardButton("📅 Otro día", callback_data="action_view_availability_day")],
                         [InlineKeyboardButton("⫶☰ Menú Principal", callback_data="action_back_menu")]
                     ]
@@ -951,12 +505,8 @@ async def handle_availability_calendar_selection(
                         text="✅ Imagen enviada",
                         reply_markup=reply_markup
                     )
-                    # Limpiar el flag del calendario para permitir navegación
-                    context.user_data["availability_calendar"] = False
                 else:
                     await query.edit_message_text("❌ Error al generar la imagen")
-                    # Limpiar el flag del calendario
-                    context.user_data["availability_calendar"] = False
                     
             elif availability_type == "week":
                 # Vista de semana
@@ -994,12 +544,11 @@ async def handle_availability_calendar_selection(
                         text="✅ Imagen enviada",
                         reply_markup=reply_markup
                     )
-                    # Limpiar el flag del calendario
-                    context.user_data["availability_calendar"] = False
                 else:
                     await query.edit_message_text("❌ Error al generar la imagen")
-                    # Limpiar el flag del calendario
-                    context.user_data["availability_calendar"] = False
+                
+                # Limpiar el flag del calendario
+                context.user_data["availability_calendar"] = False
             else:
                 await query.edit_message_text("❌ Error al generar la imagen")
                 
@@ -1010,161 +559,6 @@ async def handle_availability_calendar_selection(
         await query.edit_message_text(
             text=f"❌ Error: {str(e)}", reply_markup=reply_markup
         )
-
-
-async def handle_prev_day(
-    query, context: ContextTypes.DEFAULT_TYPE, update: Update
-) -> None:
-    """Muestra el día anterior."""
-    try:
-        # Obtener la fecha actual del día
-        current_day_date = context.user_data.get("current_day_date")
-        if not current_day_date:
-            current_day_date = date.today()
-        else:
-            current_day_date = current_day_date if isinstance(current_day_date, date) else date.fromisoformat(str(current_day_date))
-        
-        # Restar 1 día
-        prev_day_date = current_day_date - timedelta(days=1)
-        
-        # No permitir ir a días pasados
-        if prev_day_date < date.today():
-            await query.answer("⚠️ No puedes ver días pasados", show_alert=True)
-            return
-        
-        # Obtener usuario
-        user_id = update.effective_user.id
-        usuario = obtener_o_crear_usuario_telegram(user_id)
-        user_db_id = usuario.get("id_usuario")
-        
-        if not user_db_id:
-            await query.answer("❌ Error al obtener datos del usuario", show_alert=True)
-            return
-        
-        # Convertir a datetime
-        prev_day_datetime = datetime.combine(prev_day_date, datetime.min.time())
-        
-        # Generar imagen del día anterior
-        imagen_path = await asyncio.to_thread(
-            generar_imagen_disponibilidad, user_db_id, prev_day_datetime
-        )
-        
-        if imagen_path and os.path.exists(imagen_path):
-            # Actualizar la fecha guardada
-            context.user_data["current_day_date"] = prev_day_date
-            
-            # Obtener el message_id de la foto anterior
-            photo_message_id = context.user_data.get("day_photo_message_id")
-            
-            if photo_message_id:
-                # Reemplazar la imagen existente
-                with open(imagen_path, "rb") as img_file:
-                    media = InputMediaPhoto(
-                        media=img_file.read(),
-                        caption=f"📊 Tu disponibilidad el {prev_day_date.strftime('%d/%m/%Y')}",
-                        parse_mode="HTML"
-                    )
-                    await context.bot.edit_message_media(
-                        chat_id=query.message.chat_id,
-                        message_id=photo_message_id,
-                        media=media
-                    )
-            
-            # Actualizar botones
-            keyboard = [
-                [
-                    InlineKeyboardButton("⬅️ Día anterior", callback_data="action_prev_day"),
-                    InlineKeyboardButton("Día siguiente ➡️", callback_data="action_next_day")
-                ],
-                [InlineKeyboardButton("📅 Otro día", callback_data="action_view_availability_day")],
-                [InlineKeyboardButton("⫶☰ Menú Principal", callback_data="action_back_menu")]
-            ]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-            await query.edit_message_text(
-                text=f"✅ Día anterior",
-                reply_markup=reply_markup
-            )
-        else:
-            await query.answer("❌ Error al generar la imagen", show_alert=True)
-            
-    except Exception as e:
-        print(f"❌ Error en handle_prev_day: {e}")
-        await query.answer(f"❌ Error: {str(e)}", show_alert=True)
-
-
-async def handle_next_day(
-    query, context: ContextTypes.DEFAULT_TYPE, update: Update
-) -> None:
-    """Muestra el día siguiente."""
-    try:
-        # Obtener la fecha actual del día
-        current_day_date = context.user_data.get("current_day_date")
-        if not current_day_date:
-            current_day_date = date.today()
-        else:
-            current_day_date = current_day_date if isinstance(current_day_date, date) else date.fromisoformat(str(current_day_date))
-        
-        # Sumar 1 día
-        next_day_date = current_day_date + timedelta(days=1)
-        
-        # Obtener usuario
-        user_id = update.effective_user.id
-        usuario = obtener_o_crear_usuario_telegram(user_id)
-        user_db_id = usuario.get("id_usuario")
-        
-        if not user_db_id:
-            await query.answer("❌ Error al obtener datos del usuario", show_alert=True)
-            return
-        
-        # Convertir a datetime
-        next_day_datetime = datetime.combine(next_day_date, datetime.min.time())
-        
-        # Generar imagen del día siguiente
-        imagen_path = await asyncio.to_thread(
-            generar_imagen_disponibilidad, user_db_id, next_day_datetime
-        )
-        
-        if imagen_path and os.path.exists(imagen_path):
-            # Actualizar la fecha guardada
-            context.user_data["current_day_date"] = next_day_date
-            
-            # Obtener el message_id de la foto anterior
-            photo_message_id = context.user_data.get("day_photo_message_id")
-            
-            if photo_message_id:
-                # Reemplazar la imagen existente
-                with open(imagen_path, "rb") as img_file:
-                    media = InputMediaPhoto(
-                        media=img_file.read(),
-                        caption=f"📊 Tu disponibilidad el {next_day_date.strftime('%d/%m/%Y')}",
-                        parse_mode="HTML"
-                    )
-                    await context.bot.edit_message_media(
-                        chat_id=query.message.chat_id,
-                        message_id=photo_message_id,
-                        media=media
-                    )
-            
-            # Actualizar botones
-            keyboard = [
-                [
-                    InlineKeyboardButton("⬅️ Día anterior", callback_data="action_prev_day"),
-                    InlineKeyboardButton("Día siguiente ➡️", callback_data="action_next_day")
-                ],
-                [InlineKeyboardButton("📅 Otro día", callback_data="action_view_availability_day")],
-                [InlineKeyboardButton("⫶☰ Menú Principal", callback_data="action_back_menu")]
-            ]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-            await query.edit_message_text(
-                text=f"✅ Día siguiente",
-                reply_markup=reply_markup
-            )
-        else:
-            await query.answer("❌ Error al generar la imagen", show_alert=True)
-            
-    except Exception as e:
-        print(f"❌ Error en handle_next_day: {e}")
-        await query.answer(f"❌ Error: {str(e)}", show_alert=True)
 
 
 async def handle_prev_week(
@@ -1209,11 +603,6 @@ async def handle_prev_week(
             # Actualizar la fecha guardada
             context.user_data["current_week_date"] = prev_week_date
             
-            # Calcular rango de fechas para el caption
-            lunes = prev_week_date - timedelta(days=prev_week_date.weekday())
-            domingo_fecha = lunes + timedelta(days=6)
-            caption = f"📆 Semana del {lunes.strftime('%d/%m')} al {domingo_fecha.strftime('%d/%m/%Y')}"
-            
             # Obtener el message_id de la foto anterior
             photo_message_id = context.user_data.get("week_photo_message_id")
             
@@ -1221,9 +610,8 @@ async def handle_prev_week(
                 # Reemplazar la imagen existente
                 with open(imagen_path, "rb") as img_file:
                     media = InputMediaPhoto(
-                        media=img_file.read(),
-                        caption=caption,
-                        parse_mode="HTML"
+                        media=img_file,
+                        caption=f"📆 Disponibilidad de la semana"
                     )
                     await context.bot.edit_message_media(
                         chat_id=query.message.chat_id,
@@ -1242,7 +630,7 @@ async def handle_prev_week(
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
             await query.edit_message_text(
-                text=f"✅ {caption}",
+                text="✅ Mostrando semana anterior",
                 reply_markup=reply_markup
             )
         else:
@@ -1289,11 +677,6 @@ async def handle_next_week(
             # Actualizar la fecha guardada
             context.user_data["current_week_date"] = next_week_date
             
-            # Calcular rango de fechas para el caption
-            lunes = next_week_date - timedelta(days=next_week_date.weekday())
-            domingo_fecha = lunes + timedelta(days=6)
-            caption = f"📆 Semana del {lunes.strftime('%d/%m')} al {domingo_fecha.strftime('%d/%m/%Y')}"
-            
             # Obtener el message_id de la foto anterior
             photo_message_id = context.user_data.get("week_photo_message_id")
             
@@ -1301,9 +684,8 @@ async def handle_next_week(
                 # Reemplazar la imagen existente
                 with open(imagen_path, "rb") as img_file:
                     media = InputMediaPhoto(
-                        media=img_file.read(),
-                        caption=caption,
-                        parse_mode="HTML"
+                        media=img_file,
+                        caption=f"📆 Disponibilidad de la semana"
                     )
                     await context.bot.edit_message_media(
                         chat_id=query.message.chat_id,
@@ -1322,7 +704,7 @@ async def handle_next_week(
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
             await query.edit_message_text(
-                text=f"✅ {caption}",
+                text="✅ Mostrando semana siguiente",
                 reply_markup=reply_markup
             )
         else:
@@ -1354,8 +736,8 @@ async def handle_prev_citas_group(
         bloque_texto = f"📋 *Mis citas* (grupo {nuevo_bloque + 1} de {len(bloques)})\n\n"
         
         for idx, cita in enumerate(bloques[nuevo_bloque]):
-            fecha_str = cita['fecha'].strftime("%d/%m/%Y %H:%M")
-            bloque_texto += f"{emojis[idx]} *{fecha_str}* - {cita['descripcion']}\n"
+            fecha_str = cita.FECHA.strftime("%d/%m/%Y %H:%M")
+            bloque_texto += f"{emojis[idx]} *{fecha_str}* - {cita.DESCRIPCION or 'Sin descripción'}\n"
         
         # Crear botones de navegación
         keyboard = []
@@ -1402,8 +784,8 @@ async def handle_next_citas_group(
         bloque_texto = f"📋 *Mis citas* (grupo {nuevo_bloque + 1} de {len(bloques)})\n\n"
         
         for idx, cita in enumerate(bloques[nuevo_bloque]):
-            fecha_str = cita['fecha'].strftime("%d/%m/%Y %H:%M")
-            bloque_texto += f"{emojis[idx]} *{fecha_str}* - {cita['descripcion']}\n"
+            fecha_str = cita.FECHA.strftime("%d/%m/%Y %H:%M")
+            bloque_texto += f"{emojis[idx]} *{fecha_str}* - {cita.DESCRIPCION or 'Sin descripción'}\n"
         
         # Crear botones de navegación
         keyboard = []

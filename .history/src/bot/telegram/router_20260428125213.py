@@ -15,7 +15,6 @@ from src.bot.telegram.handlers.reserve import (
     handle_prev_citas_group,
     handle_next_citas_group,
     handle_calendar_and_time,
-    handle_alternative_time_selection_callback,
 )
 from src.bot.telegram.handlers.settings import (
     handle_action_settings,
@@ -61,11 +60,6 @@ async def menu_callback_handler(
 
     if query.data != "show_text_reserva":
         await query.answer()
-
-    # Manejar selección de hora alternativa
-    if query.data.startswith("alt_time_"):
-        await handle_alternative_time_selection_callback(query, context, update)
-        return
 
     # Manejar calendario de disponibilidad
     if context.user_data.get("availability_calendar"):
