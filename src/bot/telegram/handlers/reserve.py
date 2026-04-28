@@ -16,7 +16,8 @@ from src.BBDD.database_service import (
     obtener_o_crear_usuario_telegram,
     obtener_horas_ocupadas,
     obtener_citas_usuario,
-    cancelar_cita_db
+    cancelar_cita_db,
+    actualizar_cita_fecha_db
 )
 
 
@@ -32,6 +33,24 @@ async def handle_calendar_and_time(
             await query.edit_message_text(
                 "❌ Error: No se ha encontrado la fecha. Inténtalo de nuevo."
             )
+            return True
+        
+        modifying_id = context.user_data.get("modifying_id")
+        
+        if modifying_id:
+            fecha_dt = datetime.strptime(selected_data, "%Y-%m-%d")
+            hora_parts = selected_time.split(":")
+            fecha_dt_con_hora = fecha_dt.replace(
+                hour=int(hora_parts[0]),
+                minute=int(hora_parts[1]) if len(hora_parts) > 1 else 0
+            )
+
+            await asyncio.to_thread(actualizar_cita_fecha_db, modifying_id, fecha_dt_con_hora)
+            context.user_data.pop("modifying_id", None) # Limpiamos memoria
+            
+            await query.answer("✅ Cita modificada con éxito", show_alert=True)
+            await handle_action_my_appointments(query, context)
+            
             return True
 
         await query.edit_message_text(
@@ -277,16 +296,12 @@ async def handle_action_my_appointments(query, context: ContextTypes.DEFAULT_TYP
             
             texto_citas += f"🔹 *Cita {i}* — {fecha_str} a las {hora_str}\n\n"
 
-           
+
         keyboard.append([
-               InlineKeyboardButton(
-                   "❌ Cancelar Cita ", 
-                   callback_data="action_cancel_menu"
-               )
-           ])
-
+            InlineKeyboardButton("📝 Modificar", callback_data="action_modify_menu"),
+            InlineKeyboardButton("❌ Cancelar", callback_data="action_cancel_menu")
+        ])
     
-
     keyboard.append([InlineKeyboardButton("🔙 Volver al Menú", callback_data="action_back_menu")])
 
     try:
@@ -312,7 +327,6 @@ async def handle_action_cancel_menu(query, context: ContextTypes.DEFAULT_TYPE) -
     keyboard = []
 
     for i, cita in enumerate(citas, 1):
-        # Creamos botones más pequeños con la info clave (Ej: ❌ Cita 1 (25/10 - 10:00))
         dia = cita["FECHA"].day
         mes = cita["FECHA"].month
         hora_str = cita["FECHA"].strftime("%H:%M")
@@ -333,9 +347,9 @@ async def handle_action_cancel_menu(query, context: ContextTypes.DEFAULT_TYPE) -
     except BadRequest:
         pass
 
+
 async def handle_cancel_appointment(query, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Procesa el clic en un botón de 'Cancelar Cita'."""
-    # Extraemos el ID de la cita del callback_data (ej: de "cancelcita_15" sacamos el "15")
     id_cita = int(query.data.split("_")[1])
     
     exito = await asyncio.to_thread(cancelar_cita_db, id_cita)
@@ -346,3 +360,36 @@ async def handle_cancel_appointment(query, context: ContextTypes.DEFAULT_TYPE) -
         await query.answer("❌ Error al cancelar la cita", show_alert=True)
 
     await handle_action_my_appointments(query, context)
+
+
+async def handle_action_modify_menu(query, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Muestra las citas para elegir cuál modificar."""
+    telegram_id = query.from_user.id
+    citas = await asyncio.to_thread(obtener_citas_usuario, telegram_id)
+
+    if not citas:
+        await query.answer("No tienes citas para modificar", show_alert=True)
+        return
+
+    texto = "📝 *Modificar Cita*\n\nSelecciona la cita que quieres cambiar de fecha:"
+    keyboard = []
+
+    for i, cita in enumerate(citas, 1):
+        dia = cita["FECHA"].day
+        mes = cita["FECHA"].month
+        hora_str = cita["FECHA"].strftime("%H:%M")
+        btn_text = f"✏️ Cita {i} ({dia:02d}/{mes:02d} - {hora_str})"
+
+        keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"modcita_{cita['ID_CITA']}")])
+
+    keyboard.append([InlineKeyboardButton("🔙 Volver", callback_data="action_my_appointments")])
+
+    await query.edit_message_text(text=texto, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+
+
+async def handle_start_modify_calendar(query, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Guarda el ID de la cita a modificar y lanza el calendario."""
+    id_cita = int(query.data.split("_")[1])
+    context.user_data["modifying_id"] = id_cita 
+    
+    await handle_action_reserve(query, context)
