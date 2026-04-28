@@ -17,7 +17,8 @@ from src.BBDD.database_service import (
     obtener_horas_ocupadas,
     obtener_citas_usuario,
     cancelar_cita_db,
-    actualizar_cita_fecha_db
+    actualizar_cita_fecha_db,
+    obtener_info_cita_db
 )
 
 
@@ -38,6 +39,18 @@ async def handle_calendar_and_time(
         modifying_id = context.user_data.get("modifying_id")
         
         if modifying_id:
+            await query.edit_message_text(text="⏳ Modificando tu reserva en Google Calendar...")
+
+            cita_antigua = await asyncio.to_thread(obtener_info_cita_db, modifying_id)
+            name_and_id = f"{update.effective_user.full_name} ({update.effective_user.id})"
+            
+            if cita_antigua:
+                old_fecha = cita_antigua["FECHA"].strftime("%Y-%m-%d")
+                old_hora = cita_antigua["FECHA"].strftime("%H:%M")
+                await asyncio.to_thread(calendar_service.delete_reservation, name_and_id, old_fecha, old_hora)
+
+            await asyncio.to_thread(calendar_service.create_reservation, name_and_id, selected_data, selected_time)
+
             fecha_dt = datetime.strptime(selected_data, "%Y-%m-%d")
             hora_parts = selected_time.split(":")
             fecha_dt_con_hora = fecha_dt.replace(
@@ -351,6 +364,16 @@ async def handle_action_cancel_menu(query, context: ContextTypes.DEFAULT_TYPE) -
 async def handle_cancel_appointment(query, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Procesa el clic en un botón de 'Cancelar Cita'."""
     id_cita = int(query.data.split("_")[1])
+
+    await query.edit_message_text(text="⏳ Cancelando tu reserva en Google Calendar...")
+
+    cita = await asyncio.to_thread(obtener_info_cita_db, id_cita)
+    if cita:
+        old_fecha = cita["FECHA"].strftime("%Y-%m-%d")
+        old_hora = cita["FECHA"].strftime("%H:%M")
+        name_and_id = f"{query.from_user.full_name} ({query.from_user.id})"
+        
+        await asyncio.to_thread(calendar_service.delete_reservation, name_and_id, old_fecha, old_hora)
     
     exito = await asyncio.to_thread(cancelar_cita_db, id_cita)
 
