@@ -15,6 +15,8 @@ from src.BBDD.database_service import (
     guardar_cita_en_db,
     obtener_o_crear_usuario_telegram,
     obtener_horas_ocupadas,
+    actualizar_cita_fecha_db,
+    obtener_info_cita_db
 )
 
 
@@ -30,6 +32,38 @@ async def handle_calendar_and_time(
             await query.edit_message_text(
                 "❌ Error: No se ha encontrado la fecha. Inténtalo de nuevo."
             )
+            return True
+        
+        modifying_id = context.user_data.get("modifying_id")
+        
+        if modifying_id:
+            await query.edit_message_text(text="⏳ Modificando tu reserva en Google Calendar...")
+
+            cita_antigua = await asyncio.to_thread(obtener_info_cita_db, modifying_id)
+            name_and_id = f"{update.effective_user.full_name} ({update.effective_user.id})"
+            
+            if cita_antigua:
+                old_fecha = cita_antigua["FECHA"].strftime("%Y-%m-%d")
+                old_hora = cita_antigua["FECHA"].strftime("%H:%M")
+                await asyncio.to_thread(calendar_service.delete_reservation, name_and_id, old_fecha, old_hora)
+
+            await asyncio.to_thread(calendar_service.create_reservation, name_and_id, selected_data, selected_time)
+
+            fecha_dt = datetime.strptime(selected_data, "%Y-%m-%d")
+            hora_parts = selected_time.split(":")
+            fecha_dt_con_hora = fecha_dt.replace(
+                hour=int(hora_parts[0]),
+                minute=int(hora_parts[1]) if len(hora_parts) > 1 else 0
+            )
+
+            await asyncio.to_thread(actualizar_cita_fecha_db, modifying_id, fecha_dt_con_hora)
+            context.user_data.pop("modifying_id", None) 
+            
+            await query.answer("✅ Cita modificada con éxito", show_alert=True)
+            
+            from src.bot.telegram.handlers.manage_appointments import handle_action_my_appointments
+            await handle_action_my_appointments(query, context)
+            
             return True
 
         await query.edit_message_text(
@@ -254,21 +288,3 @@ async def handle_action_reserve(query, context: ContextTypes.DEFAULT_TYPE) -> No
         )
     except BadRequest:
         pass
-
-
-async def handle_action_my_appointments(
-    query, context: ContextTypes.DEFAULT_TYPE
-) -> None:
-    questions = (
-        " *Mis citas*\n\n"
-        "1️⃣ *20/03/2023* Fisio Juan\n"
-        "2️⃣ *21/03/2023* Fisio Daniel\n"
-        "3️⃣ *3/04/2023* Fisio Juan\n"
-        "4️⃣ *4/04/2023* Fisio Daniel\n"
-    )
-
-    keyboard = [[InlineKeyboardButton("Volver", callback_data="action_back_menu")]]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await query.edit_message_text(
-        text=questions, reply_markup=reply_markup, parse_mode="Markdown"
-    )

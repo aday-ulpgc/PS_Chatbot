@@ -74,6 +74,42 @@ class GoogleCalendarService:
             .insert(calendarId=self.calendar_id, body=event_body)
             .execute()
         )
+    
+    def delete_event(self, user_id: str, date_str: str, hour_str: str) -> bool:
+        """Busca y elimina un evento específico en el calendario."""
+        time_min = f"{date_str}T00:00:00Z"
+        time_max = f"{date_str}T23:59:59Z"
+
+        events_result = (
+            self.service.events()
+            .list(
+                calendarId=self.calendar_id,
+                timeMin=time_min,
+                timeMax=time_max,
+                singleEvents=True,
+            )
+            .execute()
+        )
+
+        events = events_result.get("items", [])
+        formatted_hour = hour_str.zfill(5)
+        expected_summary = f"Reserva de {user_id}"
+
+        for event in events:
+            start_time = event["start"].get("dateTime", "")
+            summary = event.get("summary", "")
+            
+            if f"T{formatted_hour}:00" in start_time and summary == expected_summary:
+                event_id = event["id"]
+                self.service.events().delete(
+                    calendarId=self.calendar_id, 
+                    eventId=event_id
+                ).execute()
+                print(f"✅ Evento borrado en Google Calendar: {date_str} a las {hour_str}")
+                return True
+                
+        print("⚠️ No se encontró el evento en Google Calendar para borrarlo.")
+        return False
 
 
 def create_reservation(
@@ -109,55 +145,20 @@ def create_reservation(
         return "❌ Lo siento, hubo un problema técnico al crear la reserva."
 
 
-def get_weekly_availability(days=7, gmail_trabajador: str = None) -> str:
+def delete_reservation(user_id: str, date: str, hour: str) -> bool:
     """
-    Obtiene todos los eventos de los próximos 'X' días y devuelve
-    un resumen legible para que la IA lo entienda.
+    Función de fachada (Facade) para eliminar una reserva.
+    Es llamada cuando el usuario cancela o modifica desde Telegram.
     """
     try:
-        calendar = GoogleCalendarService(gmail_trabajador)
-        ahora = datetime.now()
-        fin_ventana = ahora + timedelta(days=days)
+        calendar = GoogleCalendarService()
 
-        events_result = (
-            calendar.service.events()
-            .list(
-                calendarId=calendar.calendar_id,
-                timeMin=ahora.isoformat() + "Z",
-                timeMax=fin_ventana.isoformat() + "Z",
-                singleEvents=True,
-                orderBy="startTime",
-            )
-            .execute()
-        )
+        if not calendar.calendar_id:
+            print("❌ Error: No se ha configurado el CALENDAR_ID.")
+            return False
 
-        events = events_result.get("items", [])
-
-        agenda_resumen = {}
-        for event in events:
-            start = event["start"].get("dateTime")
-            if start:
-                dt = datetime.fromisoformat(start)
-                fecha = dt.strftime("%Y-%m-%d")
-                hora = dt.strftime("%H:%M")
-
-                if fecha not in agenda_resumen:
-                    agenda_resumen[fecha] = []
-                agenda_resumen[fecha].append(hora)
-
-        texto_disponibilidad = ""
-        for i in range(days):
-            dia_target = (ahora + timedelta(days=i)).strftime("%Y-%m-%d")
-            ocupados = agenda_resumen.get(dia_target, [])
-            if ocupados:
-                texto_disponibilidad += (
-                    f"- {dia_target}: Ocupado a las {', '.join(ocupados)}\n"
-                )
-            else:
-                texto_disponibilidad += f"- {dia_target}: Todo libre\n"
-
-        return texto_disponibilidad
+        return calendar.delete_event(user_id, date, hour)
 
     except Exception as e:
-        print(f"Error en vista semanal: {e}")
-        return "No disponible."
+        print(f"[SYSTEM ERROR]: Error al intentar borrar la reserva en Google: {e}")
+        return False
