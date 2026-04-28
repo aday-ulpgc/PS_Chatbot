@@ -10,8 +10,8 @@ TIMEZONE = "Atlantic/Canary"
 class GoogleCalendarService:
     """Servicio especializado en la interacción con la API de Google Calendar."""
 
-    def __init__(self):
-        self.calendar_id = os.getenv("CALENDAR_ID")
+    def __init__(self, gmail_trabajador: str = None):
+        self.calendar_id = gmail_trabajador or os.getenv("CALENDAR_ID")
         self.service = self._authenticate()
 
     def _authenticate(self):
@@ -61,7 +61,7 @@ class GoogleCalendarService:
                 return False
         return True
 
-    def create_event(self, user_id: str, start_dt: datetime, end_dt: datetime):
+    def create_event(self, user_id: str, start_dt: datetime, end_dt: datetime) -> dict:
         """Inserta un nuevo evento en el calendario configurado."""
         event_body = {
             "summary": f"Reserva de {user_id}",
@@ -112,13 +112,15 @@ class GoogleCalendarService:
         return False
 
 
-def create_reservation(user_id: str, date: str, hour: str) -> str:
+def create_reservation(
+    user_id: str, date: str, hour: str, gmail_trabajador: str = None
+) -> str:
     """
     Función de fachada (Facade) que orquestra la reserva.
     Mantiene los mensajes de retorno en español para el usuario del bot.
     """
     try:
-        calendar = GoogleCalendarService()
+        calendar = GoogleCalendarService(gmail_trabajador)
 
         if not calendar.calendar_id:
             return (
