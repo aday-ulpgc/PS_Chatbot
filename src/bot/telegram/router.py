@@ -11,7 +11,7 @@ from src.bot.telegram.handlers.manage_appointments import (
     handle_cancel_appointment,
     handle_action_cancel_menu,
     handle_action_modify_menu,
-    handle_start_modify_calendar
+    handle_start_modify_calendar,
 )
 
 from src.bot.telegram.handlers.settings import (
@@ -54,11 +54,11 @@ async def menu_callback_handler(
 
     if await handle_calendar_and_time(query, context, update):
         return
-    
+
     if query.data.startswith("cancelcita_"):
         await handle_cancel_appointment(query, context)
         return
-    
+
     elif query.data.startswith("modcita_"):
         await handle_start_modify_calendar(query, context)
         return

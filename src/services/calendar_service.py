@@ -74,7 +74,7 @@ class GoogleCalendarService:
             .insert(calendarId=self.calendar_id, body=event_body)
             .execute()
         )
-    
+
     def delete_event(self, user_id: str, date_str: str, hour_str: str) -> bool:
         """Busca y elimina un evento específico en el calendario."""
         time_min = f"{date_str}T00:00:00Z"
@@ -98,16 +98,17 @@ class GoogleCalendarService:
         for event in events:
             start_time = event["start"].get("dateTime", "")
             summary = event.get("summary", "")
-            
+
             if f"T{formatted_hour}:00" in start_time and summary == expected_summary:
                 event_id = event["id"]
                 self.service.events().delete(
-                    calendarId=self.calendar_id, 
-                    eventId=event_id
+                    calendarId=self.calendar_id, eventId=event_id
                 ).execute()
-                print(f"✅ Evento borrado en Google Calendar: {date_str} a las {hour_str}")
+                print(
+                    f"✅ Evento borrado en Google Calendar: {date_str} a las {hour_str}"
+                )
                 return True
-                
+
         print("⚠️ No se encontró el evento en Google Calendar para borrarlo.")
         return False
 
