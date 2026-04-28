@@ -8,6 +8,7 @@ from src.bot.telegram.handlers.reserve import (
 )
 from src.bot.telegram.handlers.settings import (
     handle_action_settings,
+    handle_eleccion_texto_libre,
     handle_set_mode_texto,
     handle_set_mode_audio,
     handle_show_text_reserva,
@@ -28,6 +29,8 @@ CALLBACK_ROUTES = {
     "action_help": handle_action_menu_help,
     "action_help_faq": handle_action_faq,
     "action_back_menu": handle_action_back_menu,
+    "eleccion_botones": handle_action_back_menu,  # Reutilizamos el mismo handler para mostrar el menú principal
+    "eleccion_texto_libre": handle_eleccion_texto_libre
 }
 
 

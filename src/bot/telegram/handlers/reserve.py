@@ -13,8 +13,7 @@ from src.bot.telegram.keyboards import main_menu_keyboard
 from src.bot.telegram.handlers.commands import handle_action_back_menu
 from src.BBDD.database_service import (
     guardar_cita_en_db,
-    obtener_o_crear_usuario_telegram,
-    obtener_horas_ocupadas,
+    obtener_o_crear_usuario_telegram
 )
 
 

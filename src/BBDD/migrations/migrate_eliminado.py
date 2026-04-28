@@ -3,13 +3,13 @@
 
 import sys
 import os
+from sqlalchemy import text
+from BBDD.databasecontroller import engine
 
-_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
-if _root not in sys.path:
-    sys.path.insert(0, _root)
-
-from sqlalchemy import text  # noqa: E402
-from src.BBDD.databasecontroller import engine  # noqa: E402
+# Agregar src al path
+_src_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "src")
+if _src_path not in sys.path:
+    sys.path.insert(0, _src_path)
 
 
 def migrate_eliminado_nullable():
