@@ -63,7 +63,6 @@ def guardar_cita_en_db(
     """
     try:
         with get_session() as session:
-            # 1. Obtener usuario
             email = f"telegram_{telegram_id}@bot.local"
             usuario = session.query(Usuario).filter(Usuario.EMAIL == email).first()
 
@@ -71,10 +70,6 @@ def guardar_cita_en_db(
                 print(f"❌ Usuario no encontrado: {email}")
                 return False
 
-            # 2. Obtener o crear contacto genérico de reserva
-            # Los contactos representan personas/servicios con los que se agenda,
-            # no al propio usuario del bot. Se usa un contacto genérico "Reserva general"
-            # por usuario para las citas creadas directamente desde el bot.
             NOMBRE_CONTACTO_BOT = "Reserva general"
             contacto = (
                 session.query(Contacto)
@@ -95,7 +90,6 @@ def guardar_cita_en_db(
                 )
                 session.flush()
 
-            # 3. Combinar fecha y hora
             hora_parts = hora.split(":")
             cita_fecha = fecha.replace(
                 hour=int(hora_parts[0]),
@@ -104,7 +98,6 @@ def guardar_cita_en_db(
                 microsecond=0,
             )
 
-            # 4. Crear cita
             crear_cita(
                 session,
                 id_usuario=usuario.ID_USUARIO,
@@ -185,4 +178,18 @@ def cancelar_cita_db(id_cita: int) -> bool:
                 return True
     except Exception as e:
         print(f"❌ Error al cancelar cita: {e}")
+    return False
+
+def actualizar_cita_fecha_db(id_cita: int, nueva_fecha: datetime) -> bool:
+    """Actualiza la fecha y hora de una cita en la base de datos."""
+    try:
+        with get_session() as session:
+            from .databasecontroller import CitaInd
+            cita = session.get(CitaInd, id_cita)
+            if cita:
+                cita.FECHA = nueva_fecha
+                session.commit()
+                return True
+    except Exception as e:
+        print(f"❌ Error al actualizar cita: {e}")
     return False
