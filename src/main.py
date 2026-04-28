@@ -4,6 +4,7 @@ Carga la configuración desde el archivo .env, valida que el token
 de Telegram esté presente y arranca el bot en modo polling.
 """
 
+import datetime
 import os
 import sys
 import threading

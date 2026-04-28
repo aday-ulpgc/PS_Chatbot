@@ -2,7 +2,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 from telegram.error import BadRequest
 from src.bot.telegram.constants import WELCOME_TEXT
-from src.bot.telegram.keyboards import main_menu_keyboard
+from src.bot.telegram.keyboards import main_menu_keyboard, menu_eleccion
 
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -14,7 +14,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     """
     if update.message:
         await update.message.reply_text(
-            text=WELCOME_TEXT, reply_markup=main_menu_keyboard()
+            text=WELCOME_TEXT, reply_markup=menu_eleccion()
         )
 
 
