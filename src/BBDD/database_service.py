@@ -139,43 +139,51 @@ def obtener_horas_ocupadas(fecha_str: str) -> list[str]:
     except Exception as e:
         print(f"❌ Error al leer horas ocupadas: {e}")
         return []
-    
+
+
 def obtener_citas_usuario(telegram_id: int) -> list:
     """Recupera las citas activas de un usuario por su ID de Telegram."""
     try:
         with get_session() as session:
             email = f"telegram_{telegram_id}@bot.local"
             usuario = session.query(Usuario).filter(Usuario.EMAIL == email).first()
-            
+
             if not usuario:
                 return []
 
             # Obtenemos citas no eliminadas ordenadas por fecha
             citas_db = (
                 session.query(CitaInd)
-                .filter(CitaInd.ID_USUARIO == usuario.ID_USUARIO, CitaInd.ELIMINADO.is_(None))
+                .filter(
+                    CitaInd.ID_USUARIO == usuario.ID_USUARIO,
+                    CitaInd.ELIMINADO.is_(None),
+                )
                 .order_by(CitaInd.FECHA.asc())
                 .all()
             )
 
             citas_lista = []
             for cita in citas_db:
-                citas_lista.append({
-                    "ID_CITA": cita.ID_CITA,
-                    "FECHA": cita.FECHA,
-                    "DESCRIPCION": cita.DESCRIPCION
-                })
-                
+                citas_lista.append(
+                    {
+                        "ID_CITA": cita.ID_CITA,
+                        "FECHA": cita.FECHA,
+                        "DESCRIPCION": cita.DESCRIPCION,
+                    }
+                )
+
             return citas_lista
 
     except Exception as e:
         print(f"❌ Error al obtener citas: {e}")
         return []
-    
+
+
 def cancelar_cita_db(id_cita: int) -> bool:
     """Marca una cita como eliminada en la base de datos."""
     try:
         from datetime import datetime
+
         with get_session() as session:
             cita = session.get(CitaInd, id_cita)
             if cita and cita.ELIMINADO is None:
@@ -186,11 +194,13 @@ def cancelar_cita_db(id_cita: int) -> bool:
         print(f"❌ Error al cancelar cita: {e}")
     return False
 
+
 def actualizar_cita_fecha_db(id_cita: int, nueva_fecha: datetime) -> bool:
     """Actualiza la fecha y hora de una cita en la base de datos."""
     try:
         with get_session() as session:
             from .databasecontroller import CitaInd
+
             cita = session.get(CitaInd, id_cita)
             if cita:
                 cita.FECHA = nueva_fecha
@@ -200,11 +210,13 @@ def actualizar_cita_fecha_db(id_cita: int, nueva_fecha: datetime) -> bool:
         print(f"❌ Error al actualizar cita: {e}")
     return False
 
+
 def obtener_info_cita_db(id_cita: int) -> dict:
     """Recupera la fecha de una cita específica antes de ser alterada."""
     try:
         with get_session() as session:
             from .databasecontroller import CitaInd
+
             cita = session.get(CitaInd, id_cita)
             if cita and cita.ELIMINADO is None:
                 return {"FECHA": cita.FECHA}
