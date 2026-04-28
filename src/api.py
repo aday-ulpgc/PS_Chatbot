@@ -60,6 +60,46 @@ from src.BBDD.databasecontroller import (
 
 PAGE_SIZE = 9
 
+# ── Respuestas Swagger reutilizables ──────────────────────────────────────────
+_R400 = {400: {"description": "Datos inválidos o regla de negocio no cumplida."}}
+_R404 = {404: {"description": "Recurso no encontrado."}}
+_R409 = {
+    409: {
+        "description": (
+            "Conflicto de disponibilidad (solo `POST /citas` con `bloqueante` > 0).\n\n"
+            "Posibles valores de `detail`:\n"
+            "- **Slot ocupado con alternativas**: `Horario no disponible. "
+            "Otras fechas cercanas que podrían interesarte: DD/MM/YYYY HH:MM  DD/MM/YYYY HH:MM` "
+            "— el campo `detail` incluye hasta dos huecos libres cercanos.\n"
+            "- **Sin huecos en el rango**: `Cita no guardada. Ninguna cita disponible para este periodo.`"
+        ),
+        "content": {
+            "application/json": {
+                "examples": {
+                    "slot_ocupado": {
+                        "summary": "Slot ocupado — con alternativas",
+                        "value": {
+                            "detail": (
+                                "Horario no disponible. "
+                                "Otras fechas cercanas que podrían interesarte: "
+                                "28/04/2026 09:00  28/04/2026 11:00"
+                            )
+                        },
+                    },
+                    "sin_huecos": {
+                        "summary": "Sin huecos disponibles en el rango",
+                        "value": {
+                            "detail": "Cita no guardada. Ninguna cita disponible para este periodo."
+                        },
+                    },
+                }
+            }
+        },
+    }
+}
+_R500 = {500: {"description": "Error interno al generar la imagen."}}
+_R_PNG = {200: {"description": "Imagen PNG de disponibilidad.", "content": {"image/png": {}}}}
+
 # ── Ciclo de vida ──────────────────────────────────────────────────────────────
 
 
@@ -193,7 +233,7 @@ class ClienteOut(BaseModel):
 # ── Endpoints: USUARIOS ────────────────────────────────────────────────────────
 
 
-@app.post("/usuarios", response_model=UsuarioOut, status_code=201, tags=["Usuarios"])
+@app.post("/usuarios", response_model=UsuarioOut, status_code=201, tags=["Usuarios"], responses={**_R400})
 def post_usuario(body: UsuarioCreate, db: Session = Depends(get_db)):
     """Registra un nuevo usuario. La contraseña se almacena con hash bcrypt."""
     try:
@@ -202,7 +242,7 @@ def post_usuario(body: UsuarioCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@app.get("/usuarios/{id_usuario}", response_model=UsuarioOut, tags=["Usuarios"])
+@app.get("/usuarios/{id_usuario}", response_model=UsuarioOut, tags=["Usuarios"], responses={**_R404})
 def get_usuario(id_usuario: int, db: Session = Depends(get_db)):
     usuario = obtener_usuario(db, id_usuario)
     if usuario is None:
@@ -210,7 +250,7 @@ def get_usuario(id_usuario: int, db: Session = Depends(get_db)):
     return usuario
 
 
-@app.delete("/usuarios/{id_usuario}", status_code=204, tags=["Usuarios"])
+@app.delete("/usuarios/{id_usuario}", status_code=204, tags=["Usuarios"], responses={**_R404})
 def delete_usuario(id_usuario: int, db: Session = Depends(get_db)):
     """Soft delete: registra la fecha de baja en ELIMINADO."""
     if not eliminar_usuario(db, id_usuario):
@@ -227,6 +267,7 @@ def delete_usuario(id_usuario: int, db: Session = Depends(get_db)):
     response_model=ContactoOut,
     status_code=201,
     tags=["Contactos"],
+    responses={**_R400, **_R404},
 )
 def post_contacto(id_usuario: int, body: ContactoCreate, db: Session = Depends(get_db)):
     """Añade un profesional (contacto) a la agenda del usuario."""
@@ -240,6 +281,7 @@ def post_contacto(id_usuario: int, body: ContactoCreate, db: Session = Depends(g
     "/usuarios/{id_usuario}/contactos",
     response_model=list[ContactoOut],
     tags=["Contactos"],
+    responses={**_R400, **_R404},
 )
 def get_contactos(id_usuario: int, db: Session = Depends(get_db)):
     """Lista los contactos activos del usuario."""
@@ -253,6 +295,7 @@ def get_contactos(id_usuario: int, db: Session = Depends(get_db)):
     "/usuarios/{id_usuario}/contactos/eliminados",
     response_model=list[ContactoOut],
     tags=["Contactos"],
+    responses={**_R400, **_R404},
 )
 def get_contactos_eliminados(id_usuario: int, db: Session = Depends(get_db)):
     """Lista los contactos eliminados (soft-delete) del usuario."""
@@ -262,7 +305,7 @@ def get_contactos_eliminados(id_usuario: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@app.get("/contactos/{id_contacto}", response_model=ContactoOut, tags=["Contactos"])
+@app.get("/contactos/{id_contacto}", response_model=ContactoOut, tags=["Contactos"], responses={**_R404})
 def get_contacto(id_contacto: int, db: Session = Depends(get_db)):
     contacto = obtener_contacto(db, id_contacto)
     if contacto is None:
@@ -270,7 +313,7 @@ def get_contacto(id_contacto: int, db: Session = Depends(get_db)):
     return contacto
 
 
-@app.delete("/contactos/{id_contacto}", status_code=204, tags=["Contactos"])
+@app.delete("/contactos/{id_contacto}", status_code=204, tags=["Contactos"], responses={**_R404})
 def delete_contacto(id_contacto: int, db: Session = Depends(get_db)):
     """Soft delete: registra la fecha de baja en ELIMINADO."""
     if not eliminar_contacto(db, id_contacto):
@@ -359,7 +402,7 @@ def _buscar_disponibilidad(
     return ("unavailable", before_candidate, after_candidate)
 
 
-@app.post("/citas", response_model=CitaOut, status_code=201, tags=["Citas"])
+@app.post("/citas", response_model=CitaOut, status_code=201, tags=["Citas"], responses={**_R400, **_R404, **_R409})
 def post_cita(
     body: CitaCreate,
     bloqueante: int = Query(
@@ -477,7 +520,7 @@ def _parse_fecha(fecha_str: Optional[str]) -> datetime:
         )
 
 
-@app.get("/usuarios/{id_usuario}/citas", response_model=CitaPage, tags=["Citas"])
+@app.get("/usuarios/{id_usuario}/citas", response_model=CitaPage, tags=["Citas"], responses={**_R400, **_R404})
 def get_citas_usuario(
     id_usuario: int,
     anterior: bool = Query(default=False, description="false → próximas citas desde la fecha dada; true → citas anteriores a la fecha dada"),
@@ -513,6 +556,7 @@ def get_citas_usuario(
     "/usuarios/{id_usuario}/citas/eliminadas",
     response_model=CitaPage,
     tags=["Citas"],
+    responses={**_R400, **_R404},
 )
 def get_citas_eliminadas_usuario(
     id_usuario: int,
@@ -545,7 +589,7 @@ def get_citas_eliminadas_usuario(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@app.get("/citas/{id_cita}", response_model=CitaOut, tags=["Citas"])
+@app.get("/citas/{id_cita}", response_model=CitaOut, tags=["Citas"], responses={**_R404})
 def get_cita(id_cita: int, db: Session = Depends(get_db)):
     """Obtiene una cita por ID. Busca primero en CITAS_IND, luego en CITAS_COR."""
     cita = obtener_cita(db, id_cita)
@@ -557,7 +601,7 @@ def get_cita(id_cita: int, db: Session = Depends(get_db)):
     return cita
 
 
-@app.put("/citas/{id_cita}", response_model=CitaOut, tags=["Citas"])
+@app.put("/citas/{id_cita}", response_model=CitaOut, tags=["Citas"], responses={**_R400, **_R404})
 def put_cita(id_cita: int, body: CitaUpdate, db: Session = Depends(get_db)):
     """Actualiza una cita. Busca primero en CITAS_IND, luego en CITAS_COR.
     PRIORIDAD solo aplica a citas individuales.
@@ -571,7 +615,7 @@ def put_cita(id_cita: int, body: CitaUpdate, db: Session = Depends(get_db)):
     return cita
 
 
-@app.delete("/citas/{id_cita}", status_code=204, tags=["Citas"])
+@app.delete("/citas/{id_cita}", status_code=204, tags=["Citas"], responses={**_R404})
 def delete_cita(id_cita: int, db: Session = Depends(get_db)):
     """Soft delete. Busca primero en CITAS_IND, luego en CITAS_COR."""
     if eliminar_cita(db, id_cita):
@@ -589,6 +633,7 @@ def delete_cita(id_cita: int, db: Session = Depends(get_db)):
     response_model=EmpleadoOut,
     status_code=201,
     tags=["Empleados"],
+    responses={**_R400, **_R404},
 )
 def post_empleado(id_usuario: int, body: EmpleadoCreate, db: Session = Depends(get_db)):
     """Añade un empleado a la corporación. Solo para usuarios TIPO='C'."""
@@ -604,6 +649,7 @@ def post_empleado(id_usuario: int, body: EmpleadoCreate, db: Session = Depends(g
     "/usuarios/{id_usuario}/empleados",
     response_model=list[EmpleadoOut],
     tags=["Empleados"],
+    responses={**_R400, **_R404},
 )
 def get_empleados(id_usuario: int, db: Session = Depends(get_db)):
     """Lista los empleados activos de la corporación."""
@@ -613,7 +659,7 @@ def get_empleados(id_usuario: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@app.get("/empleados/{id_empleado}", response_model=EmpleadoOut, tags=["Empleados"])
+@app.get("/empleados/{id_empleado}", response_model=EmpleadoOut, tags=["Empleados"], responses={**_R404})
 def get_empleado(id_empleado: int, db: Session = Depends(get_db)):
     empleado = obtener_empleado(db, id_empleado)
     if empleado is None:
@@ -621,7 +667,7 @@ def get_empleado(id_empleado: int, db: Session = Depends(get_db)):
     return empleado
 
 
-@app.delete("/empleados/{id_empleado}", status_code=204, tags=["Empleados"])
+@app.delete("/empleados/{id_empleado}", status_code=204, tags=["Empleados"], responses={**_R404})
 def delete_empleado(id_empleado: int, db: Session = Depends(get_db)):
     """Soft delete del empleado."""
     if not eliminar_empleado(db, id_empleado):
@@ -638,6 +684,7 @@ def delete_empleado(id_empleado: int, db: Session = Depends(get_db)):
     response_model=ClienteOut,
     status_code=201,
     tags=["Clientes"],
+    responses={**_R400, **_R404},
 )
 def post_cliente(id_empleado: int, body: ClienteCreate, db: Session = Depends(get_db)):
     """Registra un nuevo cliente asignado a un empleado."""
@@ -653,6 +700,7 @@ def post_cliente(id_empleado: int, body: ClienteCreate, db: Session = Depends(ge
     "/empleados/{id_empleado}/clientes",
     response_model=list[ClienteOut],
     tags=["Clientes"],
+    responses={**_R400, **_R404},
 )
 def get_clientes(id_empleado: int, db: Session = Depends(get_db)):
     """Lista los clientes activos del empleado."""
@@ -662,7 +710,7 @@ def get_clientes(id_empleado: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@app.get("/clientes/{id_cliente}", response_model=ClienteOut, tags=["Clientes"])
+@app.get("/clientes/{id_cliente}", response_model=ClienteOut, tags=["Clientes"], responses={**_R404})
 def get_cliente(id_cliente: int, db: Session = Depends(get_db)):
     cliente = obtener_cliente(db, id_cliente)
     if cliente is None:
@@ -670,7 +718,7 @@ def get_cliente(id_cliente: int, db: Session = Depends(get_db)):
     return cliente
 
 
-@app.delete("/clientes/{id_cliente}", status_code=204, tags=["Clientes"])
+@app.delete("/clientes/{id_cliente}", status_code=204, tags=["Clientes"], responses={**_R404})
 def delete_cliente(id_cliente: int, db: Session = Depends(get_db)):
     """Soft delete del cliente."""
     if not eliminar_cliente(db, id_cliente):
@@ -686,6 +734,7 @@ def delete_cliente(id_cliente: int, db: Session = Depends(get_db)):
     "/usuarios/{id_usuario}/disponibilidad/dia",
     response_class=FileResponse,
     tags=["Visualización"],
+    responses={**_R_PNG, **_R404, **_R500},
 )
 def get_disponibilidad_dia(
     id_usuario: int,
@@ -713,6 +762,7 @@ def get_disponibilidad_dia(
     "/usuarios/{id_usuario}/disponibilidad/semana",
     response_class=FileResponse,
     tags=["Visualización"],
+    responses={**_R_PNG, **_R404, **_R500},
 )
 def get_disponibilidad_semana(
     id_usuario: int,
@@ -740,6 +790,7 @@ def get_disponibilidad_semana(
     "/usuarios/{id_usuario}/disponibilidad/semana-completa",
     response_class=FileResponse,
     tags=["Visualización"],
+    responses={**_R_PNG, **_R404, **_R500},
 )
 def get_disponibilidad_semana_completa(
     id_usuario: int,
