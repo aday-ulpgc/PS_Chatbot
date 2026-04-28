@@ -3,13 +3,17 @@ from telegram.ext import ContextTypes
 
 from src.bot.telegram.handlers.reserve import (
     handle_action_reserve,
-    handle_action_my_appointments,
     handle_calendar_and_time,
+)
+
+from src.bot.telegram.handlers.manage_appointments import (
+    handle_action_my_appointments,
     handle_cancel_appointment,
     handle_action_cancel_menu,
     handle_action_modify_menu,
     handle_start_modify_calendar
 )
+
 from src.bot.telegram.handlers.settings import (
     handle_action_settings,
     handle_set_mode_texto,
