@@ -7,7 +7,9 @@ from src.bot.telegram.handlers.reserve import (
     handle_calendar_and_time,
 )
 from src.bot.telegram.handlers.settings import (
-    handle_toggle_audio_main,
+    handle_action_settings,
+    handle_set_mode_texto,
+    handle_set_mode_audio,
     handle_show_text_reserva,
 )
 from src.bot.telegram.handlers.help_menu import (
@@ -19,7 +21,9 @@ from src.bot.telegram.handlers.commands import handle_action_back_menu
 CALLBACK_ROUTES = {
     "action_reserve": handle_action_reserve,
     "action_my_appointments": handle_action_my_appointments,
-    "toggle_audio_main": handle_toggle_audio_main,
+    "action_settings": handle_action_settings,
+    "set_mode_texto": handle_set_mode_texto,
+    "set_mode_audio": handle_set_mode_audio,
     "show_text_reserva": handle_show_text_reserva,
     "action_help": handle_action_menu_help,
     "action_help_faq": handle_action_faq,
