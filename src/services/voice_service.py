@@ -4,9 +4,7 @@ from uuid import uuid4
 from dotenv import load_dotenv
 from elevenlabs.client import ElevenLabs
 
-_DOTENV_PATH = os.path.join(
-    os.path.dirname(__file__), "..", "..", "env", ".env"
-)
+_DOTENV_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "env", ".env")
 load_dotenv(dotenv_path=_DOTENV_PATH)
 
 
@@ -15,9 +13,7 @@ class VoiceService:
 
     @staticmethod
     async def text_to_speech(text: str) -> str:
-        """
-        Recibe un texto y devuelve la ruta del archivo de audio generado con ElevenLabs.
-        """
+        """Recibe un texto y devuelve la ruta del archivo de audio generado con ElevenLabs."""
         api_key = os.getenv("ELEVEN_API_KEY")
         if not api_key:
             raise ValueError("No se encontró ELEVEN_API_KEY en el archivo .env")
