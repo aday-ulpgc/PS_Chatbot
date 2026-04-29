@@ -5,9 +5,7 @@ from uuid import uuid4
 from dotenv import load_dotenv
 from elevenlabs.client import ElevenLabs
 
-_DOTENV_PATH = os.path.join(
-    os.path.dirname(__file__), "..", "..", "env", ".env"
-)
+_DOTENV_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "env", ".env")
 load_dotenv(dotenv_path=_DOTENV_PATH)
 
 
