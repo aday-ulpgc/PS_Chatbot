@@ -10,7 +10,7 @@ from src.BBDD.databasecontroller import (
     crear_usuario,
     crear_contacto,
     crear_cita,
-    CitaInd
+    CitaInd,
 )
 
 _src_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
