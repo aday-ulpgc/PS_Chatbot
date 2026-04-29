@@ -10,9 +10,9 @@ from src.BBDD.databasecontroller import (
     crear_usuario,
     crear_contacto,
     crear_cita,
+    CitaInd
 )
 
-# Agregar el directorio src al path para importaciones correctas
 _src_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _src_path not in sys.path:
     sys.path.insert(0, _src_path)
@@ -38,7 +38,6 @@ def obtener_o_crear_usuario_telegram(
             if usuario:
                 return {"id_usuario": usuario.ID_USUARIO, "creado": False}
 
-            # Crear nuevo usuario
             nuevo_usuario = crear_usuario(
                 session,
                 tipo="I",
