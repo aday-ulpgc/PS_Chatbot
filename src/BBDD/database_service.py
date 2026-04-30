@@ -179,45 +179,38 @@ def obtener_citas_usuario(telegram_id: int) -> list:
 
 
 def cancelar_cita_db(id_cita: int) -> bool:
-    """Marca una cita como eliminada en la base de datos."""
+    """Marca una cita como eliminada en la base de datos delegando en el controlador."""
     try:
-        from datetime import datetime
-
         with get_session() as session:
-            cita = session.get(CitaInd, id_cita)
-            if cita and cita.ELIMINADO is None:
-                cita.ELIMINADO = datetime.now()
-                session.commit()
-                return True
+            from src.BBDD.databasecontroller import eliminar_cita
+
+            return eliminar_cita(session, id_cita)
     except Exception as e:
         print(f"❌ Error al cancelar cita: {e}")
     return False
 
 
 def actualizar_cita_fecha_db(id_cita: int, nueva_fecha: datetime) -> bool:
-    """Actualiza la fecha y hora de una cita en la base de datos."""
+    """Actualiza la fecha y hora de una cita en la base de datos delegando en el controlador."""
     try:
         with get_session() as session:
-            from .databasecontroller import CitaInd
+            from src.BBDD.databasecontroller import actualizar_cita
 
-            cita = session.get(CitaInd, id_cita)
-            if cita:
-                cita.FECHA = nueva_fecha
-                session.commit()
-                return True
+            cita = actualizar_cita(session, id_cita, fecha=nueva_fecha)
+            return cita is not None
     except Exception as e:
         print(f"❌ Error al actualizar cita: {e}")
     return False
 
 
-def obtener_info_cita_db(id_cita: int) -> dict:
-    """Recupera la fecha de una cita específica antes de ser alterada."""
+def obtener_info_cita_db(id_cita: int) -> dict | None:
+    """Recupera la fecha de una cita específica delegando en el controlador."""
     try:
         with get_session() as session:
-            from .databasecontroller import CitaInd
+            from src.BBDD.databasecontroller import obtener_cita
 
-            cita = session.get(CitaInd, id_cita)
-            if cita and cita.ELIMINADO is None:
+            cita = obtener_cita(session, id_cita)
+            if cita:
                 return {"FECHA": cita.FECHA}
     except Exception as e:
         print(f"❌ Error al obtener info de la cita: {e}")

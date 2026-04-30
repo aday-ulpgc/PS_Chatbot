@@ -22,7 +22,7 @@ from src.bot.telegram.router import menu_callback_handler
 from src.bot.telegram.handlers.nlp import handle_texto_libre
 from src.api import app as fastapi_app
 from src.bot.telegram.handlers.reminders import check_daily_reminders
-from datetime import datetime
+from datetime import time
 
 os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
 # Aseguramos que la raíz del proyecto esté en el path para que los imports desde 'src.' funcionen correctamente
@@ -52,8 +52,8 @@ def main() -> None:
 
     app = ApplicationBuilder().token(token).build()
 
-    # Programación de los recordatorios - todos los días a las 08:00 de la mañana
-    hora_recordatorio = datetime.time(hour=8, minute=0, second=0)
+    # Recordatorio todos los días a las 08:00 de la mañana
+    hora_recordatorio = time(hour=8, minute=0, second=0)
     app.job_queue.run_daily(check_daily_reminders, time=hora_recordatorio)
 
     app.add_handler(CommandHandler("start", start_command))
