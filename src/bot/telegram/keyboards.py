@@ -18,3 +18,11 @@ def main_menu_keyboard(current_mode: str = MODO_TEXTO) -> InlineKeyboardMarkup:
         ],
     ]
     return InlineKeyboardMarkup(keyboard)
+
+def menu_eleccion() -> InlineKeyboardMarkup:
+    """Devuelve los botones para elegir entre botones o texto libre"""
+    keyboard = [
+        [InlineKeyboardButton("📋 Botones", callback_data="eleccion_botones")],
+        [InlineKeyboardButton("📝 Texto Libre", callback_data="eleccion_texto_libre")],
+    ]
+    return InlineKeyboardMarkup(keyboard)

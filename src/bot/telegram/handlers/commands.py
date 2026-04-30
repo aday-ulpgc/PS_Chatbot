@@ -3,7 +3,7 @@ from telegram.ext import ContextTypes
 from telegram.error import BadRequest
 
 from src.bot.telegram.constants import WELCOME_TEXT, MODO_TEXTO
-from src.bot.telegram.keyboards import main_menu_keyboard
+from src.bot.telegram.keyboards import main_menu_keyboard, menu_eleccion
 
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

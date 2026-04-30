@@ -56,3 +56,9 @@ async def handle_show_text_reserva(query, context: ContextTypes.DEFAULT_TYPE) ->
         "last_reserva_text", "No hay detalles de reserva recientes."
     )
     await query.answer(text=texto, show_alert=True)
+
+async def handle_eleccion_texto_libre(query, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Maneja la elección de texto libre, mostrando un mensaje de confirmación."""
+    await query.edit_message_text(
+        text="Has elegido el modo Texto Libre. A partir de ahora, podrás escribir tus reservas en formato libre. ¡Prueba a escribir una reserva ahora! 📝",
+    )
