@@ -67,6 +67,16 @@ async def menu_callback_handler(
         await handle_alternative_time_selection_callback(query, context, update)
         return
 
+    # Los botones de acción directa (menú, reiniciar, etc.) tienen prioridad
+    # sobre el estado del calendario para que nunca queden bloqueados.
+    if query.data in CALLBACK_ROUTES:
+        function = CALLBACK_ROUTES[query.data]
+        try:
+            await function(query, context, update)
+        except TypeError:
+            await function(query, context)
+        return
+
     # Manejar calendario de disponibilidad
     if context.user_data.get("availability_calendar"):
         await handle_availability_calendar_selection(query, context, update)
@@ -76,13 +86,4 @@ async def menu_callback_handler(
     if await handle_calendar_and_time(query, context, update):
         return
 
-    function = CALLBACK_ROUTES.get(query.data)
-    if function:
-        try:
-            await function(query, context, update)
-        except TypeError:
-            # Si el handler no espera update, llamarlo sin ese parámetro
-            await function(query, context)
-        return
-    else:
-        await query.edit_message_text(text="Acción no reconocida.")
+    await query.edit_message_text(text="Acción no reconocida.")

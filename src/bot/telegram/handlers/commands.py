@@ -58,6 +58,8 @@ async def handle_action_back_menu(query, context: ContextTypes.DEFAULT_TYPE) -> 
         context.user_data["reserve_photo_message_ids"] = []
         context.user_data["reserve_photo_message_id"] = None
         context.user_data["reserve_photo_generating"] = False
+        context.user_data["day_photo_generating"] = False
+        context.user_data["week_photo_generating"] = False
     except Exception:
         pass
     
