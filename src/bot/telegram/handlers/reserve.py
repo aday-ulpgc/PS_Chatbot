@@ -11,7 +11,6 @@ from telegram_bot_calendar import DetailedTelegramCalendar
 
 from src.BBDD.database_service import (
     guardar_cita_en_db,
-    obtener_horas_ocupadas,
     obtener_o_crear_usuario_telegram,
 )
 from src.bot.telegram.constants import CALENDAR_STEPS, MODO_AUDIO, MODO_TEXTO

@@ -18,7 +18,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     if update.message:
         await update.message.reply_text(
             text=WELCOME_TEXT,
-            reply_markup=main_menu_keyboard(current_mode),
+            reply_markup=menu_eleccion(),
         )
 
 

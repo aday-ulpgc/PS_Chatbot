@@ -8,10 +8,7 @@ from src.bot.telegram.handlers.reserve import (
 )
 from src.bot.telegram.handlers.settings import (
     handle_toggle_audio_main,
-    handle_action_settings,
     handle_eleccion_texto_libre,
-    handle_set_mode_texto,
-    handle_set_mode_audio,
     handle_show_text_reserva,
 )
 from src.bot.telegram.handlers.help_menu import (
