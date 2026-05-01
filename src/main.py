@@ -72,7 +72,13 @@ def main() -> None:
     print("API iniciada en http://localhost:8000/docs")
 
     print("Bot iniciado. Esperando mensajes...")
-    app.run_polling()
+    # Aumentar timeouts para conectividad débil/lenta
+    app.run_polling(
+        poll_interval=2.0,  # Esperar 2 segundos entre polls
+        timeout=10,         # Timeout de 10 segundos (por defecto es 5)
+        allowed_updates=None,
+        drop_pending_updates=True,  # Ignorar mensajes antiguos al reiniciar
+    )
 
 
 if __name__ == "__main__":
