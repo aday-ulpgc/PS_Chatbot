@@ -618,6 +618,11 @@ async def handle_action_reserve(query, context: ContextTypes.DEFAULT_TYPE) -> No
         {"text": "↻ Reiniciar", "callback_data": "action_reserve"},
         {"text": "⫶☰ Menú", "callback_data": "action_back_menu"},
     ]
+    # Añadir el botón de disponibilidad
+    availability_row = [
+        {"text": "📅 Ver disponibilidad", "callback_data": "action_view_availability"}
+    ]
+    keyboard_dict["inline_keyboard"].append(availability_row)
     keyboard_dict["inline_keyboard"].append(navigation_row)
 
     try:
