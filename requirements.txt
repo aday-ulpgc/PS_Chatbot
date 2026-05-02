@@ -32,5 +32,6 @@ matplotlib>=3.9.0
 
 
 # Servicios de Voz
+elevenlabs>=1.0.0
 gtts==2.5.1
 

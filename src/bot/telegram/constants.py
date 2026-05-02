@@ -23,8 +23,8 @@ def obtener_promt_agente(hoy: str, disponibilidad_semanal: str) -> str:
 
         
         TRABAJADORES DISPONIBLES:
-        - Paco (Especialista en cortes de cabello)
-        - María (Especialista en coloración)
+        - Paco
+        - María
         - Regla adicional: Si el usuario menciona un nombre que no es ninguno de los anteriores, ignóralo y no lo añadas a "nombre_trabajador". Si el usuario no menciona ningún nombre, "nombre_trabajador" debe ser null.
     
             

@@ -27,9 +27,8 @@ from src.bot.telegram.handlers.manage_appointments import (
 )
 
 from src.bot.telegram.handlers.settings import (
-    handle_action_settings,
-    handle_set_mode_texto,
-    handle_set_mode_audio,
+    handle_toggle_audio_main,
+    handle_eleccion_texto_libre,
     handle_show_text_reserva,
 )
 from src.bot.telegram.handlers.help_menu import (
@@ -41,6 +40,7 @@ from src.bot.telegram.handlers.commands import handle_action_back_menu
 CALLBACK_ROUTES = {
     "action_reserve": handle_action_reserve,
     "action_my_appointments": handle_action_my_appointments,
+    "toggle_audio_main": handle_toggle_audio_main,
     "action_view_availability": handle_action_view_availability,
     "action_view_availability_day": handle_action_view_availability_day,
     "action_view_availability_week": handle_action_view_availability_week,
@@ -57,6 +57,8 @@ CALLBACK_ROUTES = {
     "action_help": handle_action_menu_help,
     "action_help_faq": handle_action_faq,
     "action_back_menu": handle_action_back_menu,
+    "eleccion_botones": handle_action_back_menu,  # Reutilizamos el mismo handler para mostrar el menú principal
+    "eleccion_texto_libre": handle_eleccion_texto_libre
     "action_cancel_menu": handle_action_cancel_menu,
     "action_modify_menu": handle_action_modify_menu,
 }
