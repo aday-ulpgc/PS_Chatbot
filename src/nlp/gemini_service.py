@@ -1,9 +1,8 @@
-# src/nlp/gemini_service.py
 import os
 import json
 import re
 import asyncio
-import httpx  # Usamos httpx (que ya viene con telegram) para hacer peticiones directas
+import httpx  
 from datetime import datetime
 from src.bot.telegram.constants import obtener_promt_agente
 
@@ -37,7 +36,7 @@ class NLPService:
         historial_mensajes: list, datos_semanal: str, audio_b64: str = None
     ) -> dict:
         api_key = os.getenv("GEMINI_API_KEY")
-        modelo = os.getenv("GEMINI_MODEL", "gemini-3-pro-preview")
+        modelo = os.getenv("GEMINI_MODEL", "gemini-3-flash-preview")
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent?key={api_key}"
 
         hoy = datetime.now().strftime("%A, %d de %B de %Y a las %H:%M")

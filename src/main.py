@@ -4,6 +4,7 @@ Carga la configuración desde el archivo .env, valida que el token
 de Telegram esté presente y arranca el bot en modo polling.
 """
 
+import datetime
 import os
 import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -19,11 +20,10 @@ from telegram.ext import (
 )
 
 from src.bot.telegram.handlers.commands import start_command
-from src.bot.telegram.router import menu_callback_handler
-from src.bot.telegram.handlers.nlp import handle_texto_libre
+from src.bot.telegram.router import menu_callback_handler, message_handler
 from src.api import app as fastapi_app
 from src.bot.telegram.handlers.reminders import check_daily_reminders
-import datetime
+from datetime import time
 
 os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
 # Aseguramos que la raíz del proyecto esté en el path para que los imports desde 'src.' funcionen correctamente
@@ -52,15 +52,15 @@ def main() -> None:
 
     app = ApplicationBuilder().token(token).build()
 
-    # Programación de los recordatorios - todos los días a las 08:00 de la mañana
-    hora_recordatorio = datetime.time(hour=8, minute=0, second=0)
+    # Recordatorio todos los días a las 08:00 de la mañana
+    hora_recordatorio = time(hour=8, minute=0, second=0)
     app.job_queue.run_daily(check_daily_reminders, time=hora_recordatorio)
 
     app.add_handler(CommandHandler("start", start_command))
     app.add_handler(CallbackQueryHandler(menu_callback_handler))
     app.add_handler(
         MessageHandler(
-            (filters.TEXT | filters.VOICE) & ~filters.COMMAND, handle_texto_libre
+            (filters.TEXT | filters.VOICE) & ~filters.COMMAND, message_handler
         )
     )
     api_thread = threading.Thread(
@@ -72,7 +72,13 @@ def main() -> None:
     print("API iniciada en http://localhost:8000/docs")
 
     print("Bot iniciado. Esperando mensajes...")
-    app.run_polling()
+    # Aumentar timeouts para conectividad débil/lenta
+    app.run_polling(
+        poll_interval=2.0,  # Esperar 2 segundos entre polls
+        timeout=10,         # Timeout de 10 segundos (por defecto es 5)
+        allowed_updates=None,
+        drop_pending_updates=True,  # Ignorar mensajes antiguos al reiniciar
+    )
 
 
 if __name__ == "__main__":
