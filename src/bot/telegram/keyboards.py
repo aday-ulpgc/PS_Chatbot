@@ -26,13 +26,23 @@ def main_menu_keyboard(current_mode: str = MODO_TEXTO) -> InlineKeyboardMarkup:
 def menu_eleccion() -> InlineKeyboardMarkup:
     """Devuelve los botones para elegir entre botones o texto libre."""
     keyboard = [
-        [InlineKeyboardButton("📋 Cita mediante Botones", callback_data="eleccion_botones")],
-        [InlineKeyboardButton("📝 Cita mediante IA", callback_data="eleccion_texto_libre")],
+        [
+            InlineKeyboardButton(
+                "📋 Cita mediante Botones", callback_data="eleccion_botones"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                "📝 Cita mediante IA", callback_data="eleccion_texto_libre"
+            )
+        ],
     ]
     return InlineKeyboardMarkup(keyboard)
 
 
-def settings_menu_keyboard(modo_interaccion: str, modo_respuesta: str) -> InlineKeyboardMarkup:
+def settings_menu_keyboard(
+    modo_interaccion: str, modo_respuesta: str
+) -> InlineKeyboardMarkup:
     """
     Devuelve el teclado del menú de ajustes con toggles dinámicos según el
     estado actual del usuario.
@@ -60,6 +70,10 @@ def settings_menu_keyboard(modo_interaccion: str, modo_respuesta: str) -> Inline
     keyboard = [
         [btn_interaccion],
         [btn_respuesta],
-        [InlineKeyboardButton("🔙 Volver al Menú Principal", callback_data="action_back_main")],
+        [
+            InlineKeyboardButton(
+                "🔙 Volver al Menú Principal", callback_data="action_back_main"
+            )
+        ],
     ]
     return InlineKeyboardMarkup(keyboard)

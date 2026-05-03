@@ -10,9 +10,18 @@ _DOTENV_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "env", ".env"
 load_dotenv(dotenv_path=_DOTENV_PATH)
 
 _MESES = {
-    "01": "enero",  "02": "febrero", "03": "marzo",    "04": "abril",
-    "05": "mayo",   "06": "junio",   "07": "julio",    "08": "agosto",
-    "09": "septiembre", "10": "octubre", "11": "noviembre", "12": "diciembre",
+    "01": "enero",
+    "02": "febrero",
+    "03": "marzo",
+    "04": "abril",
+    "05": "mayo",
+    "06": "junio",
+    "07": "julio",
+    "08": "agosto",
+    "09": "septiembre",
+    "10": "octubre",
+    "11": "noviembre",
+    "12": "diciembre",
 }
 
 
@@ -26,6 +35,7 @@ def formatear_fecha_para_voz(texto: str) -> str:
         '23/06'       →  '23 de junio'
         '23-06'       →  '23 de junio'
     """
+
     # Formato completo ISO: YYYY-MM-DD o YYYY/MM/DD
     def _reemplazar_fecha_completa(m: re.Match) -> str:
         anyo, mes, dia = m.group(1), m.group(2), m.group(3)
@@ -59,6 +69,7 @@ def formatear_hora_para_voz(texto: str) -> str:
         '15:00'  →  'las 15 en punto'
         '09:30'  →  'las 9 y 30'
     """
+
     def _reemplazar_hora(m: re.Match) -> str:
         hora = int(m.group(1))
         minutos = m.group(2)

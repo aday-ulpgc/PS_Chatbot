@@ -3,7 +3,6 @@ from telegram.ext import ContextTypes
 
 from src.bot.telegram.handlers.reserve import (
     handle_action_reserve,
-    handle_action_my_appointments,
     handle_action_view_availability,
     handle_action_view_availability_day,
     handle_action_view_availability_week,

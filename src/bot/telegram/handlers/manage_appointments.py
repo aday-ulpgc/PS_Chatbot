@@ -1,5 +1,4 @@
 import asyncio
-import logging
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from telegram.error import BadRequest
@@ -106,7 +105,7 @@ async def handle_action_cancel_menu(
                 parse_mode="Markdown",
             )
         except BadRequest as e:
-            logger.warning("No se pudo editar el mensaje en handle_action_cancel_menu: %s", e)
+            print(f"No se pudo editar el mensaje en handle_action_cancel_menu: {e}")
     else:
         await update.message.reply_text(
             text=texto,

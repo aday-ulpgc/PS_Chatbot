@@ -2,7 +2,7 @@ import os
 import json
 import re
 import asyncio
-import httpx  
+import httpx
 from datetime import datetime
 from src.bot.telegram.constants import obtener_promt_agente
 

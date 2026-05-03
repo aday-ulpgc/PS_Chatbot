@@ -9,12 +9,12 @@ _src_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "src")
 if _src_path not in sys.path:
     sys.path.insert(0, _src_path)
 
-from BBDD.databasecontroller import engine, get_session
-from sqlalchemy import text, inspect
+from BBDD.databasecontroller import engine, get_session  # noqa: E402
+from sqlalchemy import text, inspect  # noqa: E402
 
-print("="*80)
+print("=" * 80)
 print("VERIFICACIÓN DE CONEXIÓN A BASE DE DATOS")
-print("="*80)
+print("=" * 80)
 
 # Test 1: Conexión al engine
 print("\n1️⃣  Probando conexión al engine...")
@@ -41,9 +41,9 @@ except Exception as e:
 print("\n3️⃣  Verificando tabla EMPLEADOS...")
 try:
     inspector = inspect(engine)
-    if 'EMPLEADOS' in inspector.get_table_names():
-        columns = inspector.get_columns('EMPLEADOS')
-        print(f"✅ Tabla EMPLEADOS existe")
+    if "EMPLEADOS" in inspector.get_table_names():
+        columns = inspector.get_columns("EMPLEADOS")
+        print("✅ Tabla EMPLEADOS existe")
         print("   Columnas:")
         for col in columns:
             print(f"   - {col['name']} ({col['type']})")
@@ -59,11 +59,11 @@ try:
         result = session.execute(text("SELECT COUNT(*) as total FROM USUARIOS"))
         row = result.fetchone()
         total = row[0] if row else 0
-        print(f"✅ get_session() funciona")
+        print("✅ get_session() funciona")
         print(f"   Total de usuarios en BD: {total}")
 except Exception as e:
     print(f"❌ Error: {e}")
 
-print("\n" + "="*80)
+print("\n" + "=" * 80)
 print("✅ VERIFICACIÓN COMPLETADA")
-print("="*80)
+print("=" * 80)

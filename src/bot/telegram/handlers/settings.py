@@ -3,7 +3,12 @@ from telegram.ext import ContextTypes
 from src.bot.telegram.handlers.commands import handle_action_back_menu
 
 from src.bot.telegram.constants import MODO_TEXTO, MODO_AUDIO, WELCOME_TEXT
-from src.bot.telegram.keyboards import main_menu_keyboard, settings_menu_keyboard, MODO_BOTONES, MODO_NLP
+from src.bot.telegram.keyboards import (
+    main_menu_keyboard,
+    settings_menu_keyboard,
+    MODO_BOTONES,
+    MODO_NLP,
+)
 from src.services.voice_service import VoiceService
 
 
@@ -61,7 +66,9 @@ async def handle_show_text_reserva(query, context: ContextTypes.DEFAULT_TYPE) ->
     await query.answer(text=texto, show_alert=True)
 
 
-async def handle_eleccion_texto_libre(query, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def handle_eleccion_texto_libre(
+    query, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """Maneja la elección de texto libre, mostrando un mensaje de confirmación."""
     context.user_data["modo_interaccion"] = MODO_NLP
     await query.edit_message_text(
@@ -86,7 +93,9 @@ async def handle_show_settings(query, context: ContextTypes.DEFAULT_TYPE) -> Non
     )
 
 
-async def handle_toggle_modo_interaccion(query, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def handle_toggle_modo_interaccion(
+    query, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """Alterna entre el modo Botones y el modo NLP, actualizando el teclado al instante."""
     # TODO: Persistir este estado en MySQL usando la conexión MCP (Model Context Protocol).
     modo_actual = context.user_data.get("modo_interaccion", MODO_BOTONES)
@@ -106,7 +115,9 @@ async def handle_toggle_modo_interaccion(query, context: ContextTypes.DEFAULT_TY
     )
 
 
-async def handle_toggle_modo_respuesta(query, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def handle_toggle_modo_respuesta(
+    query, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """Alterna entre respuesta en texto y audio, actualizando el teclado al instante."""
     # TODO: Persistir este estado en MySQL usando la conexión MCP (Model Context Protocol).
     modo_actual = context.user_data.get("modo_respuesta", MODO_TEXTO)

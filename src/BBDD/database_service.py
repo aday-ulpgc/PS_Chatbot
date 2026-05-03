@@ -136,8 +136,7 @@ def obtener_horas_ocupadas(fecha_str: str) -> list[str]:
                 .all()
             )
             return [
-                f"{cita.FECHA.hour}:{cita.FECHA.minute:02d}"
-                for cita in citas_activas
+                f"{cita.FECHA.hour}:{cita.FECHA.minute:02d}" for cita in citas_activas
             ]
     except Exception as e:
         print(f"❌ Error al leer horas ocupadas: {e}")

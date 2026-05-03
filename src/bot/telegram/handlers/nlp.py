@@ -64,11 +64,15 @@ async def handle_texto_libre(
 
     # UX: keep_action_alive mantiene el indicador activo durante toda la llamada a Gemini
     typing_task = asyncio.create_task(
-        keep_action_alive(context.bot, update.effective_chat.id, constants.ChatAction.TYPING)
+        keep_action_alive(
+            context.bot, update.effective_chat.id, constants.ChatAction.TYPING
+        )
     )
     try:
         respuesta_agente = await NLPService.procesar_mensaje(
-            context.user_data["historial"], datos_semanal=datos_semanal, audio_b64=audio_b64
+            context.user_data["historial"],
+            datos_semanal=datos_semanal,
+            audio_b64=audio_b64,
         )
     finally:
         typing_task.cancel()
@@ -105,6 +109,7 @@ async def handle_texto_libre(
 
     elif accion == "abrir_ajustes":
         from src.bot.telegram.keyboards import settings_menu_keyboard
+
         modo_interaccion = context.user_data.get("modo_interaccion", "botones")
         modo_respuesta = context.user_data.get("modo_respuesta", "texto")
         await update.message.reply_text(
@@ -122,7 +127,11 @@ async def handle_texto_libre(
         # Si el modo audio está activo, enviamos SOLO voz
         if user_mode == MODO_AUDIO:
             voice_task = asyncio.create_task(
-                keep_action_alive(context.bot, update.effective_chat.id, constants.ChatAction.RECORD_VOICE)
+                keep_action_alive(
+                    context.bot,
+                    update.effective_chat.id,
+                    constants.ChatAction.RECORD_VOICE,
+                )
             )
             try:
                 audio_path = await VoiceService.text_to_speech(texto_respuesta)
@@ -168,7 +177,11 @@ async def handle_texto_libre(
             if user_mode == MODO_AUDIO:
                 await mensaje_espera.edit_text("🎙️ Generando audio de confirmación...")
                 voice_task = asyncio.create_task(
-                    keep_action_alive(context.bot, update.effective_chat.id, constants.ChatAction.RECORD_VOICE)
+                    keep_action_alive(
+                        context.bot,
+                        update.effective_chat.id,
+                        constants.ChatAction.RECORD_VOICE,
+                    )
                 )
                 try:
                     audio_path = await VoiceService.text_to_speech(final_text)
@@ -176,7 +189,7 @@ async def handle_texto_libre(
                         await update.message.reply_voice(voice=audio_file)
                     if os.path.exists(audio_path):
                         os.remove(audio_path)
-                    await mensaje_espera.delete() # Borramos el texto para no duplicar
+                    await mensaje_espera.delete()  # Borramos el texto para no duplicar
                 except Exception as e:
                     print(f"Error al generar audio final en NLP (fallback texto): {e}")
                     await mensaje_espera.edit_text(final_text)
@@ -195,7 +208,11 @@ async def handle_texto_libre(
     elif accion == "consultar" and estado == "listo_para_consultar":
         if user_mode == MODO_AUDIO:
             voice_task = asyncio.create_task(
-                keep_action_alive(context.bot, update.effective_chat.id, constants.ChatAction.RECORD_VOICE)
+                keep_action_alive(
+                    context.bot,
+                    update.effective_chat.id,
+                    constants.ChatAction.RECORD_VOICE,
+                )
             )
             try:
                 audio_path = await VoiceService.text_to_speech(texto_respuesta)
@@ -217,7 +234,11 @@ async def handle_texto_libre(
     elif accion == "cancelar" and estado == "listo_para_cancelar":
         if user_mode == MODO_AUDIO:
             voice_task = asyncio.create_task(
-                keep_action_alive(context.bot, update.effective_chat.id, constants.ChatAction.RECORD_VOICE)
+                keep_action_alive(
+                    context.bot,
+                    update.effective_chat.id,
+                    constants.ChatAction.RECORD_VOICE,
+                )
             )
             try:
                 audio_path = await VoiceService.text_to_speech(texto_respuesta)
@@ -238,7 +259,11 @@ async def handle_texto_libre(
     elif accion == "modificar" and estado == "listo_para_modificar":
         if user_mode == MODO_AUDIO:
             voice_task = asyncio.create_task(
-                keep_action_alive(context.bot, update.effective_chat.id, constants.ChatAction.RECORD_VOICE)
+                keep_action_alive(
+                    context.bot,
+                    update.effective_chat.id,
+                    constants.ChatAction.RECORD_VOICE,
+                )
             )
             try:
                 audio_path = await VoiceService.text_to_speech(texto_respuesta)
