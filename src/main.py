@@ -6,6 +6,7 @@ de Telegram esté presente y arranca el bot en modo polling.
 
 import os
 import sys
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 import threading
 import uvicorn
 from dotenv import load_dotenv
@@ -22,11 +23,10 @@ from src.bot.telegram.router import menu_callback_handler
 from src.bot.telegram.handlers.nlp import handle_texto_libre
 from src.api import app as fastapi_app
 from src.bot.telegram.handlers.reminders import check_daily_reminders
-from datetime import datetime
+import datetime
 
 os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
 # Aseguramos que la raíz del proyecto esté en el path para que los imports desde 'src.' funcionen correctamente
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 
 def main() -> None:
