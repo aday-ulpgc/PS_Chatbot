@@ -491,58 +491,9 @@ async def handle_calendar_and_time(
 
             # Obtener o crear usuario en BD
             telegram_id = query.from_user.id
-            user_info = obtener_o_crear_usuario_telegram(
+            obtener_o_crear_usuario_telegram(
                 telegram_id, query.from_user.first_name
             )
-
-            # Generar imagen de disponibilidad
-            if user_info.get("id_usuario"):
-                # Evitar que clicks rápidos generen imágenes simultáneas
-                if context.user_data.get("reserve_photo_generating"):
-                    await query.answer("⏳ Cargando imagen, espera un momento...")
-                else:
-                    context.user_data["reserve_photo_generating"] = True
-                    try:
-                        # Borrar TODAS las imágenes anteriores acumuladas
-                        for old_id in context.user_data.get(
-                            "reserve_photo_message_ids", []
-                        ):
-                            try:
-                                await context.bot.delete_message(
-                                    chat_id=query.from_user.id, message_id=old_id
-                                )
-                            except Exception:
-                                pass
-                        context.user_data["reserve_photo_message_ids"] = []
-
-                        # Convertir date a datetime
-                        fecha_datetime = datetime.combine(result, datetime.min.time())
-                        imagen_path = await asyncio.to_thread(
-                            generar_imagen_disponibilidad,
-                            user_info["id_usuario"],
-                            fecha_datetime,
-                        )
-
-                        # Enviar imagen y guardar su message_id en la lista
-                        if imagen_path:
-                            await query.answer()
-                            with open(imagen_path, "rb") as img:
-                                photo_message = await context.bot.send_photo(
-                                    chat_id=query.from_user.id,
-                                    photo=img,
-                                    caption=f"📊 Disponibilidad para {result.strftime('%A, %d de %B')}",
-                                )
-                            context.user_data["reserve_photo_message_ids"] = [
-                                photo_message.message_id
-                            ]
-                            # Compatibilidad con código existente que usa el campo singular
-                            context.user_data["reserve_photo_message_id"] = (
-                                photo_message.message_id
-                            )
-                    except Exception as e:
-                        print(f"⚠️ Error al generar imagen: {e}")
-                    finally:
-                        context.user_data["reserve_photo_generating"] = False
 
             now = datetime.now()
             is_today = result == date.today()
