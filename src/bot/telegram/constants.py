@@ -10,6 +10,7 @@ CALENDAR_STEPS = {
 
 MODO_TEXTO = "texto"
 MODO_AUDIO = "audio"
+TRABAJADORES = {"paco": "paco42538@gmail.com", "maría": "maria42538@gmail.com"}
 
 
 def obtener_promt_agente(hoy: str, disponibilidad_semanal: str) -> str:

@@ -285,15 +285,26 @@ def delete_reservation(user_id: str, date: str, hour: str) -> bool:
     """
     Función de fachada (Facade) para eliminar una reserva.
     Es llamada cuando el usuario cancela o modifica desde Telegram.
+    Intenta eliminar en el calendario por defecto y, si no lo encuentra, en el de los trabajadores.
     """
     try:
-        calendar = GoogleCalendarService()
+        from src.bot.telegram.constants import TRABAJADORES
 
-        if not calendar.calendar_id:
-            print("❌ Error: No se ha configurado el CALENDAR_ID.")
-            return False
+        # 1. Intentar en el calendario por defecto
+        calendar_default = GoogleCalendarService()
+        if calendar_default.calendar_id:
+            if calendar_default.delete_event(user_id, date, hour):
+                return True
 
-        return calendar.delete_event(user_id, date, hour)
+        # 2. Si no se encontró, buscar en los calendarios de los trabajadores
+        for nombre, gmail in TRABAJADORES.items():
+            calendar_trabajador = GoogleCalendarService(gmail_trabajador=gmail)
+            if calendar_trabajador.calendar_id:
+                if calendar_trabajador.delete_event(user_id, date, hour):
+                    return True
+
+        print("❌ Error: No se encontró la cita en ningún calendario para borrarla.")
+        return False
 
     except Exception as e:
         print(f"[SYSTEM ERROR]: Error al intentar borrar la reserva en Google: {e}")

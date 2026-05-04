@@ -7,14 +7,12 @@ from telegram.ext import ContextTypes
 from src.nlp.gemini_service import NLPService
 from src.services import calendar_service
 from src.services.voice_service import VoiceService
-from src.bot.telegram.constants import MODO_TEXTO, MODO_AUDIO
+from src.bot.telegram.constants import MODO_TEXTO, MODO_AUDIO, TRABAJADORES
 from src.bot.telegram.handlers.manage_appointments import (
     handle_action_cancel_menu,
     handle_action_modify_menu,
     handle_action_my_appointments,
 )
-
-TRABAJADORES = {"paco": "paco42538@gmail.com", "maría": "maria42538@gmail.com"}
 
 
 async def keep_action_alive(bot, chat_id: int, action) -> None:
