@@ -1,5 +1,13 @@
 import os
+import sys
 from datetime import datetime, timedelta
+
+# Forzar salida UTF-8 en Windows para evitar UnicodeEncodeError con emojis
+if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except AttributeError:
+        pass
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from src.BBDD.database_service import guardar_cita_en_db
@@ -101,18 +109,21 @@ class GoogleCalendarService:
             telegram_id = user_id.split("(")[-1].rstrip(")")
 
         print(
-            f"Buscando borrar evento a las {formatted_hour} con telegram_id {telegram_id} o summary {user_id}"
+            f"[DELETE] Buscando en cal={self.calendar_id} | fecha={date_str} | hora={formatted_hour} | telegram_id={telegram_id}"
         )
 
+        events_del_usuario = []
         for event in events:
             start_time = event["start"].get("dateTime", "")
             summary = event.get("summary", "")
-
-            # Chequeo flexible: si tiene la hora y el ID de telegram coincide, lo borramos
-            # O si el summary es exactamente igual (para retrocompatibilidad)
-            hora_coincide = f"T{formatted_hour}:00" in start_time
             id_coincide = telegram_id and f"({telegram_id})" in summary
             summary_coincide = summary == f"Reserva de {user_id}"
+
+            print(
+                f"  -> start='{start_time}' | summary='{summary}' | id_coincide={id_coincide}"
+            )
+
+            hora_coincide = f"T{formatted_hour}:00" in start_time
 
             if hora_coincide and (id_coincide or summary_coincide):
                 event_id = event["id"]
@@ -120,16 +131,34 @@ class GoogleCalendarService:
                     calendarId=self.calendar_id, eventId=event_id
                 ).execute()
                 print(
-                    f"✅ Evento borrado en Google Calendar: {date_str} a las {hour_str}"
+                    f"[INFO] Evento borrado en Google Calendar: {date_str} a las {hour_str}"
                 )
                 return True
-            elif hora_coincide:
-                print(
-                    f"⚠️ Se encontró un evento a esa hora pero no coincide el ID. Summary: '{summary}' | Esperado: '{user_id}' o '({telegram_id})'"
-                )
+
+            if id_coincide or summary_coincide:
+                events_del_usuario.append(event)
+
+        # Fallback: si hay exactamente un evento de este usuario ese día y no
+        # coincidió la hora (posible desfase UTC vs hora local en la BD),
+        # lo borramos igualmente para evitar duplicados.
+        if len(events_del_usuario) == 1:
+            event = events_del_usuario[0]
+            event_id = event["id"]
+            start_time = event["start"].get("dateTime", "")
+            self.service.events().delete(
+                calendarId=self.calendar_id, eventId=event_id
+            ).execute()
+            print(
+                f"[INFO] Evento borrado por fallback (unico evento del usuario ese dia): {start_time}"
+            )
+            return True
+        elif len(events_del_usuario) > 1:
+            print(
+                f"[WARN] Hay {len(events_del_usuario)} eventos del usuario ese dia, no se puede borrar por fallback sin hora exacta."
+            )
 
         print(
-            f"⚠️ No se encontró el evento en Google Calendar para borrarlo. Eventos en ese día: {len(events)}"
+            f"[WARN] No se encontro el evento en Google Calendar para borrarlo. Eventos en ese dia: {len(events)}"
         )
         return False
 
@@ -213,7 +242,11 @@ class GoogleCalendarService:
 
 
 def create_reservation(
-    user_id: str, date: str, hour: str, gmail_trabajador: str = None
+    user_id: str,
+    date: str,
+    hour: str,
+    gmail_trabajador: str = None,
+    skip_db: bool = False,
 ) -> str:
     """
     Función de fachada (Facade) que orquestra la reserva.
@@ -271,12 +304,12 @@ def create_reservation(
             telegram_id = int(telegram_id_str)
             nombre = user_id.split("(")[0].strip()
         except (IndexError, ValueError):
-            print(f"⚠️ No se pudo extraer telegram_id de {user_id}")
+            print(f"[WARN] No se pudo extraer telegram_id de {user_id}")
             telegram_id = None
             nombre = None
 
         # Guardar también en la base de datos
-        if telegram_id:
+        if telegram_id and not skip_db:
             from src.BBDD.database_service import obtener_o_crear_usuario_telegram
 
             obtener_o_crear_usuario_telegram(telegram_id=telegram_id, nombre=nombre)
@@ -289,7 +322,7 @@ def create_reservation(
                 descripcion="Cita reservada desde Telegram",
             )
             if not success_db:
-                print("⚠️ Cita creada en Google Calendar pero no se guardó en DB")
+                print("[WARN] Cita creada en Google Calendar pero no se guardo en DB")
 
         return f"✅ ¡Reserva confirmada para el {date} a las {hour}!\n"
 
@@ -318,12 +351,18 @@ def delete_reservation(user_id: str, date: str, hour: str) -> bool:
 
         # 2. Si no se encontró, buscar en los calendarios de los trabajadores
         for nombre, gmail in TRABAJADORES.items():
-            calendar_trabajador = GoogleCalendarService(gmail_trabajador=gmail)
-            if calendar_trabajador.calendar_id:
-                if calendar_trabajador.delete_event(user_id, date, hour):
-                    return True
+            try:
+                calendar_trabajador = GoogleCalendarService(gmail_trabajador=gmail)
+                if calendar_trabajador.calendar_id:
+                    if calendar_trabajador.delete_event(user_id, date, hour):
+                        return True
+            except Exception as e:
+                print(
+                    f"[WARN] Error al revisar el calendario de {nombre} ({gmail}): {e}"
+                )
+                continue
 
-        print("❌ Error: No se encontró la cita en ningún calendario para borrarla.")
+        print("[ERROR] No se encontro la cita en ningun calendario para borrarla.")
         return False
 
     except Exception as e:
