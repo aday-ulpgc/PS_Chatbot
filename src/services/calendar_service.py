@@ -94,13 +94,25 @@ class GoogleCalendarService:
 
         events = events_result.get("items", [])
         formatted_hour = hour_str.zfill(5)
-        expected_summary = f"Reserva de {user_id}"
+        
+        # Extraer el ID de telegram del user_id (ej: "Nombre (12345)")
+        telegram_id = ""
+        if "(" in user_id and ")" in user_id:
+            telegram_id = user_id.split("(")[-1].rstrip(")")
+
+        print(f"Buscando borrar evento a las {formatted_hour} con telegram_id {telegram_id} o summary {user_id}")
 
         for event in events:
             start_time = event["start"].get("dateTime", "")
             summary = event.get("summary", "")
+            
+            # Chequeo flexible: si tiene la hora y el ID de telegram coincide, lo borramos
+            # O si el summary es exactamente igual (para retrocompatibilidad)
+            hora_coincide = f"T{formatted_hour}:00" in start_time
+            id_coincide = telegram_id and f"({telegram_id})" in summary
+            summary_coincide = summary == f"Reserva de {user_id}"
 
-            if f"T{formatted_hour}:00" in start_time and summary == expected_summary:
+            if hora_coincide and (id_coincide or summary_coincide):
                 event_id = event["id"]
                 self.service.events().delete(
                     calendarId=self.calendar_id, eventId=event_id
@@ -109,8 +121,10 @@ class GoogleCalendarService:
                     f"✅ Evento borrado en Google Calendar: {date_str} a las {hour_str}"
                 )
                 return True
+            elif hora_coincide:
+                print(f"⚠️ Se encontró un evento a esa hora pero no coincide el ID. Summary: '{summary}' | Esperado: '{user_id}' o '({telegram_id})'")
 
-        print("⚠️ No se encontró el evento en Google Calendar para borrarlo.")
+        print(f"⚠️ No se encontró el evento en Google Calendar para borrarlo. Eventos en ese día: {len(events)}")
         return False
 
     def get_available_hours(self, date_str: str) -> list:
