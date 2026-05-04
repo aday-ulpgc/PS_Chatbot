@@ -342,8 +342,20 @@ async def handle_calendar_and_time(
                     old_hora,
                 )
 
+            # Solo crear el evento en Google Calendar (sin insertar en BD,
+            # porque actualizar_cita_fecha_db ya actualiza el registro existente)
+            from src.services.calendar_service import GoogleCalendarService
+
+            def _create_calendar_event_only(user_id, date_str, hour_str):
+                gc = GoogleCalendarService()
+                start_time = datetime.strptime(
+                    f"{date_str} {hour_str}", "%Y-%m-%d %H:%M"
+                )
+                end_time = start_time + timedelta(hours=1)
+                gc.create_event(user_id, start_time, end_time)
+
             await asyncio.to_thread(
-                calendar_service.create_reservation,
+                _create_calendar_event_only,
                 name_and_id,
                 selected_data,
                 selected_time,

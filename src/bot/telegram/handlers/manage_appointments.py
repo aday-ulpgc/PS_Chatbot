@@ -205,8 +205,10 @@ async def handle_start_modify_calendar(
 ) -> None:
     """Guarda el ID de la cita a modificar y lanza el calendario."""
     id_cita = int(query.data.split("_")[1])
-    context.user_data["modifying_id"] = id_cita
 
     from src.bot.telegram.handlers.reserve import handle_action_reserve
 
+    # handle_action_reserve llama a limpiar_estado_reserva internamente,
+    # por eso se establece modifying_id DESPUÉS para que no sea eliminado.
     await handle_action_reserve(query, context)
+    context.user_data["modifying_id"] = id_cita
