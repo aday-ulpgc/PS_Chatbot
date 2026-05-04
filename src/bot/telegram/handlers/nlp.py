@@ -205,7 +205,10 @@ async def handle_texto_libre(
             )
             context.user_data["historial"].pop()
 
-    elif accion == "consultar" and estado == "listo_para_consultar":
+    elif (
+        accion == "consultar_disponibilidad"
+        and estado == "listo_para_consultar_disponibilidad"
+    ):
         if user_mode == MODO_AUDIO:
             voice_task = asyncio.create_task(
                 keep_action_alive(
@@ -221,15 +224,42 @@ async def handle_texto_libre(
                 if os.path.exists(audio_path):
                     os.remove(audio_path)
             except Exception as e:
-                print(f"Error al generar audio en consulta NLP (fallback texto): {e}")
+                print(
+                    f"Error al generar audio en consulta disponibilidad NLP (fallback texto): {e}"
+                )
                 await update.message.reply_text(texto_respuesta)
             finally:
                 voice_task.cancel()
         else:
             await update.message.reply_text(texto_respuesta)
 
-        # Reutilizamos handle_action_my_appointments para mostrar la lista de citas
-        await handle_action_my_appointments(None, context, update)
+    elif accion == "consultar_citas" and estado == "listo_para_consultar_citas":
+        if user_mode == MODO_AUDIO:
+            voice_task = asyncio.create_task(
+                keep_action_alive(
+                    context.bot,
+                    update.effective_chat.id,
+                    constants.ChatAction.RECORD_VOICE,
+                )
+            )
+            try:
+                audio_path = await VoiceService.text_to_speech(texto_respuesta)
+                with open(audio_path, "rb") as audio_file:
+                    await update.message.reply_voice(voice=audio_file)
+                if os.path.exists(audio_path):
+                    os.remove(audio_path)
+            except Exception as e:
+                print(
+                    f"Error al generar audio en consulta citas NLP (fallback texto): {e}"
+                )
+                await update.message.reply_text(texto_respuesta)
+            finally:
+                voice_task.cancel()
+        else:
+            await update.message.reply_text(texto_respuesta)
+
+        # Mostramos la lista de citas
+        await handle_action_my_appointments(None, context, update=update)
 
     elif accion == "cancelar" and estado == "listo_para_cancelar":
         if user_mode == MODO_AUDIO:

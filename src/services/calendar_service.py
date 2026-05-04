@@ -245,16 +245,22 @@ def create_reservation(
         # Crear en Google Calendar
         calendar.create_event(user_id, start_time, end_time)
 
-        # Extraer telegram_id del formato "Nombre Completo (telegram_id)"
+        # Extraer telegram_id y nombre del formato "Nombre Completo (telegram_id)"
         try:
             telegram_id_str = user_id.split("(")[-1].rstrip(")")
             telegram_id = int(telegram_id_str)
+            nombre = user_id.split("(")[0].strip()
         except (IndexError, ValueError):
             print(f"⚠️ No se pudo extraer telegram_id de {user_id}")
             telegram_id = None
+            nombre = None
 
         # Guardar también en la base de datos
         if telegram_id:
+            from src.BBDD.database_service import obtener_o_crear_usuario_telegram
+
+            obtener_o_crear_usuario_telegram(telegram_id=telegram_id, nombre=nombre)
+
             fecha_obj = datetime.strptime(date, "%Y-%m-%d")
             success_db = guardar_cita_en_db(
                 telegram_id=telegram_id,

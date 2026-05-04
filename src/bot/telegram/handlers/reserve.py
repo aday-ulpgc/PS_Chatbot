@@ -16,7 +16,6 @@ from telegram.ext import ContextTypes
 from telegram_bot_calendar import DetailedTelegramCalendar
 
 from src.BBDD.database_service import (
-    guardar_cita_en_db,
     obtener_o_crear_usuario_telegram,
     obtener_horas_ocupadas,
     actualizar_cita_fecha_db,
@@ -452,22 +451,6 @@ async def handle_calendar_and_time(
                 context,
                 response_message,
                 reply_markup=main_menu_keyboard(),
-            )
-
-            fecha_dt = datetime.strptime(selected_data, "%Y-%m-%d")
-
-            await asyncio.to_thread(
-                obtener_o_crear_usuario_telegram,
-                telegram_id=update.effective_user.id,
-                nombre=update.effective_user.full_name,
-            )
-
-            await asyncio.to_thread(
-                guardar_cita_en_db,
-                telegram_id=update.effective_user.id,
-                fecha=fecha_dt,
-                hora=selected_time,
-                descripcion="Reserva desde Telegram MVP",
             )
 
         return True

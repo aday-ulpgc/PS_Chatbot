@@ -40,7 +40,8 @@ def obtener_promt_agente(hoy: str, disponibilidad_semanal: str) -> str:
             - "reservar": Quiere crear una cita nueva.
             - "cancelar": Quiere anular, borrar o cancelar una cita.
             - "modificar": Quiere cambiar la fecha u hora de una cita existente.
-            - "consultar": Quiere saber qué citas tiene, ver su agenda o preguntar por su disponibilidad.
+            - "consultar_disponibilidad": Quiere saber qué horas hay libres o preguntar por disponibilidad.
+            - "consultar_citas": Quiere saber qué citas tiene ya reservadas, o ver su agenda personal.
             - "activar_audio": El usuario quiere recibir notas de voz o audios. (Ej: 'Háblame', 'Mándame audios', 'Activa la voz', 'Quiero escucharte').
             - "desactivar_audio": El usuario ya no quiere recibir audios, prefiere solo texto. (Ej: 'No me mandes audios', 'Solo escribe', 'Quita la voz', 'Prefiero texto').
             - "abrir_ajustes": El usuario quiere volver al modo de botones, ver el menú principal, o cambiar la configuración. (Ej: 'Quiero volver al modo botones', 'Abre los ajustes', 'Menú').
@@ -53,7 +54,8 @@ def obtener_promt_agente(hoy: str, disponibilidad_semanal: str) -> str:
               "recopilando" hasta recibir esa confirmación explícita del usuario. Proponer ≠ Confirmar.
             - "listo_para_cancelar": Tiene acción "cancelar". (El backend le preguntará qué cita cancelar si tiene varias).
             - "listo_para_modificar": Tiene acción "modificar" Y te ha dicho la NUEVA "fecha_iso" y "hora".
-            - "listo_para_consultar": Tiene acción "consultar".
+            - "listo_para_consultar_disponibilidad": Tiene acción "consultar_disponibilidad".
+            - "listo_para_consultar_citas": Tiene acción "consultar_citas".
 
         4. EXTRACCIÓN DE DATOS:
             - "fecha_iso": Formato YYYY-MM-DD. Si no hay día claro para la acción, null.
@@ -63,8 +65,8 @@ def obtener_promt_agente(hoy: str, disponibilidad_semanal: str) -> str:
         5. FORMATO DE SALIDA ESTRICTO (JSON):
             Responde ÚNICAMENTE con este JSON válido, sin Markdown extra ni texto adicional:
             {{
-                "accion": "reservar" | "cancelar" | "modificar" | "consultar" | "activar_audio" | "desactivar_audio" | "abrir_ajustes" | "desconocida",
-                "estado": "recopilando" | "listo_para_reservar" | "listo_para_cancelar" | "listo_para_modificar" | "listo_para_consultar",
+                "accion": "reservar" | "cancelar" | "modificar" | "consultar_disponibilidad" | "consultar_citas" | "activar_audio" | "desactivar_audio" | "abrir_ajustes" | "desconocida",
+                "estado": "recopilando" | "listo_para_reservar" | "listo_para_cancelar" | "listo_para_modificar" | "listo_para_consultar_disponibilidad" | "listo_para_consultar_citas",
                 "datos_extraidos": {{"fecha_iso": "YYYY-MM-DD o null", "hora": "HH:MM o null", "nombre_trabajador": "nombre o null"}},
                 "respuesta_usuario": "Tu mensaje de respuesta natural."
             }}

@@ -12,10 +12,14 @@ from src.BBDD.database_service import (
 
 
 async def handle_action_my_appointments(
-    query, context: ContextTypes.DEFAULT_TYPE
+    query, context: ContextTypes.DEFAULT_TYPE, update=None
 ) -> None:
     """Muestra las citas con un formato elegante y botones de cancelación."""
-    telegram_id = query.from_user.id
+    if query is not None:
+        telegram_id = query.from_user.id
+    else:
+        telegram_id = update.effective_user.id
+
     citas = await asyncio.to_thread(obtener_citas_usuario, telegram_id)
 
     keyboard = []
@@ -43,14 +47,21 @@ async def handle_action_my_appointments(
         [InlineKeyboardButton("🔙 Volver al Menú", callback_data="action_back_menu")]
     )
 
-    try:
-        await query.edit_message_text(
+    if query is not None:
+        try:
+            await query.edit_message_text(
+                text=texto_citas,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="Markdown",
+            )
+        except BadRequest:
+            pass
+    else:
+        await update.message.reply_text(
             text=texto_citas,
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="Markdown",
         )
-    except BadRequest:
-        pass
 
 
 async def handle_action_cancel_menu(
