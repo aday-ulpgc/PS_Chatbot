@@ -1,5 +1,7 @@
 import os
 import sys
+import asyncio
+import httpx
 from datetime import datetime, timedelta
 
 # Forzar salida UTF-8 en Windows para evitar UnicodeEncodeError con emojis
@@ -334,7 +336,81 @@ def create_reservation(
         return "❌ Lo siento, hubo un problema técnico al crear la reserva."
 
 
-def delete_reservation(user_id: str, date: str, hour: str) -> bool:
+async def create_reservation_via_api(
+    telegram_id: int,
+    date: str,
+    hour: str,
+    usuario_id: int,
+    contacto_id: int,
+    bloqueante: int = 7,
+) -> str:
+    """
+    Crea una reserva llamando al endpoint POST /citas con parámetro bloqueante.
+    
+    Args:
+        telegram_id: ID de Telegram del usuario
+        date: Fecha en formato "YYYY-MM-DD"
+        hour: Hora en formato "HH:MM"
+        usuario_id: ID de usuario en la BD
+        contacto_id: ID de contacto en la BD
+        bloqueante: Días de búsqueda (±N días) para alternativas. Default: 7
+    
+    Returns:
+        Mensaje con resultado o alternativas disponibles
+    """
+    try:
+        api_url = os.getenv("API_URL", "http://localhost:8000")
+        
+        # Construir el datetime completo
+        fecha_dt = datetime.strptime(f"{date} {hour}", "%Y-%m-%d %H:%M")
+        
+        # Payload para la API
+        cita_payload = {
+            "ID_USUARIO": usuario_id,
+            "ID_CONTACTO": contacto_id,
+            "FECHA": fecha_dt.isoformat(),
+            "DESCRIPCION": "Cita reservada desde Telegram",
+            "PRIORIDAD": 1,
+        }
+        
+        # Hacer la llamada a la API con bloqueante
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            response = await client.post(
+                f"{api_url}/citas",
+                json=cita_payload,
+                params={"bloqueante": bloqueante},
+            )
+        
+        # Si fue exitoso (201 Created)
+        if response.status_code == 201:
+            fecha_display = datetime.strptime(date, "%Y-%m-%d").strftime("%d/%m/%Y")
+            return f"✅ ¡Reserva confirmada para el {fecha_display} a las {hour}!\n"
+        
+        # Si hay conflicto de disponibilidad (409)
+        if response.status_code == 409:
+            error_detail = response.json().get("detail", "")
+            # El mensaje ya contiene las alternativas en el formato:
+            # "Horario no disponible. Otras fechas cercanas que podrían interesarte: DD/MM/YYYY HH:MM  DD/MM/YYYY HH:MM"
+            return f"❌ {error_detail}"
+        
+        # Otros errores
+        error_detail = response.json().get("detail", "Error desconocido")
+        return f"❌ Error al crear la reserva: {error_detail}"
+    
+    except asyncio.TimeoutError:
+        print("[TIMEOUT] La API tardó demasiado en responder")
+        return "❌ Lo siento, la API tardó demasiado en responder. Inténtalo de nuevo."
+    except httpx.RequestError as e:
+        print(f"[HTTP ERROR] Error de conexión con la API: {e}")
+        return "❌ Error de conexión con el servidor. Inténtalo de nuevo más tarde."
+    except Exception as e:
+        print(f"[ERROR] Error en create_reservation_via_api: {e}")
+        import traceback
+        traceback.print_exc()
+        return "❌ Error técnico al procesar tu reserva."
+
+
+
     """
     Función de fachada (Facade) para eliminar una reserva.
     Es llamada cuando el usuario cancela o modifica desde Telegram.

@@ -20,6 +20,7 @@ from src.BBDD.database_service import (
     obtener_horas_ocupadas,
     actualizar_cita_fecha_db,
     obtener_info_cita_db,
+    obtener_usuario_y_contacto_para_cita,
 )
 from src.services import calendar_service
 from src.services.voice_service import VoiceService
@@ -384,20 +385,50 @@ async def handle_calendar_and_time(
             )
         )
 
-        name_and_id = f"{update.effective_user.full_name} ({update.effective_user.id})"
-        response_message = await asyncio.to_thread(
-            calendar_service.create_reservation,
-            name_and_id,
-            selected_data,
-            selected_time,
+        # Obtener o crear usuario y contacto de la BD
+        telegram_id = update.effective_user.id
+        user_info = await asyncio.to_thread(
+            obtener_usuario_y_contacto_para_cita,
+            telegram_id,
+            update.effective_user.full_name,
+        )
+        
+        if user_info.get("error"):
+            error_keyboard = InlineKeyboardMarkup(
+                [
+                    [
+                        InlineKeyboardButton(
+                            "↻ Elegir otro día",
+                            callback_data="action_reserve",
+                        )
+                    ],
+                    [
+                        InlineKeyboardButton(
+                            "⫶☰ Menú Principal",
+                            callback_data="action_back_menu",
+                        )
+                    ],
+                ]
+            )
+            await query.edit_message_text(
+                text="❌ Error al obtener tus datos de usuario",
+                reply_markup=error_keyboard,
+            )
+            return True
+        
+        # Llamar a la API para crear la cita
+        response_message = await calendar_service.create_reservation_via_api(
+            telegram_id=telegram_id,
+            date=selected_data,
+            hour=selected_time,
+            usuario_id=user_info["usuario_id"],
+            contacto_id=user_info["contacto_id"],
+            bloqueante=7,
         )
 
         if response_message.startswith("❌"):
             # Verificar si es un error de horario ocupado con alternativas
-            if (
-                "Otras fechas cercanas" in response_message
-                or "Otras horas" in response_message
-            ):
+            if "Otras fechas cercanas" in response_message:
                 alternatives = parse_alternative_times(response_message)
 
                 if alternatives and len(alternatives) >= 1:
@@ -613,12 +644,45 @@ async def handle_alternative_time_selection_callback(
             text=f"✅ ¡Resumen de tu solicitud!\n📅 Fecha: {fecha_display}\n⏰ Hora: {hora_formatted}\n\n⏳ Procesando reserva..."
         )
 
-        name_and_id = f"{update.effective_user.full_name} ({update.effective_user.id})"
-        response_message = await asyncio.to_thread(
-            calendar_service.create_reservation,
-            name_and_id,
-            fecha_iso,
-            hora_formatted,
+        # Obtener o crear usuario y contacto de la BD
+        telegram_id = update.effective_user.id
+        user_info = await asyncio.to_thread(
+            obtener_usuario_y_contacto_para_cita,
+            telegram_id,
+            update.effective_user.full_name,
+        )
+        
+        if user_info.get("error"):
+            error_keyboard = InlineKeyboardMarkup(
+                [
+                    [
+                        InlineKeyboardButton(
+                            "↻ Elegir otro día",
+                            callback_data="action_reserve",
+                        )
+                    ],
+                    [
+                        InlineKeyboardButton(
+                            "⫶☰ Menú Principal",
+                            callback_data="action_back_menu",
+                        )
+                    ],
+                ]
+            )
+            await query.edit_message_text(
+                text="❌ Error al obtener tus datos de usuario",
+                reply_markup=error_keyboard,
+            )
+            return
+        
+        # Llamar a la API para crear la cita
+        response_message = await calendar_service.create_reservation_via_api(
+            telegram_id=telegram_id,
+            date=fecha_iso,
+            hour=hora_formatted,
+            usuario_id=user_info["usuario_id"],
+            contacto_id=user_info["contacto_id"],
+            bloqueante=7,
         )
 
         if response_message.startswith("✅"):

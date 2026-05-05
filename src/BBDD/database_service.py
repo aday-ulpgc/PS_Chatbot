@@ -53,6 +53,65 @@ def obtener_o_crear_usuario_telegram(
         return {"id_usuario": None, "creado": False, "error": str(e)}
 
 
+def obtener_usuario_y_contacto_para_cita(
+    telegram_id: int, nombre: str | None = None
+) -> dict:
+    """Obtiene o crea usuario y contacto "Reserva general" para crear una cita.
+    
+    Retorna un dict con:
+    - usuario_id: ID de usuario en la BD
+    - contacto_id: ID de contacto en la BD
+    - error: Mensaje de error (si aplica)
+    """
+    try:
+        with get_session() as session:
+            email = f"telegram_{telegram_id}@bot.local"
+            usuario = session.query(Usuario).filter(Usuario.EMAIL == email).first()
+            
+            if not usuario:
+                # Crear nuevo usuario
+                nuevo_usuario = crear_usuario(
+                    session,
+                    tipo="I",
+                    nombre=nombre or f"Usuario Telegram {telegram_id}",
+                    email=email,
+                    contrasena="telegram_bot",
+                )
+                session.flush()
+                usuario = nuevo_usuario
+            
+            # Obtener o crear contacto "Reserva general"
+            NOMBRE_CONTACTO_BOT = "Reserva general"
+            contacto = (
+                session.query(Contacto)
+                .filter(
+                    Contacto.ID_USUARIO == usuario.ID_USUARIO,
+                    Contacto.NOMBRE == NOMBRE_CONTACTO_BOT,
+                    Contacto.ELIMINADO is None,
+                )
+                .first()
+            )
+            
+            if not contacto:
+                contacto = crear_contacto(
+                    session,
+                    id_usuario=usuario.ID_USUARIO,
+                    nombre=NOMBRE_CONTACTO_BOT,
+                    email=f"reserva_general_{usuario.ID_USUARIO}@bot.local",
+                )
+                session.flush()
+            
+            session.commit()
+            return {
+                "usuario_id": usuario.ID_USUARIO,
+                "contacto_id": contacto.ID_CONTACTO,
+                "error": None,
+            }
+    except Exception as e:
+        print(f"❌ Error en obtener_usuario_y_contacto_para_cita: {e}")
+        return {"usuario_id": None, "contacto_id": None, "error": str(e)}
+
+
 def guardar_cita_en_db(
     telegram_id: int, fecha: datetime, hora: str, descripcion: str = ""
 ) -> bool:

@@ -26,6 +26,7 @@ uvicorn[standard]==0.34.0
 
 # HTTP requests
 requests==2.31.0
+httpx==0.28.1
 
 # Visualización
 matplotlib>=3.9.0
