@@ -57,7 +57,7 @@ def obtener_usuario_y_contacto_para_cita(
     telegram_id: int, nombre: str | None = None
 ) -> dict:
     """Obtiene o crea usuario y contacto "Reserva general" para crear una cita.
-    
+
     Retorna un dict con:
     - usuario_id: ID de usuario en la BD
     - contacto_id: ID de contacto en la BD
@@ -67,7 +67,7 @@ def obtener_usuario_y_contacto_para_cita(
         with get_session() as session:
             email = f"telegram_{telegram_id}@bot.local"
             usuario = session.query(Usuario).filter(Usuario.EMAIL == email).first()
-            
+
             if not usuario:
                 # Crear nuevo usuario
                 nuevo_usuario = crear_usuario(
@@ -79,7 +79,7 @@ def obtener_usuario_y_contacto_para_cita(
                 )
                 session.flush()
                 usuario = nuevo_usuario
-            
+
             # Obtener o crear contacto "Reserva general"
             NOMBRE_CONTACTO_BOT = "Reserva general"
             contacto = (
@@ -87,11 +87,11 @@ def obtener_usuario_y_contacto_para_cita(
                 .filter(
                     Contacto.ID_USUARIO == usuario.ID_USUARIO,
                     Contacto.NOMBRE == NOMBRE_CONTACTO_BOT,
-                    Contacto.ELIMINADO is None,
+                    Contacto.ELIMINADO.is_(None),
                 )
                 .first()
             )
-            
+
             if not contacto:
                 contacto = crear_contacto(
                     session,
@@ -100,7 +100,7 @@ def obtener_usuario_y_contacto_para_cita(
                     email=f"reserva_general_{usuario.ID_USUARIO}@bot.local",
                 )
                 session.flush()
-            
+
             session.commit()
             return {
                 "usuario_id": usuario.ID_USUARIO,
@@ -141,7 +141,7 @@ def guardar_cita_en_db(
                 .filter(
                     Contacto.ID_USUARIO == usuario.ID_USUARIO,
                     Contacto.NOMBRE == NOMBRE_CONTACTO_BOT,
-                    Contacto.ELIMINADO is None,
+                    Contacto.ELIMINADO.is_(None),
                 )
                 .first()
             )

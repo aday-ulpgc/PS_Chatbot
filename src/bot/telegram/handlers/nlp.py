@@ -4,6 +4,7 @@ import asyncio
 import os
 from telegram import Update, constants
 from telegram.ext import ContextTypes
+from src.bot.telegram.chat_actions import keep_action_alive
 from src.nlp.gemini_service import NLPService
 from src.services import calendar_service
 from src.services.voice_service import VoiceService
@@ -13,19 +14,6 @@ from src.bot.telegram.handlers.manage_appointments import (
     handle_action_modify_menu,
     handle_action_my_appointments,
 )
-
-
-async def keep_action_alive(bot, chat_id: int, action) -> None:
-    """Mantiene activo un indicador de Telegram en bucle cada 4.5 s.
-    Genérica: acepta cualquier ChatAction (TYPING, RECORD_VOICE, etc.).
-    Diseñada para usarse con asyncio.create_task y cancelarse en un finally.
-    """
-    try:
-        while True:
-            await bot.send_chat_action(chat_id=chat_id, action=action)
-            await asyncio.sleep(4.5)
-    except asyncio.CancelledError:
-        pass  # Cancelación limpia esperada
 
 
 async def handle_texto_libre(
