@@ -838,16 +838,7 @@ def get_disponibilidad_dia(
     usuario = obtener_usuario(db, id_usuario)
     if usuario is None:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
-    citas = obtener_citas_por_usuario(db, id_usuario)
-    citas_data = [
-        {
-            "fecha": c.FECHA,
-            "duracion": c.DURACION if c.DURACION else 60,
-            "descripcion": c.DESCRIPCION,
-        }
-        for c in citas
-    ]
-    filepath = generar_imagen_disponibilidad(id_usuario, fecha_dt, citas_data)
+    filepath = generar_imagen_disponibilidad(id_usuario, fecha_dt)
     if filepath is None:
         raise HTTPException(status_code=500, detail="Error al generar la imagen")
     return FileResponse(
@@ -876,11 +867,7 @@ def get_disponibilidad_semana(
     usuario = obtener_usuario(db, id_usuario)
     if usuario is None:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
-    citas = obtener_citas_por_usuario(db, id_usuario)
-    citas_data = [
-        {"fecha": c.FECHA, "duracion": c.DURACION if c.DURACION else 60} for c in citas
-    ]
-    filepath = generar_imagen_disponibilidad_semana(id_usuario, fecha_dt, citas_data)
+    filepath = generar_imagen_disponibilidad_semana(id_usuario, fecha_dt)
     if filepath is None:
         raise HTTPException(status_code=500, detail="Error al generar la imagen")
     return FileResponse(
@@ -911,13 +898,7 @@ def get_disponibilidad_semana_completa(
     usuario = obtener_usuario(db, id_usuario)
     if usuario is None:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
-    citas = obtener_citas_por_usuario(db, id_usuario)
-    citas_data = [
-        {"fecha": c.FECHA, "duracion": c.DURACION if c.DURACION else 60} for c in citas
-    ]
-    filepath = generar_imagen_disponibilidad_semana_24h(
-        id_usuario, fecha_dt, citas_data
-    )
+    filepath = generar_imagen_disponibilidad_semana_24h(id_usuario, fecha_dt)
     if filepath is None:
         raise HTTPException(status_code=500, detail="Error al generar la imagen")
     return FileResponse(

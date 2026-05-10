@@ -1,8 +1,14 @@
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from src.bot.telegram.handlers.reserve import (
-    handle_action_reserve,
+from src.bot.telegram.handlers.reserve.alternatives import (
+    handle_alternative_time_selection_callback,
+)
+from src.bot.telegram.handlers.reserve.appointment_groups import (
+    handle_prev_citas_group,
+    handle_next_citas_group,
+)
+from src.bot.telegram.handlers.reserve.availability import (
     handle_action_view_availability,
     handle_action_view_availability_day,
     handle_action_view_availability_week,
@@ -11,10 +17,10 @@ from src.bot.telegram.handlers.reserve import (
     handle_next_day,
     handle_prev_week,
     handle_next_week,
-    handle_prev_citas_group,
-    handle_next_citas_group,
+)
+from src.bot.telegram.handlers.reserve.booking import (
+    handle_action_reserve,
     handle_calendar_and_time,
-    handle_alternative_time_selection_callback,
 )
 
 from src.bot.telegram.handlers.manage_appointments import (
@@ -71,6 +77,31 @@ CALLBACK_ROUTES = {
     "toggle_modo_respuesta": handle_toggle_modo_respuesta,
 }
 
+CALLBACK_ROUTES_WITH_UPDATE = {
+    "action_view_availability",
+    "action_view_availability_day",
+    "action_view_availability_week",
+    "action_prev_day",
+    "action_next_day",
+    "action_prev_week",
+    "action_next_week",
+    "action_prev_citas_group",
+    "action_next_citas_group",
+}
+
+
+async def _run_callback_route(
+    route_name: str,
+    query,
+    context: ContextTypes.DEFAULT_TYPE,
+    update: Update,
+) -> None:
+    function = CALLBACK_ROUTES[route_name]
+    if route_name in CALLBACK_ROUTES_WITH_UPDATE:
+        await function(query, context, update)
+    else:
+        await function(query, context)
+
 
 async def menu_callback_handler(
     update: Update, context: ContextTypes.DEFAULT_TYPE
@@ -91,11 +122,7 @@ async def menu_callback_handler(
     # Los botones de acción directa (menú, reiniciar, etc.) tienen prioridad
     # sobre el estado del calendario para que nunca queden bloqueados.
     if query.data in CALLBACK_ROUTES:
-        function = CALLBACK_ROUTES[query.data]
-        try:
-            await function(query, context, update)
-        except TypeError:
-            await function(query, context)
+        await _run_callback_route(query.data, query, context, update)
         return
 
     # Manejar calendario de disponibilidad
@@ -115,12 +142,7 @@ async def menu_callback_handler(
         await handle_start_modify_calendar(query, context)
         return
 
-    function = CALLBACK_ROUTES.get(query.data)
-    if function:
-        await function(query, context)
-        return
-    else:
-        await query.edit_message_text(text="Acción no reconocida.")
+    await query.edit_message_text(text="Acción no reconocida.")
 
 
 async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
