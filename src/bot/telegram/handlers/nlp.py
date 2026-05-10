@@ -151,7 +151,8 @@ async def handle_texto_libre(
                 if img_path and os.path.exists(img_path):
                     with open(img_path, "rb") as img_file:
                         await update.message.reply_photo(photo=img_file)
-
+        except Exception as e:
+            print(f"Error al generar imagen de disponibilidad semanal: {e}")
 
     if estado == "recopilando":
         # Si el modo audio está activo, enviamos SOLO voz
