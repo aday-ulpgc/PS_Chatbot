@@ -201,6 +201,51 @@ async def handle_texto_libre(update: Update, context: ContextTypes.DEFAULT_TYPE)
         nuevo_trabajador = nuevo_trabajador.lower()
         context.user_data["trabajador_actual"] = nuevo_trabajador
 
+    if (
+        accion == "consultar_disponibilidad_semana"
+        and estado == "listo_para_consultar_disponibilidad_semana"
+    ):
+        # Enviar respuesta en modo voz o texto
+        if user_mode == MODO_AUDIO:
+            voice_task = asyncio.create_task(
+                keep_action_alive(
+                    context.bot,
+                    update.effective_chat.id,
+                    constants.ChatAction.RECORD_VOICE,
+                )
+            )
+            try:
+                audio_path = await VoiceService.text_to_speech(texto_respuesta)
+                with open(audio_path, "rb") as audio_file:
+                    await update.message.reply_voice(voice=audio_file)
+                if os.path.exists(audio_path):
+                    os.remove(audio_path)
+            except Exception as e:
+                print(
+                    f"Error al generar audio en consulta disponibilidad semanal NLP (fallback texto): {e}"
+                )
+                await update.message.reply_text(texto_respuesta)
+            finally:
+                voice_task.cancel()
+        else:
+            await update.message.reply_text(texto_respuesta)
+
+        # Enviar imagen de disponibilidad semanal si hay datos suficientes
+        try:
+            from src.services.visualization_service import generar_imagen_disponibilidad_semana
+            user_id = update.effective_user.id
+            from datetime import datetime
+            # Buscar la fecha de inicio en los datos extraídos
+            fecha_iso = datos.get("fecha_inicio_iso") or datos.get("fecha_iso")
+            if fecha_iso:
+                fecha_inicio = datetime.fromisoformat(fecha_iso)
+                img_path = await asyncio.to_thread(generar_imagen_disponibilidad_semana, user_id, fecha_inicio)
+                if img_path and os.path.exists(img_path):
+                    with open(img_path, "rb") as img_file:
+                        await update.message.reply_photo(photo=img_file)
+        except Exception as e:
+            print(f"Error al generar imagen de disponibilidad semanal: {e}")
+
     if estado == "recopilando":
         await _reply_to_user(update, context, texto_respuesta)
         return

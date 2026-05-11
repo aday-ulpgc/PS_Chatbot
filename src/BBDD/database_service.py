@@ -12,6 +12,7 @@ from src.BBDD.databasecontroller import (
     crear_contacto,
     crear_cita,
     CitaInd,
+    obtener_citas_por_usuario,
 )
 
 _src_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -212,16 +213,8 @@ def obtener_citas_usuario(telegram_id: int) -> list:
             if not usuario:
                 return []
 
-            # Obtenemos citas no eliminadas ordenadas por fecha
-            citas_db = (
-                session.query(CitaInd)
-                .filter(
-                    CitaInd.ID_USUARIO == usuario.ID_USUARIO,
-                    CitaInd.ELIMINADO.is_(None),
-                )
-                .order_by(CitaInd.FECHA.asc())
-                .all()
-            )
+            # Usamos la función existente que filtra correctamente por fecha futura
+            citas_db = obtener_citas_por_usuario(session, usuario.ID_USUARIO)
 
             citas_lista = []
             for cita in citas_db:
