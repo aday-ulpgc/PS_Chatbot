@@ -3,8 +3,10 @@ import json
 import re
 import asyncio
 import httpx
+import pytz
 from datetime import datetime
 from src.bot.telegram.constants import obtener_promt_agente
+from src.services.translator_service import TranslatorService
 
 
 class NLPService:
@@ -39,7 +41,9 @@ class NLPService:
         modelo = os.getenv("GEMINI_MODEL", "gemini-3-flash-preview")
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent?key={api_key}"
 
-        import pytz
+        ultimo_mensaje = historial_mensajes[-1]["texto"]
+        texto_es, idioma_usuario = TranslatorService.traducir_a_es(ultimo_mensaje)
+
         from src.services.calendar_service import TIMEZONE
 
         tz = pytz.timezone(TIMEZONE)
@@ -50,9 +54,11 @@ class NLPService:
         prompt_sistema = obtener_promt_agente(fecha_actual, hora_actual, datos_semanal)
 
         mensajes_gemini = []
-        for m in historial_mensajes:
+        for i, m in enumerate(historial_mensajes):
             role = "user" if m["rol"] == "usuario" else "model"
-            mensajes_gemini.append({"role": role, "parts": [{"text": m["texto"]}]})
+            texto_a_enviar = texto_es if (i == len(historial_mensajes) - 1 and role == "user") else m["texto"]
+            mensajes_gemini.append({"role": role, "parts": [{"text": texto_a_enviar}]})
+        
         if audio_b64:
             mensajes_gemini[-1]["parts"].append(
                 {"inlineData": {"mimeType": "audio/ogg", "data": audio_b64}}
@@ -92,9 +98,8 @@ class NLPService:
                             await asyncio.sleep(2**intento)
                             continue
                         else:
-                            return NLPService._respuesta_emergencia(
-                                "Estoy un poco saturada ahora mismo 🥵. ¿Me lo repites en un minutito?"
-                            )
+                            msg_error = TranslatorService.traducir("Estoy un poco saturada ahora mismo 🥵. ¿Me lo repites en un minutito?", idioma_usuario)
+                            return NLPService._respuesta_emergencia(msg_error)
 
                     response.raise_for_status()
 
@@ -103,22 +108,28 @@ class NLPService:
                     try:
                         candidato = data["candidates"][0]
                         if candidato.get("finishReason") == "SAFETY":
-                            return NLPService._respuesta_emergencia(
-                                "Lo siento, mi configuración no me permite procesar ese lenguaje. ¿Hablamos de tu reserva? 🗓️"
-                            )
+                            msg_seguridad = TranslatorService.traducir("Lo siento, mi configuración no me permite procesar ese lenguaje. ¿Hablamos de tu reserva? 🗓️", idioma_usuario)
+                            return NLPService._respuesta_emergencia(msg_seguridad)
 
                         texto_respuesta = candidato["content"]["parts"][0]["text"]
-                        return NLPService._limpiar_json(texto_respuesta)
+                        respuesta_json = NLPService._limpiar_json(texto_respuesta)
+
+                        if respuesta_json and respuesta_json.get("respuesta_usuario"):
+                            texto_traducido = TranslatorService.traducir(
+                                respuesta_json["respuesta_usuario"], 
+                                idioma_usuario
+                            )
+                            respuesta_json["respuesta_usuario"] = texto_traducido
+                            
+                        return respuesta_json
 
                     except (KeyError, IndexError):
                         print(f"❌ Estructura inesperada de Gemini: {data}")
-                        return NLPService._respuesta_emergencia(
-                            "Tuve un pequeño cruce de cables 🤖. ¿Puedes volver a decírmelo?"
-                        )
+                        msg_estructura = TranslatorService.traducir("Tuve un pequeño cruce de cables 🤖. ¿Puedes volver a decírmelo?", idioma_usuario)
+                        return NLPService._respuesta_emergencia(msg_estructura)
 
             except Exception as e:
                 print(f"❌ Error de red HTTP: {e}")
                 if intento == max_reintentos - 1:
-                    return NLPService._respuesta_emergencia(
-                        "Parece que mi conexión a internet falló 🔌. ¿Lo intentamos de nuevo?"
-                    )
+                    msg_red = TranslatorService.traducir("Parece que mi conexión a internet falló 🔌. ¿Lo intentamos de nuevo?", idioma_usuario)
+                    return NLPService._respuesta_emergencia(msg_red)
