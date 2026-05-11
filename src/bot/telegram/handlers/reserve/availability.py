@@ -3,7 +3,7 @@ import json
 import os
 from datetime import date, datetime, timedelta
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto, Update
+from telegram import InputMediaPhoto, Update
 from telegram.error import BadRequest
 from telegram.ext import ContextTypes
 from telegram_bot_calendar import DetailedTelegramCalendar
@@ -17,6 +17,7 @@ from src.services.visualization_service import (
 from .keyboards import (
     availability_type_markup,
     back_menu_markup,
+    calendar_step_markup,
     day_navigation_markup,
     week_navigation_markup,
 )
@@ -134,10 +135,8 @@ async def handle_action_view_availability_day(
         import traceback
 
         traceback.print_exc()
-        keyboard = [[InlineKeyboardButton("Volver", callback_data="action_back_menu")]]
-        reply_markup = InlineKeyboardMarkup(keyboard)
         await query.edit_message_text(
-            text="❌ Error al mostrar calendario", reply_markup=reply_markup
+            text="❌ Error al mostrar calendario", reply_markup=back_menu_markup()
         )
 
 
@@ -243,10 +242,8 @@ async def handle_action_view_availability_week(
         import traceback
 
         traceback.print_exc()
-        keyboard = [[InlineKeyboardButton("Volver", callback_data="action_back_menu")]]
-        reply_markup = InlineKeyboardMarkup(keyboard)
         await query.edit_message_text(
-            text="❌ Error al mostrar calendario", reply_markup=reply_markup
+            text="❌ Error al mostrar calendario", reply_markup=back_menu_markup()
         )
 
 
@@ -265,29 +262,10 @@ async def handle_availability_calendar_selection(
 
         if not result and key:
             # Mostrar siguiente paso del calendario
-            keyboard_dict = json.loads(key)
-            keyboard_buttons = [
-                [
-                    InlineKeyboardButton(
-                        text=btn["text"], callback_data=btn["callback_data"]
-                    )
-                    for btn in row
-                ]
-                for row in keyboard_dict.get("inline_keyboard", [])
-            ]
-            keyboard_buttons.append(
-                [
-                    InlineKeyboardButton(
-                        "↻ Reiniciar", callback_data="action_view_availability"
-                    ),
-                    InlineKeyboardButton("⫶☰ Menú", callback_data="action_back_menu"),
-                ]
-            )
-
             try:
                 await query.edit_message_text(
                     text="Selecciona una fecha:",
-                    reply_markup=InlineKeyboardMarkup(keyboard_buttons),
+                    reply_markup=calendar_step_markup(key),
                 )
             except BadRequest:
                 pass
@@ -340,31 +318,8 @@ async def handle_availability_calendar_selection(
                         )
                         context.user_data["current_day_date"] = selected_date
 
-                        keyboard = [
-                            [
-                                InlineKeyboardButton(
-                                    "⬅️ Día anterior", callback_data="action_prev_day"
-                                ),
-                                InlineKeyboardButton(
-                                    "Día siguiente ➡️", callback_data="action_next_day"
-                                ),
-                            ],
-                            [
-                                InlineKeyboardButton(
-                                    "📅 Otro día",
-                                    callback_data="action_view_availability_day",
-                                )
-                            ],
-                            [
-                                InlineKeyboardButton(
-                                    "⫶☰ Menú Principal",
-                                    callback_data="action_back_menu",
-                                )
-                            ],
-                        ]
-                        reply_markup = InlineKeyboardMarkup(keyboard)
                         await query.edit_message_text(
-                            text="✅ Imagen enviada", reply_markup=reply_markup
+                            text="✅ Imagen enviada", reply_markup=day_navigation_markup()
                         )
                     else:
                         await query.edit_message_text("❌ Error al generar la imagen")
@@ -403,33 +358,8 @@ async def handle_availability_calendar_selection(
                         )
                         context.user_data["current_week_date"] = selected_date
 
-                        keyboard = [
-                            [
-                                InlineKeyboardButton(
-                                    "⬅️ Semana anterior",
-                                    callback_data="action_prev_week",
-                                ),
-                                InlineKeyboardButton(
-                                    "Semana siguiente ➡️",
-                                    callback_data="action_next_week",
-                                ),
-                            ],
-                            [
-                                InlineKeyboardButton(
-                                    "📆 Otra semana",
-                                    callback_data="action_view_availability_week",
-                                )
-                            ],
-                            [
-                                InlineKeyboardButton(
-                                    "⫶☰ Menú Principal",
-                                    callback_data="action_back_menu",
-                                )
-                            ],
-                        ]
-                        reply_markup = InlineKeyboardMarkup(keyboard)
                         await query.edit_message_text(
-                            text="✅ Imagen enviada", reply_markup=reply_markup
+                            text="✅ Imagen enviada", reply_markup=week_navigation_markup()
                         )
                     else:
                         await query.edit_message_text("❌ Error al generar la imagen")
@@ -441,10 +371,8 @@ async def handle_availability_calendar_selection(
 
     except Exception as e:
         print(f"❌ Error en handle_availability_calendar_selection: {e}")
-        keyboard = [[InlineKeyboardButton("Volver", callback_data="action_back_menu")]]
-        reply_markup = InlineKeyboardMarkup(keyboard)
         await query.edit_message_text(
-            text=f"❌ Error: {str(e)}", reply_markup=reply_markup
+            text=f"❌ Error: {str(e)}", reply_markup=back_menu_markup()
         )
 
 
@@ -515,29 +443,8 @@ async def handle_prev_day(
                     )
 
             # Actualizar botones
-            keyboard = [
-                [
-                    InlineKeyboardButton(
-                        "⬅️ Día anterior", callback_data="action_prev_day"
-                    ),
-                    InlineKeyboardButton(
-                        "Día siguiente ➡️", callback_data="action_next_day"
-                    ),
-                ],
-                [
-                    InlineKeyboardButton(
-                        "📅 Otro día", callback_data="action_view_availability_day"
-                    )
-                ],
-                [
-                    InlineKeyboardButton(
-                        "⫶☰ Menú Principal", callback_data="action_back_menu"
-                    )
-                ],
-            ]
-            reply_markup = InlineKeyboardMarkup(keyboard)
             await query.edit_message_text(
-                text="✅ Día anterior", reply_markup=reply_markup
+                text="✅ Día anterior", reply_markup=day_navigation_markup()
             )
         else:
             await query.answer("❌ Error al generar la imagen", show_alert=True)
@@ -611,29 +518,8 @@ async def handle_next_day(
                     )
 
             # Actualizar botones
-            keyboard = [
-                [
-                    InlineKeyboardButton(
-                        "⬅️ Día anterior", callback_data="action_prev_day"
-                    ),
-                    InlineKeyboardButton(
-                        "Día siguiente ➡️", callback_data="action_next_day"
-                    ),
-                ],
-                [
-                    InlineKeyboardButton(
-                        "📅 Otro día", callback_data="action_view_availability_day"
-                    )
-                ],
-                [
-                    InlineKeyboardButton(
-                        "⫶☰ Menú Principal", callback_data="action_back_menu"
-                    )
-                ],
-            ]
-            reply_markup = InlineKeyboardMarkup(keyboard)
             await query.edit_message_text(
-                text="✅ Día siguiente", reply_markup=reply_markup
+                text="✅ Día siguiente", reply_markup=day_navigation_markup()
             )
         else:
             await query.answer("❌ Error al generar la imagen", show_alert=True)
@@ -716,29 +602,8 @@ async def handle_prev_week(
                     )
 
             # Actualizar botones
-            keyboard = [
-                [
-                    InlineKeyboardButton(
-                        "⬅️ Semana anterior", callback_data="action_prev_week"
-                    ),
-                    InlineKeyboardButton(
-                        "Semana siguiente ➡️", callback_data="action_next_week"
-                    ),
-                ],
-                [
-                    InlineKeyboardButton(
-                        "📆 Otra semana", callback_data="action_view_availability_week"
-                    )
-                ],
-                [
-                    InlineKeyboardButton(
-                        "⫶☰ Menú Principal", callback_data="action_back_menu"
-                    )
-                ],
-            ]
-            reply_markup = InlineKeyboardMarkup(keyboard)
             await query.edit_message_text(
-                text=f"✅ {caption}", reply_markup=reply_markup
+                text=f"✅ {caption}", reply_markup=week_navigation_markup()
             )
         else:
             await query.answer("❌ Error al generar la imagen", show_alert=True)
@@ -815,29 +680,8 @@ async def handle_next_week(
                     )
 
             # Actualizar botones
-            keyboard = [
-                [
-                    InlineKeyboardButton(
-                        "⬅️ Semana anterior", callback_data="action_prev_week"
-                    ),
-                    InlineKeyboardButton(
-                        "Semana siguiente ➡️", callback_data="action_next_week"
-                    ),
-                ],
-                [
-                    InlineKeyboardButton(
-                        "📆 Otra semana", callback_data="action_view_availability_week"
-                    )
-                ],
-                [
-                    InlineKeyboardButton(
-                        "⫶☰ Menú Principal", callback_data="action_back_menu"
-                    )
-                ],
-            ]
-            reply_markup = InlineKeyboardMarkup(keyboard)
             await query.edit_message_text(
-                text=f"✅ {caption}", reply_markup=reply_markup
+                text=f"✅ {caption}", reply_markup=week_navigation_markup()
             )
         else:
             await query.answer("❌ Error al generar la imagen", show_alert=True)

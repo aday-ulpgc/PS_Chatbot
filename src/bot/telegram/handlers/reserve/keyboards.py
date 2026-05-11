@@ -1,5 +1,23 @@
+import json
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
+def calendar_step_markup(key: str) -> InlineKeyboardMarkup:
+    """Reconstruye el teclado del calendario y añade botones de reinicio/menú."""
+    keyboard_dict = json.loads(key)
+    keyboard_buttons = [
+        [
+            InlineKeyboardButton(text=btn["text"], callback_data=btn["callback_data"])
+            for btn in row
+        ]
+        for row in keyboard_dict.get("inline_keyboard", [])
+    ]
+    keyboard_buttons.append(
+        [
+            InlineKeyboardButton("↻ Reiniciar", callback_data="action_view_availability"),
+            InlineKeyboardButton("⫶☰ Menú", callback_data="action_back_menu"),
+        ]
+    )
+    return InlineKeyboardMarkup(keyboard_buttons)
 
 def back_menu_markup(label: str = "Volver") -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
