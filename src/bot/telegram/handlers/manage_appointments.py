@@ -54,8 +54,8 @@ async def handle_action_my_appointments(
                 reply_markup=InlineKeyboardMarkup(keyboard),
                 parse_mode="Markdown",
             )
-        except BadRequest:
-            pass
+        except BadRequest as e:
+            print(f"⚠️ Aviso (esperado si el texto no cambia): {e}")
     else:
         await update.message.reply_text(
             text=texto_citas,

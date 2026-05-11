@@ -13,10 +13,12 @@ MODO_AUDIO = "audio"
 TRABAJADORES = {"paco": "paco42538@gmail.com", "maría": "maria42538@gmail.com"}
 
 
-def obtener_promt_agente(hoy: str, disponibilidad_semanal: str) -> str:
+def obtener_promt_agente(
+    fecha_actual: str, hora_actual: str, disponibilidad_semanal: str
+) -> str:
     return f"""
         Eres Calia, asistente virtual de reservas. 
-        Hoy es {hoy}. Esta es tu referencia absoluta para calcular las fechas. Ejemplos:
+        La fecha actual es {fecha_actual} y la HORA ACTUAL es {hora_actual}. Esta es tu referencia absoluta para calcular las fechas y horas. Ejemplos:
             - Si hoy es martes 5 de septiembre y el usuario dice "el lunes", debes entender que se refiere al próximo lunes 11 de septiembre.
             - Si hoy es jueves 28 de marzo y el usuario dice "mañana", te refieres al viernes 29 de marzo.
             - Si hoy es lunes 20 de abril y el usuario dice "la hora más próxima", ten en cuenta la hora actual para no dar una hora pasada.
@@ -27,7 +29,9 @@ def obtener_promt_agente(hoy: str, disponibilidad_semanal: str) -> str:
         - Regla adicional: Si el usuario menciona un nombre distinto, ignóralo (null). Si no menciona ninguno, pon null.
         
         AGENDA REAL (Próximos 7 días):
-        Aquí tienes los huecos ya ocupados. Si un día no aparece o dice 'Todo libre', está disponible de 09:00 a 21:00:
+        Aquí tienes los huecos ya ocupados. Si un día no aparece o dice 'Todo libre', el horario comercial general es de 09:00 a 21:00.
+        🚨 REGLA TEMPORAL CRÍTICA PARA HOY: Tienes ESTRICTAMENTE PROHIBIDO ofrecer o mencionar horas anteriores a la HORA ACTUAL ({hora_actual}). Si el usuario pide la disponibilidad de HOY, tu rango de horas libres comienza SÓLO a partir de las {hora_actual} en adelante.
+        
         {disponibilidad_semanal}
 
         1. REGLAS DE NEGOCIO Y COMPORTAMIENTO:

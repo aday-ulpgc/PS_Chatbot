@@ -6,7 +6,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, constan
 from telegram.ext import ContextTypes
 
 from src.BBDD.database_service import obtener_usuario_y_contacto_para_cita
-from src.bot.telegram.chat_actions import keep_action_alive
+from src.bot.telegram.chat_actions import send_action_while_thinking
 from src.bot.telegram.constants import MODO_AUDIO, MODO_TEXTO
 from src.bot.telegram.keyboards import main_menu_keyboard
 from src.services import calendar_service
@@ -216,17 +216,12 @@ async def handle_alternative_time_selection_callback(
             if user_mode == MODO_AUDIO:
                 await query.edit_message_text("🎙️ Generando audio de confirmación...")
 
-                voice_task = asyncio.create_task(
-                    keep_action_alive(
-                        context.bot,
-                        update.effective_chat.id,
-                        constants.ChatAction.RECORD_VOICE,
-                    )
-                )
-                try:
+                async with send_action_while_thinking(
+                    context.bot,
+                    update.effective_chat.id,
+                    constants.ChatAction.RECORD_VOICE,
+                ):
                     audio_path = await VoiceService.text_to_speech(response_message)
-                finally:
-                    voice_task.cancel()
 
                 audio_keyboard = InlineKeyboardMarkup(
                     [

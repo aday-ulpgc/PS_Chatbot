@@ -20,8 +20,7 @@ from src.bot.telegram.keyboards import main_menu_keyboard
 from src.services import calendar_service
 
 from .alternatives import handle_alternative_time_selection, parse_alternative_times
-from .state import limpiar_estado_reserva
-from .utils import send_with_optional_audio
+from .utils import send_with_optional_audio, limpiar_estado_reserva
 
 
 async def enviar_recordatorio_cita(context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -74,6 +73,7 @@ async def handle_calendar_and_time(
         modifying_id = context.user_data.get("modifying_id")
 
         if modifying_id:
+            await query.answer()
             await query.edit_message_text(
                 text="⏳ Modificando tu reserva en Google Calendar..."
             )
@@ -91,6 +91,7 @@ async def handle_calendar_and_time(
                     name_and_id,
                     old_fecha,
                     old_hora,
+                    True,
                 )
 
             # Crear evento en Google Calendar sin insertar en BD,
@@ -116,7 +117,9 @@ async def handle_calendar_and_time(
             )
             context.user_data.pop("modifying_id", None)
 
-            await query.answer("✅ Cita modificada con éxito", show_alert=True)
+            await query.edit_message_text(
+                "✅ Cita modificada con éxito. Actualizando agenda..."
+            )
 
             from src.bot.telegram.handlers.manage_appointments import (
                 handle_action_my_appointments,
@@ -276,7 +279,11 @@ async def handle_calendar_and_time(
 
             # Obtener o crear usuario en BD
             telegram_id = query.from_user.id
-            obtener_o_crear_usuario_telegram(telegram_id, query.from_user.first_name)
+            await asyncio.to_thread(
+                obtener_o_crear_usuario_telegram,
+                telegram_id,
+                query.from_user.first_name,
+            )
 
             now = datetime.now()
             is_today = result == date.today()

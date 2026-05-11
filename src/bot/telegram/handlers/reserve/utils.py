@@ -1,4 +1,3 @@
-import asyncio
 import os
 import re
 from datetime import datetime
@@ -6,7 +5,7 @@ from datetime import datetime
 from telegram import InlineKeyboardMarkup, Update, constants
 from telegram.ext import ContextTypes
 
-from src.bot.telegram.chat_actions import keep_action_alive
+from src.bot.telegram.chat_actions import send_action_while_thinking
 from src.bot.telegram.constants import MODO_AUDIO, MODO_TEXTO
 from src.services.voice_service import VoiceService
 
@@ -70,17 +69,10 @@ async def send_with_optional_audio(
             texto_para_audio = formatear_hora_para_voz(texto_para_audio)
 
             # UX: RECORD_VOICE se mantiene activo durante toda la llamada a ElevenLabs
-            voice_task = asyncio.create_task(
-                keep_action_alive(
-                    context.bot,
-                    update.effective_chat.id,
-                    constants.ChatAction.RECORD_VOICE,
-                )
-            )
-            try:
+            async with send_action_while_thinking(
+                context.bot, update.effective_chat.id, constants.ChatAction.RECORD_VOICE
+            ):
                 audio_path = await VoiceService.text_to_speech(texto_para_audio)
-            finally:
-                voice_task.cancel()
 
             with open(audio_path, "rb") as audio_file:
                 # Enviamos como VOICE y adjuntamos el reply_markup
@@ -123,3 +115,27 @@ async def _send_or_edit(query, update, text, reply_markup=None, parse_mode=None)
         await update.message.reply_text(
             text=text, reply_markup=reply_markup, parse_mode=parse_mode
         )
+
+
+def limpiar_estado_reserva(context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Elimina todas las claves volátiles de user_data relacionadas con el flujo
+    de reserva. Llamar al inicio de cada nueva reserva para evitar fugas de estado.
+    """
+    claves_a_limpiar = [
+        "reserve_photo_message_id",
+        "reserve_photo_message_ids",
+        "reserve_photo_generating",
+        "last_reserva_text",
+        "citas_bloques",
+        "citas_bloque_actual",
+        "day_photo_message_id",
+        "week_photo_message_id",
+        "day_photo_generating",
+        "week_photo_generating",
+        "current_day_date",
+        "current_week_date",
+        "availability_calendar",
+        "modifying_id",
+    ]
+    for clave in claves_a_limpiar:
+        context.user_data.pop(clave, None)

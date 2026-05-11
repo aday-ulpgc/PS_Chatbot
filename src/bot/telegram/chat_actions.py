@@ -3,14 +3,17 @@ from contextlib import asynccontextmanager
 from telegram.ext import ExtBot
 from telegram.constants import ChatAction
 
+
 @asynccontextmanager
-async def send_action_while_thinking(bot: ExtBot, chat_id: int, action: str = ChatAction.TYPING):
+async def send_action_while_thinking(
+    bot: ExtBot, chat_id: int, action: str = ChatAction.TYPING
+):
     """
     Gestor de contexto asíncrono para enviar acciones de chat de Telegram (ej. escribiendo).
     Inicia una tarea en segundo plano al entrar y la cancela de forma segura al salir.
     """
     task = None
-    
+
     async def keep_action_alive():
         try:
             while True:

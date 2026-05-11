@@ -23,7 +23,7 @@ from .booking import (
     handle_action_reserve,
     handle_calendar_and_time,
 )
-from .state import limpiar_estado_reserva
+from .utils import limpiar_estado_reserva
 from .utils import (
     formatear_fecha_para_voz,
     formatear_hora_para_voz,

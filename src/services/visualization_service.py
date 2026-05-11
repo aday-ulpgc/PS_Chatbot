@@ -2,6 +2,9 @@
 
 import os
 from datetime import datetime, timedelta
+import matplotlib
+
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from src.BBDD.databasecontroller import obtener_citas_por_usuario, get_session

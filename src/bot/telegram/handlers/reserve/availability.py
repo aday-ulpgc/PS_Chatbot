@@ -1,5 +1,4 @@
 import asyncio
-import json
 import os
 from datetime import date, datetime, timedelta
 
@@ -319,7 +318,8 @@ async def handle_availability_calendar_selection(
                         context.user_data["current_day_date"] = selected_date
 
                         await query.edit_message_text(
-                            text="✅ Imagen enviada", reply_markup=day_navigation_markup()
+                            text="✅ Imagen enviada",
+                            reply_markup=day_navigation_markup(),
                         )
                     else:
                         await query.edit_message_text("❌ Error al generar la imagen")
@@ -359,7 +359,8 @@ async def handle_availability_calendar_selection(
                         context.user_data["current_week_date"] = selected_date
 
                         await query.edit_message_text(
-                            text="✅ Imagen enviada", reply_markup=week_navigation_markup()
+                            text="✅ Imagen enviada",
+                            reply_markup=week_navigation_markup(),
                         )
                     else:
                         await query.edit_message_text("❌ Error al generar la imagen")

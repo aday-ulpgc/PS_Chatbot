@@ -39,9 +39,15 @@ class NLPService:
         modelo = os.getenv("GEMINI_MODEL", "gemini-3-flash-preview")
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent?key={api_key}"
 
-        hoy = datetime.now().strftime("%A, %d de %B de %Y a las %H:%M")
+        import pytz
+        from src.services.calendar_service import TIMEZONE
 
-        prompt_sistema = obtener_promt_agente(hoy, datos_semanal)
+        tz = pytz.timezone(TIMEZONE)
+        now = datetime.now(tz)
+        fecha_actual = now.strftime("%A, %d de %B de %Y")
+        hora_actual = now.strftime("%H:%M")
+
+        prompt_sistema = obtener_promt_agente(fecha_actual, hora_actual, datos_semanal)
 
         mensajes_gemini = []
         for m in historial_mensajes:

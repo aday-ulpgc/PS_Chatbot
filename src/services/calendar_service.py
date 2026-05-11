@@ -85,7 +85,9 @@ class GoogleCalendarService:
             .execute()
         )
 
-    def delete_event(self, user_id: str, date_str: str, hour_str: str) -> bool:
+    def delete_event(
+        self, user_id: str, date_str: str, hour_str: str, force: bool = False
+    ) -> bool:
         """Busca y elimina un evento específico en el calendario."""
         time_min = f"{date_str}T00:00:00Z"
         time_max = f"{date_str}T23:59:59Z"
@@ -126,14 +128,20 @@ class GoogleCalendarService:
 
             hora_coincide = f"T{formatted_hour}:00" in start_time
 
-            if hora_coincide and (id_coincide or summary_coincide):
+            if hora_coincide and (id_coincide or summary_coincide or force):
                 event_id = event["id"]
                 self.service.events().delete(
                     calendarId=self.calendar_id, eventId=event_id
                 ).execute()
-                print(
-                    f"[INFO] Evento borrado en Google Calendar: {date_str} a las {hour_str}"
-                )
+
+                if force and not (id_coincide or summary_coincide):
+                    print(
+                        f"[INFO] Evento fantasma borrado por fuerza (hora exacta): {date_str} a las {hour_str}"
+                    )
+                else:
+                    print(
+                        f"[INFO] Evento borrado en Google Calendar: {date_str} a las {hour_str}"
+                    )
                 return True
 
             if id_coincide or summary_coincide:
@@ -203,9 +211,19 @@ class GoogleCalendarService:
                 except (IndexError, ValueError):
                     pass
 
+        import pytz
+        from datetime import datetime
+
+        tz = pytz.timezone(TIMEZONE)
+        now = datetime.now(tz)
+        is_today = date_str == now.strftime("%Y-%m-%d")
+        current_hour = now.hour
+
         # Generar lista de horas disponibles (9:00 a 20:00)
         available_hours = []
         for h in range(9, 21):
+            if is_today and h <= current_hour:
+                continue
             hour_code = f"{h:02d}"
             if hour_code not in occupied_hours:
                 available_hours.append(f"{h:02d}:00")
@@ -410,7 +428,7 @@ async def create_reservation_via_api(
         return "❌ Error técnico al procesar tu reserva."
 
 
-def delete_reservation(user_id: str, date: str, hour: str) -> bool:
+def delete_reservation(user_id: str, date: str, hour: str, force: bool = False) -> bool:
     """
     Función de fachada (Facade) para eliminar una reserva.
     Es llamada cuando el usuario cancela o modifica desde Telegram.
@@ -422,7 +440,7 @@ def delete_reservation(user_id: str, date: str, hour: str) -> bool:
         # 1. Intentar en el calendario por defecto
         calendar_default = GoogleCalendarService()
         if calendar_default.calendar_id:
-            if calendar_default.delete_event(user_id, date, hour):
+            if calendar_default.delete_event(user_id, date, hour, force):
                 return True
 
         # 2. Si no se encontró, buscar en los calendarios de los trabajadores
@@ -430,12 +448,17 @@ def delete_reservation(user_id: str, date: str, hour: str) -> bool:
             try:
                 calendar_trabajador = GoogleCalendarService(gmail_trabajador=gmail)
                 if calendar_trabajador.calendar_id:
-                    if calendar_trabajador.delete_event(user_id, date, hour):
+                    if calendar_trabajador.delete_event(user_id, date, hour, force):
                         return True
             except Exception as e:
-                print(
-                    f"[WARN] Error al revisar el calendario de {nombre} ({gmail}): {e}"
-                )
+                if "404" in str(e):
+                    print(
+                        f"[INFO] Calendario no encontrado o sin permisos (404) para {nombre} ({gmail}). Saltando..."
+                    )
+                else:
+                    print(
+                        f"[WARN] Error al revisar el calendario de {nombre} ({gmail}): {e}"
+                    )
                 continue
 
         print("[ERROR] No se encontro la cita en ningun calendario para borrarla.")
