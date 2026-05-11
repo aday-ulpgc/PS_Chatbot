@@ -27,12 +27,10 @@ async def enviar_recordatorio_cita(context: ContextTypes.DEFAULT_TYPE) -> None:
     """Esta función es la que el bot ejecuta cuando pasan los 2 segundos."""
     job = context.job
     try:
-        # Obtener el message_id del recordatorio anterior si existe
         reminder_message_id = context.user_data.get("reminder_message_id")
         message_text = f"⏰ PRUEBA\n{job.data}"
 
         if reminder_message_id:
-            # Editar el mensaje anterior en lugar de crear uno nuevo
             try:
                 await context.bot.edit_message_text(
                     chat_id=job.chat_id,
@@ -47,7 +45,6 @@ async def enviar_recordatorio_cita(context: ContextTypes.DEFAULT_TYPE) -> None:
                 )
                 context.user_data["reminder_message_id"] = msg.message_id
         else:
-            # Enviar nuevo mensaje
             msg = await context.bot.send_message(chat_id=job.chat_id, text=message_text)
             context.user_data["reminder_message_id"] = msg.message_id
     except Exception as e:
@@ -94,8 +91,6 @@ async def handle_calendar_and_time(
                     True,
                 )
 
-            # Crear evento en Google Calendar sin insertar en BD,
-            # porque actualizar_cita_fecha_db ya actualiza el registro existente
             await asyncio.to_thread(
                 calendar_service.create_reservation,
                 name_and_id,
@@ -138,7 +133,6 @@ async def handle_calendar_and_time(
             )
         )
 
-        # Obtener o crear usuario y contacto de la BD
         telegram_id = update.effective_user.id
         user_info = await asyncio.to_thread(
             obtener_usuario_y_contacto_para_cita,
@@ -169,7 +163,6 @@ async def handle_calendar_and_time(
             )
             return True
 
-        # Llamar a la API para crear la cita
         response_message = await calendar_service.create_reservation_via_api(
             telegram_id=telegram_id,
             date=selected_data,
@@ -180,7 +173,6 @@ async def handle_calendar_and_time(
         )
 
         if response_message.startswith("❌"):
-            # Verificar si es un error de horario ocupado con alternativas
             if "Otras fechas cercanas" in response_message:
                 alternatives = parse_alternative_times(response_message)
 
@@ -191,7 +183,6 @@ async def handle_calendar_and_time(
                     )
                     return True
 
-            # Si no hay alternativas o es otro tipo de error, mostrar error normal
             error_keyboard = InlineKeyboardMarkup(
                 [
                     [
@@ -213,12 +204,10 @@ async def handle_calendar_and_time(
                 reply_markup=error_keyboard,
             )
         else:
-            # Obtener modo del usuario (TEXTO o AUDIO)
             user_mode = context.user_data.get("pref_mode", MODO_TEXTO)
 
             context.user_data["last_reserva_text"] = response_message
 
-            # Borrar la imagen de disponibilidad si existe
             reserve_photo_id = context.user_data.get("reserve_photo_message_id")
             if reserve_photo_id:
                 try:
@@ -277,7 +266,6 @@ async def handle_calendar_and_time(
         elif result:
             context.user_data["selected_data"] = str(result)
 
-            # Obtener o crear usuario en BD
             telegram_id = query.from_user.id
             await asyncio.to_thread(
                 obtener_o_crear_usuario_telegram,
@@ -371,7 +359,6 @@ async def handle_calendar_and_time(
 
 
 async def handle_action_reserve(query, context: ContextTypes.DEFAULT_TYPE) -> None:
-    # Limpiamos cualquier estado residual de flujos anteriores
     limpiar_estado_reserva(context)
 
     current_calendar = DetailedTelegramCalendar(min_date=date.today())
@@ -382,7 +369,7 @@ async def handle_action_reserve(query, context: ContextTypes.DEFAULT_TYPE) -> No
         {"text": "↻ Reiniciar", "callback_data": "action_reserve"},
         {"text": "⫶☰ Menú", "callback_data": "action_back_menu"},
     ]
-    # Añadir el botón de disponibilidad
+  
     availability_row = [
         {"text": "📅 Ver disponibilidad", "callback_data": "action_view_availability"}
     ]

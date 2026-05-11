@@ -4,6 +4,7 @@ from telegram.error import BadRequest
 
 from src.bot.telegram.constants import WELCOME_TEXT, MODO_TEXTO
 from src.bot.telegram.keyboards import main_menu_keyboard, menu_eleccion
+from src.services.translator_service import TranslatorService
 
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -13,10 +14,18 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         update: Objeto con la información del mensaje entrante.
         context: Contexto del handler proporcionado por python-telegram-bot.
     """
+    idioma_usuario = 'es' # Por defecto, español
+    if update.effective_user and update.effective_user.language_code:
+        idioma_usuario = update.effective_user.language_code.split('-')[0] 
+    
+    context.user_data['idioma'] = idioma_usuario
+
     if update.message:
+        texto_bienvenida = TranslatorService.traducir(WELCOME_TEXT, idioma_usuario)
+
         await update.message.reply_text(
-            text=WELCOME_TEXT,
-            reply_markup=menu_eleccion(),
+            text=texto_bienvenida,
+            reply_markup=menu_eleccion(idioma=idioma_usuario),
         )
 
 
@@ -24,7 +33,8 @@ async def handle_action_back_menu(query, context: ContextTypes.DEFAULT_TYPE) -> 
     """Muestra el menú principal, manejando correctamente mensajes de texto y audio."""
     current_mode = context.user_data.get("pref_mode", MODO_TEXTO)
 
-    # Eliminar imágenes de disponibilidad si existen
+    idioma_usuario = context.user_data.get('idioma', 'es')
+
     try:
         day_photo_id = context.user_data.get("day_photo_message_id")
         if day_photo_id:
@@ -33,8 +43,7 @@ async def handle_action_back_menu(query, context: ContextTypes.DEFAULT_TYPE) -> 
                     chat_id=query.message.chat_id, message_id=day_photo_id
                 )
             except Exception:
-                pass  # Si no se puede borrar, continuar
-            # Limpiar el ID para que no intente reutilizarlo
+                pass 
             context.user_data["day_photo_message_id"] = None
 
         week_photo_id = context.user_data.get("week_photo_message_id")
@@ -44,11 +53,9 @@ async def handle_action_back_menu(query, context: ContextTypes.DEFAULT_TYPE) -> 
                     chat_id=query.message.chat_id, message_id=week_photo_id
                 )
             except Exception:
-                pass  # Si no se puede borrar, continuar
-            # Limpiar el ID para que no intente reutilizarlo
+                pass  
             context.user_data["week_photo_message_id"] = None
 
-        # También borrar TODAS las imágenes de disponibilidad del flujo de reserva
         for reserve_photo_id in context.user_data.get("reserve_photo_message_ids", []):
             try:
                 await context.bot.delete_message(
@@ -64,11 +71,13 @@ async def handle_action_back_menu(query, context: ContextTypes.DEFAULT_TYPE) -> 
     except Exception:
         pass
 
+    texto_bienvenida = TranslatorService.traducir(WELCOME_TEXT, idioma_usuario)
+
     if query.message.text:
         try:
             await query.edit_message_text(
-                text=WELCOME_TEXT,
-                reply_markup=main_menu_keyboard(current_mode),
+                text=texto_bienvenida,
+                reply_markup=main_menu_keyboard(current_mode, idioma=idioma_usuario),
             )
         except BadRequest:
             pass
@@ -76,6 +85,6 @@ async def handle_action_back_menu(query, context: ContextTypes.DEFAULT_TYPE) -> 
         await query.delete_message()
         await context.bot.send_message(
             chat_id=query.message.chat_id,
-            text=WELCOME_TEXT,
-            reply_markup=main_menu_keyboard(current_mode),
+            text=texto_bienvenida,
+            reply_markup=main_menu_keyboard(current_mode, idioma=idioma_usuario),
         )
