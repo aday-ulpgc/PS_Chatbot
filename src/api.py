@@ -18,6 +18,7 @@ from datetime import datetime, timedelta
 from typing import AsyncGenerator, Optional
 
 from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
@@ -116,6 +117,16 @@ app = FastAPI(
     version="0.1.0",
     description="CRUD de usuarios, contactos y citas para el bot de Telegram.",
     lifespan=lifespan,
+)
+
+# ── CORS (permite peticiones desde la Landing Page) ────────────────────────────
+# En producción, sustituye ["*"] por la URL exacta de tu Landing Page.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
@@ -904,3 +915,58 @@ def get_disponibilidad_semana_completa(
     return FileResponse(
         filepath, media_type="image/png", filename="disponibilidad_semana_completa.png"
     )
+
+
+# ── Endpoint: CHAT WEB ─────────────────────────────────────────────────────────
+
+
+class ChatWebRequest(BaseModel):
+    """Petición al endpoint de chat desde la Landing Page."""
+
+    user_id: str
+    """Identificador único del usuario web (UUID o Telegram Login ID)."""
+
+    mensaje: str
+    """Texto del mensaje del usuario."""
+
+
+class ChatWebResponse(BaseModel):
+    """Respuesta del endpoint de chat."""
+
+    respuesta: str
+    accion: Optional[str] = None
+    estado: Optional[str] = None
+    datos_extraidos: Optional[dict] = None
+
+
+@app.post(
+    "/v1/chat/web",
+    response_model=ChatWebResponse,
+    tags=["Chat Web"],
+    summary="Endpoint universal de chat para la Landing Page",
+    description=(
+        "Recibe un `user_id` (UUID generado en el cliente o Telegram Login ID) y un `mensaje` de texto. "
+        "Procesa la petición a través del mismo NLP Core que usa el bot de Telegram y devuelve "
+        "la respuesta de Calia junto con los metadatos de la intención detectada."
+    ),
+)
+async def post_chat_web(body: ChatWebRequest):
+    """Endpoint de chat universal para la Landing Page."""
+    try:
+        from src.bot.telegram.handlers.nlp import procesar_flujo_completo
+
+        respuesta_agente = await procesar_flujo_completo(
+            user_id=body.user_id,
+            texto=body.mensaje,
+            es_web=True,
+        )
+
+        return ChatWebResponse(
+            respuesta=respuesta_agente.get("respuesta_usuario", "Error de comunicación."),
+            accion=respuesta_agente.get("accion"),
+            estado=respuesta_agente.get("estado"),
+            datos_extraidos=respuesta_agente.get("datos_extraidos"),
+        )
+    except Exception as e:
+        print(f"❌ Error en /v1/chat/web: {e}")
+        raise HTTPException(status_code=500, detail=f"Error interno del servidor: {e}")

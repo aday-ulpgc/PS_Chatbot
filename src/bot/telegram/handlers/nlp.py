@@ -2,8 +2,11 @@
 import base64
 import asyncio
 import os
+from typing import Optional
+
 from telegram import Update, constants
 from telegram.ext import ContextTypes
+
 from src.bot.telegram.chat_actions import send_action_while_thinking
 from src.nlp.gemini_service import NLPService
 from src.services import calendar_service
@@ -15,11 +18,26 @@ from src.bot.telegram.handlers.manage_appointments import (
     handle_action_my_appointments,
 )
 
+# ── Estado de sesiones Web (in-memory) ───────────────────────────────────────
+# Clave: user_id (str), Valor: dict con "historial", "pref_mode", "trabajador_actual"
+WEB_SESSIONS: dict[str, dict] = {}
+
+
+def _get_user_data(user_id: str, es_web: bool, context=None) -> dict:
+    """Devuelve el diccionario de datos de usuario correcto según la plataforma."""
+    if es_web:
+        if user_id not in WEB_SESSIONS:
+            WEB_SESSIONS[user_id] = {}
+        return WEB_SESSIONS[user_id]
+    return context.user_data
+
+
+# ── Helpers de respuesta (solo Telegram) ─────────────────────────────────────
 
 async def _reply_to_user(
     update: Update, context: ContextTypes.DEFAULT_TYPE, texto_respuesta: str
 ):
-    """Envía la respuesta como audio o texto según las preferencias del usuario."""
+    """Envía la respuesta como audio o texto según las preferencias del usuario (Telegram)."""
     user_mode = context.user_data.get("pref_mode", MODO_TEXTO)
 
     if user_mode == MODO_AUDIO:
@@ -38,6 +56,8 @@ async def _reply_to_user(
     else:
         await update.message.reply_text(texto_respuesta)
 
+
+# ── Handlers de intención (solo Telegram) ────────────────────────────────────
 
 async def _handle_settings_intent(
     update: Update,
@@ -195,10 +215,34 @@ INTENT_HANDLERS = {
 }
 
 
-async def handle_texto_libre(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> None:
-    nombre_trabajador_sesion = context.user_data.get("trabajador_actual")
+# ── Núcleo universal de procesamiento ────────────────────────────────────────
+
+async def procesar_flujo_completo(
+    user_id: str,
+    texto: str,
+    es_web: bool = False,
+    update: Optional[Update] = None,
+    context: Optional[ContextTypes.DEFAULT_TYPE] = None,
+) -> dict:
+    """Núcleo agnóstico del chatbot. Procesa un mensaje y devuelve el dict de respuesta.
+
+    Funciona tanto desde Telegram (es_web=False) como desde la API REST (es_web=True).
+    Cuando es_web=True, no accede a ningún objeto de Telegram (update/context).
+
+    Args:
+        user_id:    Identificador único del usuario (telegram_id str o UUID web).
+        texto:      Texto del mensaje del usuario.
+        es_web:     True si la petición viene de la API web.
+        update:     Objeto Update de Telegram (None si es_web=True).
+        context:    ContextTypes de Telegram (None si es_web=True).
+
+    Returns:
+        El dict completo de respuesta del agente (respuesta_agente).
+    """
+    user_data = _get_user_data(user_id, es_web, context)
+
+    # ── Contexto de disponibilidad semanal ────────────────────────────────────
+    nombre_trabajador_sesion = user_data.get("trabajador_actual")
     gmail_consulta = (
         TRABAJADORES.get(nombre_trabajador_sesion) if nombre_trabajador_sesion else None
     )
@@ -206,6 +250,96 @@ async def handle_texto_libre(
     datos_semanal = await asyncio.to_thread(
         calendar_service.get_weekly_availability, 7, gmail_consulta
     )
+
+    # ── Historial ─────────────────────────────────────────────────────────────
+    if "historial" not in user_data:
+        user_data["historial"] = []
+
+    user_data["historial"].append({"rol": "usuario", "texto": texto})
+
+    if len(user_data["historial"]) > 10:
+        user_data["historial"] = user_data["historial"][-10:]
+
+    # ── Llamada al LLM ────────────────────────────────────────────────────────
+    if not es_web:
+        async with send_action_while_thinking(
+            context.bot, update.effective_chat.id, constants.ChatAction.TYPING
+        ):
+            respuesta_agente = await NLPService.procesar_mensaje(
+                user_data["historial"],
+                datos_semanal=datos_semanal,
+            )
+    else:
+        respuesta_agente = await NLPService.procesar_mensaje(
+            user_data["historial"],
+            datos_semanal=datos_semanal,
+        )
+
+    # ── Actualizar historial con la respuesta ─────────────────────────────────
+    texto_respuesta = respuesta_agente.get(
+        "respuesta_usuario", "Ha habido un error de comunicación."
+    )
+    user_data["historial"].append({"rol": "asistente", "texto": texto_respuesta})
+
+    estado = respuesta_agente.get("estado")
+    accion = respuesta_agente.get("accion")
+    datos = respuesta_agente.get("datos_extraidos", {})
+
+    # ── Actualizar trabajador en sesión ───────────────────────────────────────
+    nuevo_trabajador = datos.get("nombre_trabajador")
+    if nuevo_trabajador:
+        user_data["trabajador_actual"] = nuevo_trabajador.lower()
+
+    # ── Dispatch de intenciones (solo Telegram) ───────────────────────────────
+    if not es_web:
+        # Vista semanal con imagen
+        if (
+            accion == "consultar_disponibilidad_semana"
+            and estado == "listo_para_consultar_disponibilidad_semana"
+        ):
+            await _reply_to_user(update, context, texto_respuesta)
+
+            try:
+                from src.services.visualization_service import (
+                    generar_imagen_disponibilidad_semana,
+                )
+                from datetime import datetime
+
+                fecha_iso = datos.get("fecha_inicio_iso") or datos.get("fecha_iso")
+                if fecha_iso:
+                    fecha_inicio = datetime.fromisoformat(fecha_iso)
+                    img_path = await asyncio.to_thread(
+                        generar_imagen_disponibilidad_semana,
+                        update.effective_user.id,
+                        fecha_inicio,
+                    )
+                    if img_path and os.path.exists(img_path):
+                        with open(img_path, "rb") as img_file:
+                            await update.message.reply_photo(photo=img_file)
+            except Exception as e:
+                print(f"Error al generar imagen de disponibilidad semanal: {e}")
+
+        handler = INTENT_HANDLERS.get(accion)
+
+        if accion in ["activar_audio", "desactivar_audio", "abrir_ajustes"]:
+            await handler(update, context, respuesta_agente, texto_respuesta)
+        elif estado == "recopilando" or accion == "desconocida":
+            await _reply_to_user(update, context, texto_respuesta)
+        elif handler:
+            await handler(update, context, respuesta_agente, texto_respuesta)
+        else:
+            await _reply_to_user(update, context, texto_respuesta)
+
+    # ── Devolver siempre el dict completo (útil para la API web) ─────────────
+    return respuesta_agente
+
+
+# ── Adaptador Telegram ────────────────────────────────────────────────────────
+
+async def handle_texto_libre(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    """Handler de Telegram. Thin adapter sobre procesar_flujo_completo."""
     texto_usuario = ""
     audio_b64 = None
 
@@ -217,77 +351,11 @@ async def handle_texto_libre(
     else:
         texto_usuario = update.message.text
 
-    if "historial" not in context.user_data:
-        context.user_data["historial"] = []
-
-    context.user_data["historial"].append({"rol": "usuario", "texto": texto_usuario})
-
-    if len(context.user_data["historial"]) > 10:
-        context.user_data["historial"] = context.user_data["historial"][-10:]
-
-    # UX: send_action_while_thinking mantiene el indicador activo durante toda la llamada a Gemini
-    async with send_action_while_thinking(
-        context.bot, update.effective_chat.id, constants.ChatAction.TYPING
-    ):
-        respuesta_agente = await NLPService.procesar_mensaje(
-            context.user_data["historial"],
-            datos_semanal=datos_semanal,
-            audio_b64=audio_b64,
-        )
-
-    texto_respuesta = respuesta_agente.get(
-        "respuesta_usuario", "Ha habido un error de comunicación."
+    user_id = str(update.effective_user.id)
+    await procesar_flujo_completo(
+        user_id=user_id,
+        texto=texto_usuario,
+        es_web=False,
+        update=update,
+        context=context,
     )
-    context.user_data["historial"].append(
-        {"rol": "asistente", "texto": texto_respuesta}
-    )
-
-    estado = respuesta_agente.get("estado")
-    accion = respuesta_agente.get("accion")
-    datos = respuesta_agente.get("datos_extraidos", {})
-
-    nuevo_trabajador = datos.get("nombre_trabajador")
-    if nuevo_trabajador:
-        nuevo_trabajador = nuevo_trabajador.lower()
-        context.user_data["trabajador_actual"] = nuevo_trabajador
-
-    if (
-        accion == "consultar_disponibilidad_semana"
-        and estado == "listo_para_consultar_disponibilidad_semana"
-    ):
-        # Enviar respuesta en modo voz o texto
-        await _reply_to_user(update, context, texto_respuesta)
-
-        # Enviar imagen de disponibilidad semanal si hay datos suficientes
-        try:
-            from src.services.visualization_service import (
-                generar_imagen_disponibilidad_semana,
-            )
-
-            user_id = update.effective_user.id
-            from datetime import datetime
-
-            # Buscar la fecha de inicio en los datos extraídos
-            fecha_iso = datos.get("fecha_inicio_iso") or datos.get("fecha_iso")
-            if fecha_iso:
-                fecha_inicio = datetime.fromisoformat(fecha_iso)
-                img_path = await asyncio.to_thread(
-                    generar_imagen_disponibilidad_semana, user_id, fecha_inicio
-                )
-                if img_path and os.path.exists(img_path):
-                    with open(img_path, "rb") as img_file:
-                        await update.message.reply_photo(photo=img_file)
-        except Exception as e:
-            print(f"Error al generar imagen de disponibilidad semanal: {e}")
-
-    handler = INTENT_HANDLERS.get(accion)
-
-    if accion in ["activar_audio", "desactivar_audio", "abrir_ajustes"]:
-        await handler(update, context, respuesta_agente, texto_respuesta)
-    elif estado == "recopilando" or accion == "desconocida":
-        await _reply_to_user(update, context, texto_respuesta)
-    elif handler:
-        await handler(update, context, respuesta_agente, texto_respuesta)
-    else:
-        # Fallback
-        await _reply_to_user(update, context, texto_respuesta)
