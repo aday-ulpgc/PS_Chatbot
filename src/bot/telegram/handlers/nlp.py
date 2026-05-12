@@ -88,6 +88,7 @@ async def _handle_booking_intent(
     nombre_id = f"{update.effective_user.full_name} ({update.effective_user.id})"
     nombre_ia = datos.get("nombre_trabajador") or ""
     gmail_trabajador = TRABAJADORES.get(nombre_ia.lower())
+    print(f"Intentando reservar para {nombre_id} el {fecha} a las {hora} con {nombre_ia} ({gmail_trabajador})")
 
     try:
         resultado = await asyncio.to_thread(
