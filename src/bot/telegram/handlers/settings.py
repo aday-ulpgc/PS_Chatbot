@@ -15,7 +15,12 @@ from src.services.translator_service import TranslatorService
 async def handle_toggle_audio_main(query, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Activa o desactiva rápidamente el audio desde el menú principal."""
     current_mode = context.user_data.get("pref_mode", MODO_TEXTO)
-    idioma = context.user_data.get('idioma', 'es')
+    idioma = context.user_data.get('idioma')
+
+    if not idioma and query.from_user.language_code:
+        idioma = query.from_user.language_code.split('-')[0]
+    else:
+        idioma = idioma or 'es'
 
     if current_mode == MODO_AUDIO:
         context.user_data["pref_mode"] = MODO_TEXTO
@@ -36,20 +41,15 @@ async def handle_toggle_audio_main(query, context: ContextTypes.DEFAULT_TYPE) ->
         msg_alerta = TranslatorService.traducir("Audio activado 🎤", idioma)
         await query.answer(text=msg_alerta)
 
-        texto_bienvenida = TranslatorService.traducir(WELCOME_TEXT, idioma)
-        await query.edit_message_text(
-            text=texto_bienvenida,
-            reply_markup=main_menu_keyboard(MODO_AUDIO, idioma=idioma),
+        texto_audio_es = (
+            "Hola, soy Calia, tu asistente de reservas. "
+            "El modo audio ha sido activado. "
+            "Puedes hacer una reserva, consultar tus citas o pedir ayuda."
         )
+        
+        texto_audio_final = TranslatorService.traducir(texto_audio_es, idioma)
 
         try:
-            texto_audio_es = (
-                "Hola, soy Calia, tu asistente de reservas. "
-                "El modo audio ha sido activado. "
-                "Puedes hacer una reserva, consultar tus citas o pedir ayuda."
-            )
-            texto_audio_final = TranslatorService.traducir(texto_audio_es, idioma)
-
             audio_path = await VoiceService.text_to_speech(texto_audio_final)
 
             with open(audio_path, "rb") as audio_file:
@@ -108,7 +108,7 @@ async def handle_show_settings(query, context: ContextTypes.DEFAULT_TYPE) -> Non
     await query.edit_message_text(
         text=texto_traducido,
         parse_mode="Markdown",
-        reply_markup=settings_menu_keyboard(modo_interaccion, modo_respuesta, idioma=idioma), # 📌 Pasar idioma
+        reply_markup=settings_menu_keyboard(modo_interaccion, modo_respuesta, idioma=idioma),
     )
 
 
