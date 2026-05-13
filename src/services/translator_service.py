@@ -10,8 +10,11 @@ class TranslatorService:
         if not texto or len(texto) < 3:
             return 'es' # Por defecto español 
         try:
-            return detect(texto)
-        except LangDetectException:
+            det = detect(texto)
+            if det not in ['es', 'en', 'fr', 'it', 'de', 'pt']:
+                return 'en' 
+            return det
+        except:
             return 'es'
 
     @staticmethod
