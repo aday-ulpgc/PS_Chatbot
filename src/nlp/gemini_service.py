@@ -35,15 +35,13 @@ class NLPService:
 
     @staticmethod
     async def procesar_mensaje(
-        historial_mensajes: list, datos_semanal: str, audio_b64: str = None
+        historial_mensajes: list, datos_semanal: str, audio_b64: str = None, idioma_usuario: str = 'es'
     ) -> dict:
         api_key = os.getenv("GEMINI_API_KEY")
         modelo = os.getenv("GEMINI_MODEL", "gemini-3-flash-preview")
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent?key={api_key}"
 
-        ultimo_mensaje = historial_mensajes[-1]["texto"]
-        texto_es, idioma_usuario = TranslatorService.traducir_a_es(ultimo_mensaje)
-
+       
         from src.services.calendar_service import TIMEZONE
 
         tz = pytz.timezone(TIMEZONE)
@@ -54,15 +52,22 @@ class NLPService:
         prompt_sistema = obtener_promt_agente(fecha_actual, hora_actual, datos_semanal)
 
         mensajes_gemini = []
-        for i, m in enumerate(historial_mensajes):
+        for m in historial_mensajes:
             role = "user" if m["rol"] == "usuario" else "model"
-            texto_a_enviar = texto_es if (i == len(historial_mensajes) - 1 and role == "user") else m["texto"]
-            mensajes_gemini.append({"role": role, "parts": [{"text": texto_a_enviar}]})
-        
+            texto_original = m["texto"]
+            
+            if role == "user":
+                texto_para_gemini, _ = TranslatorService.traducir_a_es(texto_original)
+            else:
+               texto_para_gemini = texto_original
+            
+            mensajes_gemini.append({"role": role, "parts": [{"text": texto_para_gemini}]})
+
         if audio_b64:
             mensajes_gemini[-1]["parts"].append(
                 {"inlineData": {"mimeType": "audio/ogg", "data": audio_b64}}
             )
+            
         payload = {
             "contents": mensajes_gemini,
             "systemInstruction": {"parts": [{"text": prompt_sistema}]},
@@ -91,7 +96,7 @@ class NLPService:
         for intento in range(max_reintentos):
             try:
                 async with httpx.AsyncClient() as client:
-                    response = await client.post(url, json=payload, timeout=15.0)
+                    response = await client.post(url, json=payload, timeout=30.0)
 
                     if response.status_code == 429:
                         if intento < max_reintentos - 1:
