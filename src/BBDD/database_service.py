@@ -307,21 +307,24 @@ def obtener_usuarios_esperando(fecha: datetime) -> list:
             from src.BBDD.databasecontroller import ListaEspera
             from sqlalchemy import func
 
-            esperas = (
+            # Obtener solo el primer usuario (el más antiguo) para fechas futuras
+            espera = (
                 session.query(ListaEspera)
                 .filter(
                     ListaEspera.FECHA == fecha,
                     ListaEspera.NOTIFICADO == 0,
+                    ListaEspera.FECHA >= datetime.now()
                 )
-                .all()
+                .order_by(ListaEspera.ID_LISTA.asc())
+                .first()
             )
 
             from collections import namedtuple
             EsperaData = namedtuple('EsperaData', ['ID_LISTA', 'TELEGRAM_ID', 'FECHA'])
             
             resultado = []
-            for e in esperas:
-                resultado.append(EsperaData(ID_LISTA=e.ID_LISTA, TELEGRAM_ID=e.TELEGRAM_ID, FECHA=e.FECHA))
+            if espera:
+                resultado.append(EsperaData(ID_LISTA=espera.ID_LISTA, TELEGRAM_ID=espera.TELEGRAM_ID, FECHA=espera.FECHA))
 
             return resultado
 

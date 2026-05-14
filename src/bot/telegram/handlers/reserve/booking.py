@@ -434,3 +434,52 @@ async def handle_action_reserve(query, context: ContextTypes.DEFAULT_TYPE) -> No
         )
     except BadRequest:
         pass
+
+async def handle_waitlist_booking(
+    query,
+    context: ContextTypes.DEFAULT_TYPE,
+    update: Update,
+) -> None:
+    """Procesa el intento de reserva directa desde la notificación de lista de espera."""
+    idioma = context.user_data.get("idioma", "es")
+    
+    # query.data format: waitlistbook_YYYY-MM-DD_HH:MM
+    try:
+        _, fecha_iso, hora_iso = query.data.split("_")
+    except ValueError:
+        msg = TranslatorService.traducir("❌ Formato de datos inválido.", idioma)
+        await query.edit_message_text(msg)
+        return
+
+    msg = TranslatorService.traducir("⏳ Procesando tu reserva...", idioma)
+    await query.edit_message_text(text=msg)
+
+    telegram_id = update.effective_user.id
+    user_info = await asyncio.to_thread(
+        obtener_usuario_y_contacto_para_cita,
+        telegram_id,
+        update.effective_user.full_name,
+    )
+
+    if user_info.get("error"):
+        msg_error = TranslatorService.traducir("❌ Error al obtener tus datos de usuario.", idioma)
+        await query.edit_message_text(text=msg_error)
+        return
+
+    response_message = await calendar_service.create_reservation_via_api(
+        telegram_id=telegram_id,
+        date=fecha_iso,
+        hour=hora_iso,
+        usuario_id=user_info["usuario_id"],
+        contacto_id=user_info["contacto_id"],
+        bloqueante=7,
+    )
+
+    response_traducida = TranslatorService.traducir(response_message, idioma)
+
+    if response_message.startswith("❌"):
+        # Error (ej. alguien más se adelantó o falló la API)
+        await query.edit_message_text(text=response_traducida)
+    else:
+        # Éxito
+        await query.edit_message_text(text=f"✅ {response_traducida}")

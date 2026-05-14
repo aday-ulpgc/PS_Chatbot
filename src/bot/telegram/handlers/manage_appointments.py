@@ -191,7 +191,6 @@ async def handle_cancel_appointment(query, context: ContextTypes.DEFAULT_TYPE) -
                 fecha_str = cita["FECHA"].strftime("%d/%m/%Y")
                 hora_str = cita["FECHA"].strftime("%H:%M")
 
-                # Obtener el idioma del usuario que va a recibir la notificación
                 user_data_target = context.application.user_data.get(usuario.TELEGRAM_ID, {})
                 idioma_target = user_data_target.get("idioma", "es")
 
@@ -204,14 +203,25 @@ async def handle_cancel_appointment(query, context: ContextTypes.DEFAULT_TYPE) -
                     idioma_target
                 )
 
-                await context.bot.send_message(
-                    chat_id=usuario.TELEGRAM_ID,
-                    text=msg_notificacion
-                )
-
+                # Marcar notificado ANTES de enviar el mensaje, para evitar intentos infinitos si el usuario bloqueó el bot
                 await asyncio.to_thread(
                     marcar_espera_notificada,
                     usuario.ID_LISTA
+                )
+
+                from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+                fecha_iso = cita["FECHA"].strftime("%Y-%m-%d")
+                hora_iso = cita["FECHA"].strftime("%H:%M")
+                
+                # Crear botón de reserva directa
+                keyboard = InlineKeyboardMarkup(
+                    [[InlineKeyboardButton("🗓️ Reservar este hueco ahora", callback_data=f"waitlistbook_{fecha_iso}_{hora_iso}")]]
+                )
+
+                await context.bot.send_message(
+                    chat_id=usuario.TELEGRAM_ID,
+                    text=msg_notificacion,
+                    reply_markup=keyboard
                 )
 
             except Exception as e:
