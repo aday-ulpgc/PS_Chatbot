@@ -175,6 +175,48 @@ async def handle_cancel_appointment(query, context: ContextTypes.DEFAULT_TYPE) -
 
     exito = await asyncio.to_thread(cancelar_cita_db, id_cita)
 
+    from src.BBDD.database_service import (
+    obtener_usuarios_esperando,
+    marcar_espera_notificada,
+    )
+
+    if cita:
+        usuarios_espera = await asyncio.to_thread(
+            obtener_usuarios_esperando,
+            cita["FECHA"]
+        )
+
+        for usuario in usuarios_espera:
+            try:
+                fecha_str = cita["FECHA"].strftime("%d/%m/%Y")
+                hora_str = cita["FECHA"].strftime("%H:%M")
+
+                # Obtener el idioma del usuario que va a recibir la notificación
+                user_data_target = context.application.user_data.get(usuario.TELEGRAM_ID, {})
+                idioma_target = user_data_target.get("idioma", "es")
+
+                msg_notificacion = TranslatorService.traducir(
+                    f"📢 ¡Tenemos una buena noticia!\n\n"
+                    f"Se acaba de liberar el horario en el que estabas interesado:\n"
+                    f"📅 Fecha: {fecha_str}\n"
+                    f"⏰ Hora: {hora_str}\n\n"
+                    f"Si aún deseas esta cita, ya está disponible para que la reserves.",
+                    idioma_target
+                )
+
+                await context.bot.send_message(
+                    chat_id=usuario.TELEGRAM_ID,
+                    text=msg_notificacion
+                )
+
+                await asyncio.to_thread(
+                    marcar_espera_notificada,
+                    usuario.ID_LISTA
+                )
+
+            except Exception as e:
+                print(f"❌ Error notificando usuario: {e}")
+
     if exito:
         msg_exito = TranslatorService.traducir(
             "✅ Cita cancelada correctamente", idioma

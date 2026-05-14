@@ -115,11 +115,38 @@ async def _handle_booking_intent(
 
         final_text = ""
         if resultado.startswith("❌"):
+            if "ya no está disponible" in resultado:
+                from datetime import datetime
+                from src.BBDD.database_service import guardar_peticion_fallida
+
+                fecha_hora = datetime.strptime(
+                    f"{fecha} {hora}",
+                    "%Y-%m-%d %H:%M"
+                )
+
+                await asyncio.to_thread(
+                    guardar_peticion_fallida,
+                    update.effective_user.id,
+                    fecha_hora,
+                )
+
+                msg_lista_espera = TranslatorService.traducir(
+                    "He guardado tu interés en ese horario. Si se libera, te avisaré automáticamente.",
+                    idioma,
+                )
+            else:
+                msg_lista_espera = ""
+
             msg_error = TranslatorService.traducir(resultado, idioma)
             msg_intento = TranslatorService.traducir(
                 "¿Quieres probar con otro día u otra hora?", idioma
             )
-            final_text = f"{msg_error}\n\n{msg_intento}"
+
+            if msg_lista_espera:
+                final_text = f"{msg_error}\n\n{msg_lista_espera}\n\n{msg_intento}"
+            else:
+                final_text = f"{msg_error}\n\n{msg_intento}"
+
             context.user_data["historial"].pop()
         else:
             msg_exito = TranslatorService.traducir("✅ ¡Todo listo!", idioma)
@@ -221,7 +248,6 @@ INTENT_HANDLERS = {
     "modificar": _handle_modify_intent,
 }
 
-
 async def handle_texto_libre(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
@@ -314,6 +340,37 @@ async def handle_texto_libre(
                         await update.message.reply_photo(photo=img_file)
         except Exception as e:
             print(f"Error al generar imagen de disponibilidad semanal: {e}")
+
+    if accion == "reservar" and datos.get("fecha_iso") and datos.get("hora"):
+        respuesta_original = respuesta_agente.get("respuesta_original", texto_respuesta)
+        respuesta_lower = respuesta_original.lower()
+
+        if (
+            "ocupado" in respuesta_lower
+            or "ocupada" in respuesta_lower
+            or "no está disponible" in respuesta_lower
+            or "ya tenemos una cita" in respuesta_lower
+        ):
+            from datetime import datetime
+            from src.BBDD.database_service import guardar_peticion_fallida
+
+            fecha_hora = datetime.strptime(
+                f"{datos.get('fecha_iso')} {datos.get('hora')}",
+                "%Y-%m-%d %H:%M"
+            )
+
+            await asyncio.to_thread(
+                guardar_peticion_fallida,
+                update.effective_user.id,
+                fecha_hora,
+            )
+
+            if "lista de espera" not in respuesta_lower:
+                msg_espera = TranslatorService.traducir(
+                    "He guardado tu interés en ese horario. Si se libera, te avisaré automáticamente.",
+                    idioma
+                )
+                texto_respuesta += f"\n\n{msg_espera}"
 
     handler = INTENT_HANDLERS.get(accion)
 

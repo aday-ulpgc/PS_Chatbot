@@ -17,6 +17,7 @@ from telegram.ext import (
     CallbackQueryHandler,
     MessageHandler,
     filters,
+    PicklePersistence,
 )
 
 from src.bot.telegram.handlers.commands import start_command
@@ -50,7 +51,8 @@ def main() -> None:
         )
         sys.exit(1)
 
-    app = ApplicationBuilder().token(token).build()
+    persistence = PicklePersistence(filepath="bot_persistence.pickle")
+    app = ApplicationBuilder().token(token).persistence(persistence).build()
 
     # Recordatorio todos los días a las 08:00 de la mañana
     hora_recordatorio = time(hour=8, minute=0, second=0)

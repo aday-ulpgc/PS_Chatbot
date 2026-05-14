@@ -270,3 +270,76 @@ def obtener_info_cita_db(id_cita: int) -> dict | None:
     except Exception as e:
         print(f"❌ Error al obtener info de la cita: {e}")
     return None
+
+def guardar_peticion_fallida(telegram_id: int, fecha: datetime) -> bool:
+    try:
+        with get_session() as session:
+            from src.BBDD.databasecontroller import ListaEspera
+
+            # Evitar duplicados
+            existente = session.query(ListaEspera).filter(
+                ListaEspera.TELEGRAM_ID == telegram_id,
+                ListaEspera.FECHA == fecha,
+                ListaEspera.NOTIFICADO == 0
+            ).first()
+
+            if existente:
+                return True
+
+            espera = ListaEspera(
+                TELEGRAM_ID=telegram_id,
+                FECHA=fecha,
+                NOTIFICADO=0,
+            )
+
+            session.add(espera)
+            session.commit()
+            return True
+
+    except Exception as e:
+        print(f"❌ Error guardando lista de espera: {e}")
+        return False
+
+
+def obtener_usuarios_esperando(fecha: datetime) -> list:
+    try:
+        with get_session() as session:
+            from src.BBDD.databasecontroller import ListaEspera
+            from sqlalchemy import func
+
+            esperas = (
+                session.query(ListaEspera)
+                .filter(
+                    ListaEspera.FECHA == fecha,
+                    ListaEspera.NOTIFICADO == 0,
+                )
+                .all()
+            )
+
+            from collections import namedtuple
+            EsperaData = namedtuple('EsperaData', ['ID_LISTA', 'TELEGRAM_ID', 'FECHA'])
+            
+            resultado = []
+            for e in esperas:
+                resultado.append(EsperaData(ID_LISTA=e.ID_LISTA, TELEGRAM_ID=e.TELEGRAM_ID, FECHA=e.FECHA))
+
+            return resultado
+
+    except Exception as e:
+        print(f"❌ Error obteniendo lista de espera: {e}")
+        return []
+
+
+def marcar_espera_notificada(id_lista: int) -> None:
+    try:
+        with get_session() as session:
+            from src.BBDD.databasecontroller import ListaEspera
+
+            espera = session.get(ListaEspera, id_lista)
+
+            if espera:
+                espera.NOTIFICADO = 1
+                session.commit()
+
+    except Exception as e:
+        print(f"❌ Error marcando espera notificada: {e}")
