@@ -241,6 +241,9 @@ async def handle_texto_libre(
         audio_bytes = await voice_file.download_as_bytearray()
         audio_b64 = base64.b64encode(audio_bytes).decode("utf-8")
         texto_usuario = "[El usuario ha enviado una nota de voz. Escúchala para extraer la intención]"
+    
+        texto_es = texto_usuario
+    
     else:
         texto_usuario = update.message.text
 
