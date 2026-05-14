@@ -14,11 +14,11 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         update: Objeto con la información del mensaje entrante.
         context: Contexto del handler proporcionado por python-telegram-bot.
     """
-    idioma_usuario = 'es' # Por defecto, español
+    idioma_usuario = "es"  # Por defecto, español
     if update.effective_user and update.effective_user.language_code:
-        idioma_usuario = update.effective_user.language_code.split('-')[0] 
-    
-    context.user_data['idioma'] = idioma_usuario
+        idioma_usuario = update.effective_user.language_code.split("-")[0]
+
+    context.user_data["idioma"] = idioma_usuario
 
     if update.message:
         texto_bienvenida = TranslatorService.traducir(WELCOME_TEXT, idioma_usuario)
@@ -33,7 +33,7 @@ async def handle_action_back_menu(query, context: ContextTypes.DEFAULT_TYPE) -> 
     """Muestra el menú principal, manejando correctamente mensajes de texto y audio."""
     current_mode = context.user_data.get("pref_mode", MODO_TEXTO)
 
-    idioma_usuario = context.user_data.get('idioma', 'es')
+    idioma_usuario = context.user_data.get("idioma", "es")
 
     try:
         day_photo_id = context.user_data.get("day_photo_message_id")
@@ -43,7 +43,7 @@ async def handle_action_back_menu(query, context: ContextTypes.DEFAULT_TYPE) -> 
                     chat_id=query.message.chat_id, message_id=day_photo_id
                 )
             except Exception:
-                pass 
+                pass
             context.user_data["day_photo_message_id"] = None
 
         week_photo_id = context.user_data.get("week_photo_message_id")
@@ -53,7 +53,7 @@ async def handle_action_back_menu(query, context: ContextTypes.DEFAULT_TYPE) -> 
                     chat_id=query.message.chat_id, message_id=week_photo_id
                 )
             except Exception:
-                pass  
+                pass
             context.user_data["week_photo_message_id"] = None
 
         for reserve_photo_id in context.user_data.get("reserve_photo_message_ids", []):

@@ -12,20 +12,21 @@ from src.bot.telegram.keyboards import (
 from src.services.voice_service import VoiceService
 from src.services.translator_service import TranslatorService
 
+
 async def handle_toggle_audio_main(query, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Activa o desactiva rápidamente el audio desde el menú principal."""
     current_mode = context.user_data.get("pref_mode", MODO_TEXTO)
-    idioma = context.user_data.get('idioma')
+    idioma = context.user_data.get("idioma")
 
     if not idioma and query.from_user.language_code:
-        idioma = query.from_user.language_code.split('-')[0]
+        idioma = query.from_user.language_code.split("-")[0]
     else:
-        idioma = idioma or 'es'
+        idioma = idioma or "es"
 
     if current_mode == MODO_AUDIO:
         context.user_data["pref_mode"] = MODO_TEXTO
         context.user_data["modo_respuesta"] = MODO_TEXTO
-        
+
         msg_alerta = TranslatorService.traducir("Audio desactivado 🔇", idioma)
         await query.answer(text=msg_alerta)
 
@@ -37,7 +38,7 @@ async def handle_toggle_audio_main(query, context: ContextTypes.DEFAULT_TYPE) ->
     else:
         context.user_data["pref_mode"] = MODO_AUDIO
         context.user_data["modo_respuesta"] = MODO_AUDIO
-        
+
         msg_alerta = TranslatorService.traducir("Audio activado 🎤", idioma)
         await query.answer(text=msg_alerta)
 
@@ -46,7 +47,7 @@ async def handle_toggle_audio_main(query, context: ContextTypes.DEFAULT_TYPE) ->
             "El modo audio ha sido activado. "
             "Puedes hacer una reserva, consultar tus citas o pedir ayuda."
         )
-        
+
         texto_audio_final = TranslatorService.traducir(texto_audio_es, idioma)
 
         try:
@@ -68,7 +69,7 @@ async def handle_toggle_audio_main(query, context: ContextTypes.DEFAULT_TYPE) ->
 
 async def handle_show_text_reserva(query, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Botón de emergencia: Muestra el texto del audio en un popup."""
-    idioma = context.user_data.get('idioma', 'es')
+    idioma = context.user_data.get("idioma", "es")
     texto = context.user_data.get(
         "last_reserva_text", "No hay detalles de reserva recientes."
     )
@@ -80,12 +81,12 @@ async def handle_eleccion_texto_libre(
     query, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
     """Maneja la elección de texto libre, mostrando un mensaje de confirmación."""
-    idioma = context.user_data.get('idioma', 'es')
+    idioma = context.user_data.get("idioma", "es")
     context.user_data["modo_interaccion"] = MODO_NLP
-    
+
     confirmacion = "Has elegido el modo Texto Libre. A partir de ahora, podrás escribir tus reservas en formato libre. ¡Prueba a escribir una reserva ahora! 📝"
     texto_traducido = TranslatorService.traducir(confirmacion, idioma)
-    
+
     await query.edit_message_text(text=texto_traducido)
 
 
@@ -97,18 +98,20 @@ async def handle_eleccion_botones(query, context: ContextTypes.DEFAULT_TYPE) -> 
 
 async def handle_show_settings(query, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Muestra el menú de ajustes con los toggles dinámicos actuales del usuario."""
-    idioma = context.user_data.get('idioma', 'es')
-    
+    idioma = context.user_data.get("idioma", "es")
+
     modo_interaccion = context.user_data.get("modo_interaccion", MODO_BOTONES)
     modo_respuesta = context.user_data.get("modo_respuesta", MODO_TEXTO)
-    
+
     titulo_ajustes = "⚙️ *Ajustes*\n\nConfigura cómo quieres interactuar con Calia:"
     texto_traducido = TranslatorService.traducir(titulo_ajustes, idioma)
-    
+
     await query.edit_message_text(
         text=texto_traducido,
         parse_mode="Markdown",
-        reply_markup=settings_menu_keyboard(modo_interaccion, modo_respuesta, idioma=idioma),
+        reply_markup=settings_menu_keyboard(
+            modo_interaccion, modo_respuesta, idioma=idioma
+        ),
     )
 
 
@@ -116,7 +119,7 @@ async def handle_toggle_modo_interaccion(
     query, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
     """Alterna entre el modo Botones y el modo NLP, actualizando el teclado al instante."""
-    idioma = context.user_data.get('idioma', 'es')
+    idioma = context.user_data.get("idioma", "es")
     # TODO: Persistir este estado en MySQL usando la conexión MCP (Model Context Protocol).
     modo_actual = context.user_data.get("modo_interaccion", MODO_BOTONES)
 
@@ -141,7 +144,7 @@ async def handle_toggle_modo_respuesta(
     query, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
     """Alterna entre respuesta en texto y audio, actualizando el teclado al instante."""
-    idioma = context.user_data.get('idioma', 'es')
+    idioma = context.user_data.get("idioma", "es")
     # TODO: Persistir este estado en MySQL usando la conexión MCP (Model Context Protocol).
     modo_actual = context.user_data.get("modo_respuesta", MODO_TEXTO)
 
@@ -159,6 +162,6 @@ async def handle_toggle_modo_respuesta(
     modo_interaccion = context.user_data.get("modo_interaccion", MODO_BOTONES)
     await query.edit_message_reply_markup(
         reply_markup=settings_menu_keyboard(
-            modo_interaccion, context.user_data["modo_respuesta"], idioma=idioma 
+            modo_interaccion, context.user_data["modo_respuesta"], idioma=idioma
         )
     )

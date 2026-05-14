@@ -16,8 +16,8 @@ async def handle_action_my_appointments(
     query, context: ContextTypes.DEFAULT_TYPE, update=None
 ) -> None:
     """Muestra las citas con un formato elegante y botones de cancelación."""
-    idioma = context.user_data.get('idioma', 'es')
-    
+    idioma = context.user_data.get("idioma", "es")
+
     if query is not None:
         telegram_id = query.from_user.id
     else:
@@ -29,17 +29,20 @@ async def handle_action_my_appointments(
 
     if not citas:
         texto_base = "📋 *Mis Citas*"
-        texto_citas = TranslatorService.traducir(texto_base, idioma) + "\n\nActualmente no tienes ninguna reserva activa."
+        texto_citas = (
+            TranslatorService.traducir(texto_base, idioma)
+            + "\n\nActualmente no tienes ninguna reserva activa."
+        )
     else:
         texto_base = "📋 *Tus Próximas Citas:*"
         texto_citas = TranslatorService.traducir(texto_base, idioma) + "\n\n"
-        
+
         palabra_cita = TranslatorService.traducir("reserva", idioma).capitalize()
         palabra_alas = TranslatorService.traducir("a las", idioma)
 
         for i, cita in enumerate(citas, 1):
             fecha_str = cita["FECHA"].strftime("%d de %B, %Y")
-            fecha_traducida = TranslatorService.traducir(fecha_str, idioma) 
+            fecha_traducida = TranslatorService.traducir(fecha_str, idioma)
             hora_str = cita["FECHA"].strftime("%H:%M")
 
             texto_citas += f"🔹 *{palabra_cita} {i}* — {fecha_traducida} {palabra_alas} {hora_str}\n\n"
@@ -47,14 +50,23 @@ async def handle_action_my_appointments(
         keyboard.append(
             [
                 InlineKeyboardButton(
-                    TranslatorService.traducir("📝 Modificar", idioma), callback_data="action_modify_menu"
+                    TranslatorService.traducir("📝 Modificar", idioma),
+                    callback_data="action_modify_menu",
                 ),
-                InlineKeyboardButton(TranslatorService.traducir("❌ Cancelar", idioma), callback_data="action_cancel_menu"),
+                InlineKeyboardButton(
+                    TranslatorService.traducir("❌ Cancelar", idioma),
+                    callback_data="action_cancel_menu",
+                ),
             ]
         )
 
     keyboard.append(
-        [InlineKeyboardButton(TranslatorService.traducir("🔙 Volver al Menú", idioma), callback_data="action_back_menu")]
+        [
+            InlineKeyboardButton(
+                TranslatorService.traducir("🔙 Volver al Menú", idioma),
+                callback_data="action_back_menu",
+            )
+        ]
     )
 
     if query is not None:
@@ -80,7 +92,7 @@ async def handle_action_cancel_menu(
     """Muestra los botones específicos para elegir qué cita borrar.
     Acepta llamadas desde NLP (query=None, update provisto) y desde callbacks.
     """
-    idioma = context.user_data.get('idioma', 'es')
+    idioma = context.user_data.get("idioma", "es")
 
     if query is not None:
         telegram_id = query.from_user.id
@@ -93,7 +105,7 @@ async def handle_action_cancel_menu(
         await handle_action_my_appointments(query, context, update)
         return
 
-    texto_base = "❌ *Cancelar Cita*\nSelecciona la cita que deseas anular:" 
+    texto_base = "❌ *Cancelar Cita*\nSelecciona la cita que deseas anular:"
     texto = TranslatorService.traducir(texto_base, idioma) + "\n\n"
     keyboard = []
 
@@ -116,7 +128,8 @@ async def handle_action_cancel_menu(
     keyboard.append(
         [
             InlineKeyboardButton(
-                TranslatorService.traducir("🔙 Volver a Mis Citas", idioma), callback_data="action_my_appointments"
+                TranslatorService.traducir("🔙 Volver a Mis Citas", idioma),
+                callback_data="action_my_appointments",
             )
         ]
     )
@@ -142,10 +155,12 @@ async def handle_action_cancel_menu(
 
 async def handle_cancel_appointment(query, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Procesa el clic en un botón de 'Cancelar Cita'."""
-    idioma = context.user_data.get('idioma', 'es')
+    idioma = context.user_data.get("idioma", "es")
     id_cita = int(query.data.split("_")[1])
 
-    msg_espera = TranslatorService.traducir("⏳ Cancelando tu reserva en Google Calendar...", idioma)
+    msg_espera = TranslatorService.traducir(
+        "⏳ Cancelando tu reserva en Google Calendar...", idioma
+    )
     await query.edit_message_text(text=msg_espera)
 
     cita = await asyncio.to_thread(obtener_info_cita_db, id_cita)
@@ -161,7 +176,9 @@ async def handle_cancel_appointment(query, context: ContextTypes.DEFAULT_TYPE) -
     exito = await asyncio.to_thread(cancelar_cita_db, id_cita)
 
     if exito:
-        msg_exito = TranslatorService.traducir("✅ Cita cancelada correctamente", idioma)
+        msg_exito = TranslatorService.traducir(
+            "✅ Cita cancelada correctamente", idioma
+        )
         await query.answer(msg_exito, show_alert=True)
     else:
         msg_error = TranslatorService.traducir("❌ Error al cancelar la cita", idioma)
@@ -176,7 +193,7 @@ async def handle_action_modify_menu(
     """Muestra las citas para elegir cuál modificar.
     Acepta llamadas desde NLP (query=None, update provisto) y desde callbacks.
     """
-    idioma = context.user_data.get('idioma', 'es')
+    idioma = context.user_data.get("idioma", "es")
 
     if query is not None:
         telegram_id = query.from_user.id
@@ -194,7 +211,9 @@ async def handle_action_modify_menu(
             await update.message.reply_text(msg_no_citas)
         return
 
-    texto_base = "📝 *Modificar Cita*\n\nSelecciona la cita que quieres cambiar de fecha:"
+    texto_base = (
+        "📝 *Modificar Cita*\n\nSelecciona la cita que quieres cambiar de fecha:"
+    )
     texto = TranslatorService.traducir(texto_base, idioma)
     keyboard = []
 
@@ -211,7 +230,12 @@ async def handle_action_modify_menu(
         )
 
     keyboard.append(
-        [InlineKeyboardButton(TranslatorService.traducir("🔙 Volver", idioma), callback_data="action_my_appointments")]
+        [
+            InlineKeyboardButton(
+                TranslatorService.traducir("🔙 Volver", idioma),
+                callback_data="action_my_appointments",
+            )
+        ]
     )
 
     markup = InlineKeyboardMarkup(keyboard)

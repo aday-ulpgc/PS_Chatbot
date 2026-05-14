@@ -112,8 +112,8 @@ async def menu_callback_handler(
     query = update.callback_query
     if query is None:
         return
-    
-    idioma = context.user_data.get('idioma', 'es')
+
+    idioma = context.user_data.get("idioma", "es")
 
     if query.data != "show_text_reserva":
         await query.answer()
@@ -152,7 +152,7 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     - 'nlp'    : delega directamente a handle_texto_libre.
     """
     modo = context.user_data.get("modo_interaccion", MODO_BOTONES)
-    idioma = context.user_data.get('idioma', 'es')
+    idioma = context.user_data.get("idioma", "es")
 
     if modo == MODO_NLP:
         await handle_texto_libre(update, context)
@@ -162,7 +162,7 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             "Si prefieres escribir libremente, ve a ⚙️ *Ajustes* y activa el Modo IA."
         )
         msg_aviso = TranslatorService.traducir(texto_aviso, idioma)
-        
+
         await update.message.reply_text(
             text=msg_aviso,
             parse_mode="Markdown",

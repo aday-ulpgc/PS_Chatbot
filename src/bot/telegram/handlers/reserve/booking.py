@@ -58,14 +58,16 @@ async def handle_calendar_and_time(
     update: Update,
 ) -> bool:
     """Maneja la selección de fecha y hora del calendario."""
-    idioma = context.user_data.get('idioma', 'es')
+    idioma = context.user_data.get("idioma", "es")
 
     if query.data.startswith("time_"):
         selected_time = query.data.split("_")[1]
         selected_data = context.user_data.get("selected_data", "Desconocida")
 
         if selected_data == "Desconocida":
-            msg = TranslatorService.traducir("❌ Error: No se ha encontrado la fecha. Inténtalo de nuevo.", idioma)
+            msg = TranslatorService.traducir(
+                "❌ Error: No se ha encontrado la fecha. Inténtalo de nuevo.", idioma
+            )
             await query.edit_message_text(msg)
             return True
 
@@ -73,7 +75,9 @@ async def handle_calendar_and_time(
 
         if modifying_id:
             await query.answer()
-            msg = TranslatorService.traducir("⏳ Modificando tu reserva en Google Calendar...", idioma)
+            msg = TranslatorService.traducir(
+                "⏳ Modificando tu reserva en Google Calendar...", idioma
+            )
             await query.edit_message_text(text=msg)
 
             cita_antigua = await asyncio.to_thread(obtener_info_cita_db, modifying_id)
@@ -97,8 +101,8 @@ async def handle_calendar_and_time(
                 name_and_id,
                 selected_data,
                 selected_time,
-                None,  
-                True, 
+                None,
+                True,
             )
 
             fecha_dt = datetime.strptime(selected_data, "%Y-%m-%d")
@@ -113,7 +117,9 @@ async def handle_calendar_and_time(
             )
             context.user_data.pop("modifying_id", None)
 
-            msg = TranslatorService.traducir("✅ Cita modificada con éxito. Actualizando agenda...", idioma)
+            msg = TranslatorService.traducir(
+                "✅ Cita modificada con éxito. Actualizando agenda...", idioma
+            )
             await query.edit_message_text(msg)
 
             from src.bot.telegram.handlers.manage_appointments import (
@@ -157,7 +163,9 @@ async def handle_calendar_and_time(
                     ],
                 ]
             )
-            msg_error = TranslatorService.traducir("❌ Error al obtener tus datos de usuario", idioma)
+            msg_error = TranslatorService.traducir(
+                "❌ Error al obtener tus datos de usuario", idioma
+            )
             await query.edit_message_text(
                 text=msg_error,
                 reply_markup=error_keyboard,
@@ -222,9 +230,11 @@ async def handle_calendar_and_time(
                     print(f"⚠️ Error al borrar imagen de reserva: {e}")
 
             if user_mode == MODO_AUDIO:
-                msg_audio = TranslatorService.traducir("🎙️ Generando audio de confirmación...", idioma)
+                msg_audio = TranslatorService.traducir(
+                    "🎙️ Generando audio de confirmación...", idioma
+                )
                 await query.edit_message_text(msg_audio)
-                
+
             await query.delete_message()
 
             await send_with_optional_audio(
@@ -254,8 +264,14 @@ async def handle_calendar_and_time(
             ]
             keyboard_buttons.append(
                 [
-                    InlineKeyboardButton(TranslatorService.traducir("↻ Reiniciar", idioma), callback_data="action_reserve"),
-                    InlineKeyboardButton(TranslatorService.traducir("⫶☰ Menú", idioma), callback_data="action_back_menu"),
+                    InlineKeyboardButton(
+                        TranslatorService.traducir("↻ Reiniciar", idioma),
+                        callback_data="action_reserve",
+                    ),
+                    InlineKeyboardButton(
+                        TranslatorService.traducir("⫶☰ Menú", idioma),
+                        callback_data="action_back_menu",
+                    ),
                 ]
             )
 
@@ -283,8 +299,14 @@ async def handle_calendar_and_time(
             is_today = result == date.today()
 
             available_hours = [
-                "9:00", "10:00", "11:00", "12:00",
-                "16:00", "17:00", "18:00", "19:00",
+                "9:00",
+                "10:00",
+                "11:00",
+                "12:00",
+                "16:00",
+                "17:00",
+                "18:00",
+                "19:00",
             ]
 
             horas_ocupadas = await asyncio.to_thread(
@@ -318,12 +340,17 @@ async def handle_calendar_and_time(
                         TranslatorService.traducir("↻ Cambiar Fecha", idioma),
                         callback_data="action_reserve",
                     ),
-                    InlineKeyboardButton(TranslatorService.traducir("⫶☰ Menú", idioma), callback_data="action_back_menu"),
+                    InlineKeyboardButton(
+                        TranslatorService.traducir("⫶☰ Menú", idioma),
+                        callback_data="action_back_menu",
+                    ),
                 ]
             )
 
             if not buttons[:-1]:
-                texto_hora = f"❌ Lo siento, ya no quedan huecos libres para el día ({result})."
+                texto_hora = (
+                    f"❌ Lo siento, ya no quedan huecos libres para el día ({result})."
+                )
                 reply_markup = InlineKeyboardMarkup(
                     [
                         [
@@ -341,7 +368,9 @@ async def handle_calendar_and_time(
                     ]
                 )
             else:
-                texto_hora = f"Fecha seleccionada: {result}\n⏰ Ahora, selecciona una hora:"
+                texto_hora = (
+                    f"Fecha seleccionada: {result}\n⏰ Ahora, selecciona una hora:"
+                )
                 reply_markup = InlineKeyboardMarkup(buttons)
 
             msg_hora = TranslatorService.traducir(texto_hora, idioma)
@@ -356,7 +385,7 @@ async def handle_calendar_and_time(
 
 
 async def handle_action_reserve(query, context: ContextTypes.DEFAULT_TYPE) -> None:
-    idioma = context.user_data.get('idioma', 'es')
+    idioma = context.user_data.get("idioma", "es")
 
     limpiar_estado_reserva(context)
 
@@ -365,12 +394,21 @@ async def handle_action_reserve(query, context: ContextTypes.DEFAULT_TYPE) -> No
 
     keyboard_dict = json.loads(calendar)
     navigation_row = [
-        {"text": TranslatorService.traducir("↻ Reiniciar", idioma), "callback_data": "action_reserve"},
-        {"text": TranslatorService.traducir("⫶☰ Menú", idioma), "callback_data": "action_back_menu"},
+        {
+            "text": TranslatorService.traducir("↻ Reiniciar", idioma),
+            "callback_data": "action_reserve",
+        },
+        {
+            "text": TranslatorService.traducir("⫶☰ Menú", idioma),
+            "callback_data": "action_back_menu",
+        },
     ]
-    
+
     availability_row = [
-        {"text": TranslatorService.traducir("📅 Ver disponibilidad", idioma), "callback_data": "action_view_availability"}
+        {
+            "text": TranslatorService.traducir("📅 Ver disponibilidad", idioma),
+            "callback_data": "action_view_availability",
+        }
     ]
 
     keyboard_dict["inline_keyboard"].append(availability_row)

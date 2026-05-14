@@ -46,7 +46,7 @@ async def _handle_settings_intent(
     texto_respuesta: str,
 ):
     accion = agente.get("accion")
-    idioma = context.user_data.get('idioma', 'es')
+    idioma = context.user_data.get("idioma", "es")
 
     if accion == "activar_audio":
         context.user_data["pref_mode"] = MODO_AUDIO
@@ -63,15 +63,18 @@ async def _handle_settings_intent(
 
         modo_interaccion = context.user_data.get("modo_interaccion", "botones")
         modo_respuesta = context.user_data.get("modo_respuesta", "texto")
-        
+
         texto_ajustes = "⚙️ *Ajustes*\n\nConfigura cómo quieres interactuar con Calia:"
         msg_ajustes = TranslatorService.traducir(texto_ajustes, idioma)
 
         await update.message.reply_text(
             text=msg_ajustes,
             parse_mode="Markdown",
-            reply_markup=settings_menu_keyboard(modo_interaccion, modo_respuesta, idioma=idioma), # 📌 Pasar idioma
+            reply_markup=settings_menu_keyboard(
+                modo_interaccion, modo_respuesta, idioma=idioma
+            ),  # 📌 Pasar idioma
         )
+
 
 async def _handle_booking_intent(
     update: Update,
@@ -84,11 +87,15 @@ async def _handle_booking_intent(
         await _reply_to_user(update, context, texto_respuesta)
         return
 
-    idioma = context.user_data.get('idioma', 'es')
+    idioma = context.user_data.get("idioma", "es")
     user_mode = context.user_data.get("pref_mode", MODO_TEXTO)
 
-    msg_espera = TranslatorService.traducir("⏳ Procesando reserva en Google Calendar...", idioma)
-    mensaje_espera = await update.message.reply_text(f"{texto_respuesta}\n\n{msg_espera}")
+    msg_espera = TranslatorService.traducir(
+        "⏳ Procesando reserva en Google Calendar...", idioma
+    )
+    mensaje_espera = await update.message.reply_text(
+        f"{texto_respuesta}\n\n{msg_espera}"
+    )
 
     datos = agente.get("datos_extraidos", {})
     fecha = datos.get("fecha_iso")
@@ -109,7 +116,9 @@ async def _handle_booking_intent(
         final_text = ""
         if resultado.startswith("❌"):
             msg_error = TranslatorService.traducir(resultado, idioma)
-            msg_intento = TranslatorService.traducir("¿Quieres probar con otro día u otra hora?", idioma)
+            msg_intento = TranslatorService.traducir(
+                "¿Quieres probar con otro día u otra hora?", idioma
+            )
             final_text = f"{msg_error}\n\n{msg_intento}"
             context.user_data["historial"].pop()
         else:
@@ -119,9 +128,11 @@ async def _handle_booking_intent(
             context.user_data["historial"] = []
 
         if user_mode == MODO_AUDIO:
-            msg_generando = TranslatorService.traducir("🎙️ Generando audio de confirmación...", idioma)
+            msg_generando = TranslatorService.traducir(
+                "🎙️ Generando audio de confirmación...", idioma
+            )
             await mensaje_espera.edit_text(msg_generando)
-            
+
             async with send_action_while_thinking(
                 context.bot, update.effective_chat.id, constants.ChatAction.RECORD_VOICE
             ):
@@ -140,7 +151,10 @@ async def _handle_booking_intent(
 
     except Exception as e:
         print(f"Error al reservar: {e}")
-        msg_fallo = TranslatorService.traducir("❌ Hubo un fallo interno al conectar con el calendario. Por favor, inténtalo más tarde.", idioma)
+        msg_fallo = TranslatorService.traducir(
+            "❌ Hubo un fallo interno al conectar con el calendario. Por favor, inténtalo más tarde.",
+            idioma,
+        )
         await mensaje_espera.edit_text(msg_fallo)
         context.user_data["historial"].pop()
 
@@ -231,7 +245,7 @@ async def handle_texto_libre(
         texto_usuario = update.message.text
 
         idioma_detectado = TranslatorService.detectar_idioma(texto_usuario)
-        context.user_data['idioma'] = idioma_detectado
+        context.user_data["idioma"] = idioma_detectado
 
         texto_es, _ = TranslatorService.traducir_a_es(texto_usuario)
 
@@ -243,8 +257,8 @@ async def handle_texto_libre(
     if len(context.user_data["historial"]) > 10:
         context.user_data["historial"] = context.user_data["historial"][-10:]
 
-    idioma_actual = context.user_data.get('idioma', 'es')  
-    
+    idioma_actual = context.user_data.get("idioma", "es")
+
     async with send_action_while_thinking(
         context.bot, update.effective_chat.id, constants.ChatAction.TYPING
     ):
@@ -252,15 +266,15 @@ async def handle_texto_libre(
             context.user_data["historial"],
             datos_semanal=datos_semanal,
             audio_b64=audio_b64,
-            idioma_usuario=idioma_actual
+            idioma_usuario=idioma_actual,
         )
 
-    idioma = context.user_data.get('idioma', 'es')
+    idioma = context.user_data.get("idioma", "es")
 
-    msg_error_comunicacion = TranslatorService.traducir("Ha habido un error de comunicación.", idioma)
-    texto_respuesta = respuesta_agente.get(
-        "respuesta_usuario", msg_error_comunicacion
+    msg_error_comunicacion = TranslatorService.traducir(
+        "Ha habido un error de comunicación.", idioma
     )
+    texto_respuesta = respuesta_agente.get("respuesta_usuario", msg_error_comunicacion)
     context.user_data["historial"].append(
         {"rol": "asistente", "texto": texto_respuesta}
     )

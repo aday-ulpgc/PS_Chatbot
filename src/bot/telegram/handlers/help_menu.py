@@ -10,17 +10,19 @@ async def handle_action_menu_help(query, context: ContextTypes.DEFAULT_TYPE) -> 
         query (CallbackQuery): El objeto del evento generado al pulsar el botón,
                                usado para editar el mensaje actual.
     """
-    idioma = context.user_data.get('idioma', 'es')
+    idioma = context.user_data.get("idioma", "es")
 
     keyboard = [
         [
             InlineKeyboardButton(
-                TranslatorService.traducir("❓ Preguntas frecuentes", idioma), callback_data="action_help_faq"
+                TranslatorService.traducir("❓ Preguntas frecuentes", idioma),
+                callback_data="action_help_faq",
             )
         ],
         [
             InlineKeyboardButton(
-                TranslatorService.traducir("🛠️ Soporte técnico", idioma), url="https://forms.gle/Fu9HuBVJA747nW9E8"
+                TranslatorService.traducir("🛠️ Soporte técnico", idioma),
+                url="https://forms.gle/Fu9HuBVJA747nW9E8",
             )
         ],
         [
@@ -31,16 +33,15 @@ async def handle_action_menu_help(query, context: ContextTypes.DEFAULT_TYPE) -> 
         ],
         [
             InlineKeyboardButton(
-                TranslatorService.traducir("🔙 Volver al menú principal", idioma), callback_data="action_back_menu"
+                TranslatorService.traducir("🔙 Volver al menú principal", idioma),
+                callback_data="action_back_menu",
             )
         ],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     msg_ayuda = TranslatorService.traducir("Sección Ayuda. ¿Que necesitas?", idioma)
-    await query.edit_message_text(
-        text=msg_ayuda, reply_markup=reply_markup
-    )
+    await query.edit_message_text(text=msg_ayuda, reply_markup=reply_markup)
 
 
 async def handle_action_faq(query, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -50,8 +51,8 @@ async def handle_action_faq(query, context: ContextTypes.DEFAULT_TYPE) -> None:
         query (CallbackQuery): El objeto del evento generado al pulsar el botón,
                                usado para editar el mensaje actual.
     """
-    idioma = context.user_data.get('idioma', 'es')
-    
+    idioma = context.user_data.get("idioma", "es")
+
     questions = (
         "❓ *Preguntas Frecuentes*\n\n"
         "1️⃣ *¿Cómo cancelo una cita?*\n"
@@ -65,7 +66,7 @@ async def handle_action_faq(query, context: ContextTypes.DEFAULT_TYPE) -> None:
     btn_volver = TranslatorService.traducir("Volver", idioma)
     keyboard = [[InlineKeyboardButton(btn_volver, callback_data="action_help")]]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    
+
     await query.edit_message_text(
         text=msg_questions, reply_markup=reply_markup, parse_mode="Markdown"
     )

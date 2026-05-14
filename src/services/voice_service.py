@@ -64,7 +64,7 @@ def formatear_fecha_para_voz(texto: str) -> str:
 
 
 def formatear_hora_para_voz(texto: str) -> str:
-    """ 
+    """
     Transforma horas en formato HH:MM a lenguaje natural.
 
     Ejemplos:
@@ -75,10 +75,10 @@ def formatear_hora_para_voz(texto: str) -> str:
     def _reemplazar_hora(m: re.Match) -> str:
         hora = int(m.group(1))
         minutos = m.group(2)
-        
+
         articulo = "la" if hora == 1 or hora == 13 else "las"
         hora_texto = "una" if hora == 1 or hora == 13 else str(hora)
-        
+
         if minutos == "00":
             return f"{articulo} {hora_texto} en punto"
         return f"{articulo} {hora_texto} y {minutos}"
@@ -97,10 +97,10 @@ class VoiceService:
         """
         idioma = TranslatorService.detectar_idioma(text)
 
-        if idioma == 'es':
+        if idioma == "es":
             text = formatear_fecha_para_voz(text)
             text = formatear_hora_para_voz(text)
-        
+
         else:
             horas_encontradas = re.findall(r"\b(\d{1,2}:\d{2})\b", text)
             for hora in horas_encontradas:
