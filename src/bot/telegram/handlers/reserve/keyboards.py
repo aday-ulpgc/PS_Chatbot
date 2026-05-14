@@ -1,8 +1,9 @@
 import json
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from src.services.translator_service import TranslatorService
 
 
-def calendar_step_markup(key: str) -> InlineKeyboardMarkup:
+def calendar_step_markup(key: str, idioma: str = 'es') -> InlineKeyboardMarkup:
     """Reconstruye el teclado del calendario y añade botones de reinicio/menú."""
     keyboard_dict = json.loads(key)
     keyboard_buttons = [
@@ -14,84 +15,51 @@ def calendar_step_markup(key: str) -> InlineKeyboardMarkup:
     ]
     keyboard_buttons.append(
         [
-            InlineKeyboardButton(
-                "↻ Reiniciar", callback_data="action_view_availability"
-            ),
-            InlineKeyboardButton("⫶☰ Menú", callback_data="action_back_menu"),
+            InlineKeyboardButton(TranslatorService.traducir("↻ Reiniciar", idioma), callback_data="action_view_availability"),
+            InlineKeyboardButton(TranslatorService.traducir("⫶☰ Menú", idioma), callback_data="action_back_menu"),
         ]
     )
     return InlineKeyboardMarkup(keyboard_buttons)
 
 
-def back_menu_markup(label: str = "Volver") -> InlineKeyboardMarkup:
+def back_menu_markup(label: str = "Volver", idioma: str = 'es') -> InlineKeyboardMarkup:
+    lbl_traducida = TranslatorService.traducir(label, idioma)
     return InlineKeyboardMarkup(
-        [[InlineKeyboardButton(label, callback_data="action_back_menu")]]
+        [[InlineKeyboardButton(lbl_traducida, callback_data="action_back_menu")]]
     )
 
 
-def availability_type_markup() -> InlineKeyboardMarkup:
+def availability_type_markup(idioma: str = 'es') -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
-            [
-                InlineKeyboardButton(
-                    "📅 Ver disponibilidad de un DÍA",
-                    callback_data="action_view_availability_day",
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    "📆 Ver disponibilidad de una SEMANA",
-                    callback_data="action_view_availability_week",
-                )
-            ],
-            [InlineKeyboardButton("⫶☰ Volver", callback_data="action_back_menu")],
+            [InlineKeyboardButton(TranslatorService.traducir("📅 Ver disponibilidad de un DÍA", idioma), callback_data="action_view_availability_day")],
+            [InlineKeyboardButton(TranslatorService.traducir("📆 Ver disponibilidad de una SEMANA", idioma), callback_data="action_view_availability_week")],
+            [InlineKeyboardButton(TranslatorService.traducir("⫶☰ Volver", idioma), callback_data="action_back_menu")],
         ]
     )
 
 
-def day_navigation_markup() -> InlineKeyboardMarkup:
+def day_navigation_markup(idioma: str = 'es') -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
             [
-                InlineKeyboardButton("⬅️ Día anterior", callback_data="action_prev_day"),
-                InlineKeyboardButton(
-                    "Día siguiente ➡️", callback_data="action_next_day"
-                ),
+                InlineKeyboardButton(TranslatorService.traducir("⬅️ Día anterior", idioma), callback_data="action_prev_day"),
+                InlineKeyboardButton(TranslatorService.traducir("Día siguiente ➡️", idioma), callback_data="action_next_day"),
             ],
-            [
-                InlineKeyboardButton(
-                    "📅 Otro día", callback_data="action_view_availability_day"
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    "⫶☰ Menú Principal", callback_data="action_back_menu"
-                )
-            ],
+            [InlineKeyboardButton(TranslatorService.traducir("📅 Otro día", idioma), callback_data="action_view_availability_day")],
+            [InlineKeyboardButton(TranslatorService.traducir("⫶☰ Menú Principal", idioma), callback_data="action_back_menu")],
         ]
     )
 
 
-def week_navigation_markup() -> InlineKeyboardMarkup:
+def week_navigation_markup(idioma: str = 'es') -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
             [
-                InlineKeyboardButton(
-                    "⬅️ Semana anterior", callback_data="action_prev_week"
-                ),
-                InlineKeyboardButton(
-                    "Semana siguiente ➡️", callback_data="action_next_week"
-                ),
+                InlineKeyboardButton(TranslatorService.traducir("⬅️ Semana anterior", idioma), callback_data="action_prev_week"),
+                InlineKeyboardButton(TranslatorService.traducir("Semana siguiente ➡️", idioma), callback_data="action_next_week"),
             ],
-            [
-                InlineKeyboardButton(
-                    "📆 Otra semana", callback_data="action_view_availability_week"
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    "⫶☰ Menú Principal", callback_data="action_back_menu"
-                )
-            ],
+            [InlineKeyboardButton(TranslatorService.traducir("📆 Otra semana", idioma), callback_data="action_view_availability_week")],
+            [InlineKeyboardButton(TranslatorService.traducir("⫶☰ Menú Principal", idioma), callback_data="action_back_menu")],
         ]
     )
