@@ -5,7 +5,8 @@ from telegram.error import BadRequest
 
 from src.services import calendar_service
 from src.BBDD.database_service import (
-    obtener_citas_usuario,
+    obtener_cliente_por_telegram_id,
+    obtener_citas_cliente,
     cancelar_cita_db,
     obtener_info_cita_db,
 )
@@ -20,7 +21,14 @@ async def handle_action_my_appointments(
     else:
         telegram_id = update.effective_user.id
 
-    citas = await asyncio.to_thread(obtener_citas_usuario, telegram_id)
+    # Obtener cliente_id basado en telegram_id
+    cliente_id = await asyncio.to_thread(obtener_cliente_por_telegram_id, telegram_id)
+    
+    if not cliente_id:
+        texto_citas = "📋 *Mis Citas*\n\nAún no tienes perfil de cliente registrado."
+        citas = []
+    else:
+        citas = await asyncio.to_thread(obtener_citas_cliente, cliente_id)
 
     keyboard = []
 
@@ -31,8 +39,10 @@ async def handle_action_my_appointments(
         for i, cita in enumerate(citas, 1):
             fecha_str = cita["FECHA"].strftime("%d de %B, %Y")
             hora_str = cita["FECHA"].strftime("%H:%M")
+            nombre_empleado = cita.get("NOMBRE_EMPLEADO", "No especificado")
 
-            texto_citas += f"🔹 *Cita {i}* — {fecha_str} a las {hora_str}\n\n"
+            texto_citas += f"🔹 *Cita {i}* — {fecha_str} a las {hora_str}\n"
+            texto_citas += f"   👤 Con: {nombre_empleado}\n\n"
 
         keyboard.append(
             [
@@ -75,20 +85,27 @@ async def handle_action_cancel_menu(
     else:
         telegram_id = update.effective_user.id
 
-    citas = await asyncio.to_thread(obtener_citas_usuario, telegram_id)
+    # Obtener cliente_id y luego sus citas
+    cliente_id = await asyncio.to_thread(obtener_cliente_por_telegram_id, telegram_id)
+    if not cliente_id:
+        await handle_action_my_appointments(query, context, update)
+        return
+    
+    citas = await asyncio.to_thread(obtener_citas_cliente, cliente_id)
 
     if not citas:
         await handle_action_my_appointments(query, context, update)
         return
 
-    texto = "❌ *Cancelar Cita*\n\nSelecciona la cita que deseas anular:"
+    texto = "❌ *Cancelar Cita*\n\nSelecciona la cita que deseas anular:\n\n"
     keyboard = []
 
     for i, cita in enumerate(citas, 1):
         dia = cita["FECHA"].day
         mes = cita["FECHA"].month
         hora_str = cita["FECHA"].strftime("%H:%M")
-        btn_text = f"Cita {i} ({dia:02d}/{mes:02d} - {hora_str})"
+        nombre_empleado = cita.get("NOMBRE_EMPLEADO", "No especificado")
+        btn_text = f"Cita {i} ({dia:02d}/{mes:02d} - {hora_str}) - {nombre_empleado}"
 
         keyboard.append(
             [
@@ -162,7 +179,16 @@ async def handle_action_modify_menu(
     else:
         telegram_id = update.effective_user.id
 
-    citas = await asyncio.to_thread(obtener_citas_usuario, telegram_id)
+    # Obtener cliente_id y luego sus citas
+    cliente_id = await asyncio.to_thread(obtener_cliente_por_telegram_id, telegram_id)
+    if not cliente_id:
+        if query is not None:
+            await query.answer("No tienes citas para modificar", show_alert=True)
+        else:
+            await update.message.reply_text("No tienes citas para modificar.")
+        return
+    
+    citas = await asyncio.to_thread(obtener_citas_cliente, cliente_id)
 
     if not citas:
         if query is not None:
@@ -171,14 +197,15 @@ async def handle_action_modify_menu(
             await update.message.reply_text("No tienes citas para modificar.")
         return
 
-    texto = "📝 *Modificar Cita*\n\nSelecciona la cita que quieres cambiar de fecha:"
+    texto = "📝 *Modificar Cita*\n\nSelecciona la cita que quieres cambiar de fecha:\n\n"
     keyboard = []
 
     for i, cita in enumerate(citas, 1):
         dia = cita["FECHA"].day
         mes = cita["FECHA"].month
         hora_str = cita["FECHA"].strftime("%H:%M")
-        btn_text = f"✏️ Cita {i} ({dia:02d}/{mes:02d} - {hora_str})"
+        nombre_empleado = cita.get("NOMBRE_EMPLEADO", "No especificado")
+        btn_text = f"✏️ Cita {i} ({dia:02d}/{mes:02d} - {hora_str}) - {nombre_empleado}"
 
         keyboard.append(
             [InlineKeyboardButton(btn_text, callback_data=f"modcita_{cita['ID_CITA']}")]

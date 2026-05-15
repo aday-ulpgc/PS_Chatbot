@@ -1,5 +1,6 @@
 from telegram import Update
 from telegram.ext import ContextTypes
+import asyncio
 
 from src.bot.telegram.handlers.reserve.alternatives import (
     handle_alternative_time_selection_callback,
@@ -21,6 +22,7 @@ from src.bot.telegram.handlers.reserve.availability import (
 from src.bot.telegram.handlers.reserve.booking import (
     handle_action_reserve,
     handle_calendar_and_time,
+    handle_show_calendar,
 )
 
 from src.bot.telegram.handlers.manage_appointments import (
@@ -117,6 +119,27 @@ async def menu_callback_handler(
     # Manejar selección de hora alternativa
     if query.data.startswith("alt_time_"):
         await handle_alternative_time_selection_callback(query, context, update)
+        return
+
+    # Manejar selección de empleado
+    if query.data.startswith("select_emp_"):
+        try:
+            emp_id = int(query.data.split("_")[2])
+            # Buscar el nombre del empleado
+            from src.BBDD.database_service import obtener_empleados_activos
+            empleados = await asyncio.to_thread(obtener_empleados_activos)
+            selected_emp = next((e for e in empleados if e['ID_EMPLEADO'] == emp_id), None)
+            
+            if selected_emp:
+                context.user_data["selected_employee_id"] = emp_id
+                context.user_data["selected_employee_name"] = selected_emp["NOMBRE"]
+                # Mostrar el calendario
+                await handle_show_calendar(query, context)
+            else:
+                await query.edit_message_text("❌ Empleado no encontrado")
+        except Exception as e:
+            print(f"❌ Error en select_emp_: {e}")
+            await query.edit_message_text("❌ Error al seleccionar empleado")
         return
 
     # Los botones de acción directa (menú, reiniciar, etc.) tienen prioridad

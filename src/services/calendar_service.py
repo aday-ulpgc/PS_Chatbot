@@ -193,7 +193,7 @@ class GoogleCalendarService:
 
 
 def create_reservation(
-    user_id: str, date: str, hour: str, gmail_trabajador: str = None
+    user_id: str, date: str, hour: str, gmail_trabajador: str = None, id_empleado_seleccionado: int = None
 ) -> str:
     """
     Función de fachada (Facade) que orquestra la reserva.
@@ -206,6 +206,7 @@ def create_reservation(
         user_id: Formato "Nombre Completo (telegram_id)"
         date: Formato "YYYY-MM-DD"
         hour: Formato "HH:MM"
+        id_empleado_seleccionado: ID del empleado seleccionado por el usuario (opcional)
     """
     try:
         calendar = GoogleCalendarService(gmail_trabajador)
@@ -255,32 +256,44 @@ def create_reservation(
             telegram_id = None
             nombre = None
 
-        # TODO: Guardar en la nueva arquitectura
-        # La integracion con Google Calendar y la BD de Clientes/Empleados
-        # esta siendo refactorizada. Deshabilitada temporalmente.
-        # if telegram_id and not skip_db:
-        #     from src.BBDD.database_service import obtener_o_crear_cliente_por_telegram
-        #     cliente_result = obtener_o_crear_cliente_por_telegram(telegram_id, nombre)
-        #     # TODO: Completar lógica de guardado
+        # Guardar en la BD (arquitectura nueva)
+        if telegram_id:
+            from src.BBDD.database_service import obtener_o_crear_cliente_por_telegram
+            from src.BBDD.databasecontroller import Empleado, get_session
+            
+            cliente_result = obtener_o_crear_cliente_por_telegram(telegram_id, nombre)
+            cliente_id = cliente_result.get("cliente_id")
+            
+            if cliente_id:
+                # Usar el empleado seleccionado o obtener el primero activo
+                id_empleado = id_empleado_seleccionado
+                
+                if not id_empleado:
+                    try:
+                        with get_session() as session:
+                            empleado = session.query(Empleado).filter(
+                                Empleado.ELIMINADO == None
+                            ).first()
+                            if empleado:
+                                id_empleado = empleado.ID_EMPLEADO
+                    except Exception as e:
+                        print(f"⚠️ Error getting first empleado: {e}")
+                        id_empleado = 1
+                
+                # Crear datetime con fecha Y hora
+                fecha_obj = datetime.strptime(f"{date} {hour}", "%Y-%m-%d %H:%M")
+                success_db = guardar_cita_en_db(
+                    id_empleado=id_empleado,
+                    id_cliente=cliente_id,
+                    fecha=fecha_obj,
+                    descripcion="Cita reservada desde Telegram",
+                )
+                if success_db:
+                    return f"✅ ¡Reserva confirmada para el {date} a las {hour}!\n"
+                else:
+                    print("⚠️ Cita creada en Google Calendar pero no se guardó en DB")
 
         return f"OK Reserva confirmada para el {date} a las {hour}!\n"
-        # Guardar también en la base de datos
-        if telegram_id:
-            from src.BBDD.database_service import obtener_o_crear_usuario_telegram
-
-            obtener_o_crear_usuario_telegram(telegram_id=telegram_id, nombre=nombre)
-
-            fecha_obj = datetime.strptime(date, "%Y-%m-%d")
-            success_db = guardar_cita_en_db(
-                telegram_id=telegram_id,
-                fecha=fecha_obj,
-                hora=hour,
-                descripcion="Cita reservada desde Telegram",
-            )
-            if not success_db:
-                print("⚠️ Cita creada en Google Calendar pero no se guardó en DB")
-
-        return f"✅ ¡Reserva confirmada para el {date} a las {hour}!\n"
 
     except FileNotFoundError as e:
         print(f"[CONFIG ERROR]: {e}")
@@ -361,3 +374,53 @@ def get_weekly_availability(days=7, gmail_trabajador: str = None) -> str:
     except Exception as e:
         print(f"Error en vista semanal: {e}")
         return "No disponible."
+
+
+async def create_reservation_via_api(
+    telegram_id: int,
+    date: str,
+    hour: str,
+    usuario_id: int = None,
+    contacto_id: int = None,
+    bloqueante: int = None,
+    nombre: str = None,
+    id_empleado: int = None,
+) -> str:
+    """
+    Función async para crear reservas desde los handlers del bot.
+    Delegada a create_reservation() con parámetros de Telegram.
+    
+    Args:
+        telegram_id: ID del usuario en Telegram
+        date: Fecha en formato "YYYY-MM-DD"
+        hour: Hora en formato "HH:MM"
+        usuario_id: ID del usuario (deprecated, para compatibilidad)
+        contacto_id: ID del contacto (deprecated, para compatibilidad)
+        bloqueante: Empleado ID (deprecated, para compatibilidad)
+        nombre: Nombre del usuario (si no se proporciona, se usa "Usuario")
+        id_empleado: ID del empleado seleccionado por el usuario
+    
+    Returns:
+        Mensaje de confirmación o error para el usuario
+    """
+    try:
+        # Construir el user_id en formato esperado
+        if nombre:
+            user_id_str = f"{nombre} ({telegram_id})"
+        else:
+            user_id_str = f"Usuario ({telegram_id})"
+        
+        # Llamar a la función sincrónica create_reservation
+        response = create_reservation(
+            user_id=user_id_str,
+            date=date,
+            hour=hour,
+            gmail_trabajador=None,
+            id_empleado_seleccionado=id_empleado
+        )
+        
+        return response
+    
+    except Exception as e:
+        print(f"❌ Error en create_reservation_via_api: {e}")
+        return f"❌ Error al crear la reserva: {str(e)}"

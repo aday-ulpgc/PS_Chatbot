@@ -24,6 +24,7 @@ from typing import Generator
 from dotenv import load_dotenv
 import bcrypt
 from sqlalchemy import (
+    BigInteger,
     Column,
     DateTime,
     ForeignKey,
@@ -111,18 +112,17 @@ class CitaInd(Base):
     PRIORIDAD = Column(Integer, nullable=True, default=1)
     ELIMINADO = Column(DateTime, nullable=True, default=None)
 
-    usuario = relationship("Usuario", back_populates="citas")
+    # DEPRECATED: Usuario model was removed
+    # usuario = relationship("Usuario", back_populates="citas")
 
 
 class Empleado(Base):
     __tablename__ = "EMPLEADOS"
 
     ID_EMPLEADO = Column(Integer, primary_key=True, autoincrement=True)
-    ID_ADMIN = Column(Integer, ForeignKey("EMPLEADOS.ID_EMPLEADO"), nullable=True)
-    TIPO = Column(String(10), nullable=False)  # 'senior' | 'junior'
     NOMBRE = Column(String(100), nullable=False)
     EMAIL = Column(String(200), nullable=False, unique=True)
-    CONTRASENA = Column("CONTRASEÑA", String(255), nullable=True)
+    # CONTRASENA = Column("CONTRASEÑA", String(255), nullable=True)
     ELIMINADO = Column(DateTime, nullable=True, default=None)
 
     clientes = relationship(
@@ -142,7 +142,7 @@ class Cliente(Base):
     )
     DNI = Column(String(9), nullable=False, unique=True)
     NOMBRE = Column(String(100), nullable=False)
-    TELEGRAM_ID = Column(Integer, nullable=True, unique=True)  # Para identificar usuario del bot
+    TELEGRAM_ID = Column("ID_TELEGRAM", BigInteger, nullable=True, unique=True)  # Para identificar usuario del bot
     EMAIL = Column(String(200), nullable=True)
     TELEFONO = Column(String(20), nullable=True)
     ELIMINADO = Column(DateTime, nullable=True, default=None)
@@ -154,7 +154,7 @@ class Cliente(Base):
 
 
 class CitaCorp(Base):
-    __tablename__ = "CITAS_COR"
+    __tablename__ = "CITAS"
 
     ID_CITA = Column(Integer, primary_key=True, autoincrement=True)
     ID_EMPLEADO = Column(Integer, ForeignKey("EMPLEADOS.ID_EMPLEADO"), nullable=False)
@@ -380,10 +380,13 @@ def obtener_o_crear_cliente_telegram(
     
     # Crear nuevo cliente
     empleado = _get_empleado_activo(session, id_empleado_default)
+    # DNI: usar los últimos 9 dígitos del telegram_id (para caber en VARCHAR(9))
+    dni_default = str(telegram_id)[-9:] if telegram_id else "000000000"
+    
     cliente = crear_cliente(
         session,
         id_empleado=id_empleado_default,
-        dni=dni or f"telegram_{telegram_id}",
+        dni=dni or dni_default,
         nombre=nombre or f"Usuario Telegram {telegram_id}",
         telegram_id=telegram_id,
         id_empleado_usual=id_empleado_default,

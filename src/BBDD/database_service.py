@@ -31,6 +31,7 @@ def obtener_o_crear_cliente_por_telegram(
         telegram_id: ID único del usuario en Telegram
         nombre: Nombre del cliente (usado si se crea nuevo)
         id_empleado_default: ID del empleado por defecto (si se crea cliente nuevo)
+                            Si es None, selecciona el primer empleado activo
 
     Returns:
         Dict con:
@@ -40,8 +41,24 @@ def obtener_o_crear_cliente_por_telegram(
     """
     try:
         with get_session() as session:
+            # Si no hay empleado por defecto, obtener el primero activo
+            if id_empleado_default is None:
+                from src.BBDD.databasecontroller import Empleado
+                empleado_default = session.query(Empleado).filter(
+                    Empleado.ELIMINADO == None
+                ).first()
+                
+                if empleado_default:
+                    id_empleado_default = empleado_default.ID_EMPLEADO
+                else:
+                    return {
+                        "cliente_id": None,
+                        "creado": False,
+                        "error": "No hay empleados disponibles en la BD"
+                    }
+            
             cliente_data = obtener_o_crear_cliente_telegram(
-                session, telegram_id, nombre, id_empleado_default
+                session, telegram_id, id_empleado_default, nombre
             )
             return {
                 "cliente_id": cliente_data.ID_CLIENTE,
@@ -171,6 +188,71 @@ def obtener_citas_usuario(telegram_id: int) -> list:
     )
 
 
+def obtener_cliente_por_telegram_id(telegram_id: int) -> int | None:
+    """Obtiene el cliente_id basado en el telegram_id.
+    
+    Args:
+        telegram_id: ID único del usuario en Telegram
+        
+    Returns:
+        cliente_id si existe, None si no se encuentra
+    """
+    try:
+        from src.BBDD.databasecontroller import Cliente
+        
+        with get_session() as session:
+            cliente = session.query(Cliente).filter(
+                Cliente.TELEGRAM_ID == telegram_id,
+                Cliente.ELIMINADO == None
+            ).first()
+            
+            if cliente:
+                return cliente.ID_CLIENTE
+            return None
+    except Exception as e:
+        print(f"Error al obtener cliente por telegram_id: {e}")
+    return None
+
+
+def obtener_citas_cliente(cliente_id: int) -> list[dict]:
+    """Obtiene todas las citas activas de un cliente.
+    
+    Args:
+        cliente_id: ID del cliente
+        
+    Returns:
+        Lista de dicts con info de citas: FECHA, ID_EMPLEADO, NOMBRE_EMPLEADO, etc.
+    """
+    try:
+        from src.BBDD.databasecontroller import CitaCorp, Empleado
+        
+        with get_session() as session:
+            citas = session.query(CitaCorp).filter(
+                CitaCorp.ID_CLIENTE == cliente_id,
+                CitaCorp.ELIMINADO == None
+            ).order_by(CitaCorp.FECHA).all()
+            
+            result = []
+            for cita in citas:
+                empleado = session.query(Empleado).filter(
+                    Empleado.ID_EMPLEADO == cita.ID_EMPLEADO
+                ).first()
+                
+                result.append({
+                    "ID_CITA": cita.ID_CITA,
+                    "FECHA": cita.FECHA,
+                    "DESCRIPCION": cita.DESCRIPCION,
+                    "DURACION": cita.DURACION,
+                    "ID_EMPLEADO": cita.ID_EMPLEADO,
+                    "NOMBRE_EMPLEADO": empleado.NOMBRE if empleado else "Unknown",
+                })
+            
+            return result
+    except Exception as e:
+        print(f"Error al obtener citas del cliente: {e}")
+    return []
+
+
 def cancelar_cita_db(id_cita: int) -> bool:
     """Marca una cita como eliminada."""
     try:
@@ -186,6 +268,33 @@ def cancelar_cita_db(id_cita: int) -> bool:
     except Exception as e:
         print(f"Error al cancelar cita: {e}")
     return False
+
+
+def obtener_empleados_activos() -> list[dict]:
+    """Obtiene todos los empleados activos (no eliminados).
+    
+    Devuelve:
+        Lista de dicts con: ID_EMPLEADO, NOMBRE, EMAIL
+    """
+    try:
+        from src.BBDD.databasecontroller import Empleado
+        
+        with get_session() as session:
+            empleados = session.query(Empleado).filter(
+                Empleado.ELIMINADO == None
+            ).all()
+            
+            return [
+                {
+                    "ID_EMPLEADO": emp.ID_EMPLEADO,
+                    "NOMBRE": emp.NOMBRE,
+                    "EMAIL": emp.EMAIL,
+                }
+                for emp in empleados
+            ]
+    except Exception as e:
+        print(f"Error al obtener empleados: {e}")
+    return []
 
 
 def actualizar_cita_fecha_db(id_cita: int, nueva_fecha: datetime) -> bool:
