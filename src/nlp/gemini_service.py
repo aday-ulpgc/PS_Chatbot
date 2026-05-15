@@ -8,7 +8,6 @@ from src.bot.telegram.constants import obtener_promt_agente
 
 
 class NLPService:
-    # 📋 Lista de modelos ordenados por rendimiento (mejor → peor)
     MODELOS_DISPONIBLES = [
         "gemini-3-flash",                    # Gemini 3.1 Flash (mejor rendimiento)
         "gemini-3-flash-lite",               # Gemini 3.1 Flash-Lite

@@ -7,7 +7,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-from src.BBDD.databasecontroller import obtener_citas_por_usuario, get_session
+from src.BBDD.databasecontroller import obtener_citas_empleado, get_session
 
 
 HORAS_INICIO = 0
@@ -21,12 +21,12 @@ def _asegurar_temp_dir():
         os.makedirs(TEMP_DIR)
 
 
-def generar_imagen_disponibilidad(user_id: int, fecha: datetime) -> str:
+def generar_imagen_disponibilidad(id_empleado: int, fecha: datetime) -> str:
     """
     Genera una imagen de disponibilidad de horas para un día específico.
 
     Args:
-        user_id: ID del usuario
+        id_empleado: ID del empleado
         fecha: Fecha para la cual generar la imagen (datetime)
 
     Returns:
@@ -35,9 +35,11 @@ def generar_imagen_disponibilidad(user_id: int, fecha: datetime) -> str:
     _asegurar_temp_dir()
 
     try:
-        # Obtener citas del usuario para ese día - DENTRO de la sesión
+        # Obtener citas del empleado para ese día - DENTRO de la sesión
         with get_session() as session:
-            citas = obtener_citas_por_usuario(session, user_id)
+            fecha_inicio = fecha.replace(hour=0, minute=0, second=0, microsecond=0)
+            fecha_fin = fecha.replace(hour=23, minute=59, second=59, microsecond=999999)
+            citas = obtener_citas_empleado(session, id_empleado, fecha_inicio, fecha_fin)
 
             # Convertir a diccionarios para no perder datos después de cerrar sesión
             citas_data = [
@@ -49,13 +51,8 @@ def generar_imagen_disponibilidad(user_id: int, fecha: datetime) -> str:
                 for c in citas
             ]
 
-        # Filtrar citas del día específico
-        fecha_inicio = fecha.replace(hour=0, minute=0, second=0, microsecond=0)
-        fecha_fin = fecha.replace(hour=23, minute=59, second=59, microsecond=999999)
-
-        citas_del_dia = [
-            c for c in citas_data if fecha_inicio <= c["fecha"] <= fecha_fin
-        ]
+        # Ya tenemos solo las citas del día (filtradas en obtener_citas_empleado)
+        citas_del_dia = citas_data
 
         # Crear figura
         fig, ax = plt.subplots(figsize=(20, 6))
@@ -143,7 +140,7 @@ def generar_imagen_disponibilidad(user_id: int, fecha: datetime) -> str:
 
         # Guardar imagen
         fecha_str = fecha.strftime("%Y%m%d")
-        filename = f"disponibilidad_{user_id}_{fecha_str}.png"
+        filename = f"disponibilidad_{id_empleado}_{fecha_str}.png"
         filepath = os.path.join(TEMP_DIR, filename)
 
         fig.savefig(filepath, dpi=100, bbox_inches="tight", facecolor="#f8f9fa")
@@ -156,13 +153,13 @@ def generar_imagen_disponibilidad(user_id: int, fecha: datetime) -> str:
         return None
 
 
-def generar_imagen_disponibilidad_semana(user_id: int, fecha_inicio: datetime) -> str:
+def generar_imagen_disponibilidad_semana(id_empleado: int, fecha_inicio: datetime) -> str:
     """
     Genera una imagen de disponibilidad para 7 días a partir de una fecha.
     Una columna por día, eje Y = horas del día. Verde = disponible, Rojo = ocupado.
 
     Args:
-        user_id: ID del usuario
+        id_empleado: ID del empleado
         fecha_inicio: Fecha de inicio de la semana (datetime)
 
     Returns:
@@ -171,9 +168,10 @@ def generar_imagen_disponibilidad_semana(user_id: int, fecha_inicio: datetime) -
     _asegurar_temp_dir()
 
     try:
-        # Obtener citas del usuario - DENTRO de la sesión
+        # Obtener citas del empleado para la semana - DENTRO de la sesión
         with get_session() as session:
-            citas = obtener_citas_por_usuario(session, user_id)
+            fecha_fin_semana = fecha_inicio + timedelta(days=7)
+            citas = obtener_citas_empleado(session, id_empleado, fecha_inicio, fecha_fin_semana)
 
             # Convertir a diccionarios
             citas_data = [
@@ -282,7 +280,7 @@ def generar_imagen_disponibilidad_semana(user_id: int, fecha_inicio: datetime) -
         plt.tight_layout()
 
         fecha_str = fecha_inicio.strftime("%Y%m%d")
-        filename = f"disponibilidad_semana_{user_id}_{fecha_str}.png"
+        filename = f"disponibilidad_semana_{id_empleado}_{fecha_str}.png"
         filepath = os.path.join(TEMP_DIR, filename)
 
         fig.savefig(filepath, dpi=100, bbox_inches="tight", facecolor="#f8f9fa")
@@ -296,14 +294,14 @@ def generar_imagen_disponibilidad_semana(user_id: int, fecha_inicio: datetime) -
 
 
 def generar_imagen_disponibilidad_semana_24h(
-    user_id: int, fecha_cualquiera: datetime
+    id_empleado: int, fecha_cualquiera: datetime
 ) -> str:
     """
     Genera una imagen de disponibilidad para una semana completa (24h cada día).
     Si se pasa viernes 12 de Junio, muestra lunes 8 de Junio a domingo 14 de Junio.
 
     Args:
-        user_id: ID del usuario
+        id_empleado: ID del empleado
         fecha_cualquiera: Cualquier fecha de la semana que quieras ver (datetime)
 
     Returns:
@@ -312,9 +310,15 @@ def generar_imagen_disponibilidad_semana_24h(
     _asegurar_temp_dir()
 
     try:
-        # Obtener citas del usuario - DENTRO de la sesión
+        # Calcular el lunes de la semana de esa fecha
+        dias_desde_lunes = fecha_cualquiera.weekday()
+        fecha_lunes = fecha_cualquiera - timedelta(days=dias_desde_lunes)
+        fecha_lunes = fecha_lunes.replace(hour=0, minute=0, second=0, microsecond=0)
+        fecha_domingo = fecha_lunes + timedelta(days=7)
+
+        # Obtener citas del empleado para la semana - DENTRO de la sesión
         with get_session() as session:
-            citas = obtener_citas_por_usuario(session, user_id)
+            citas = obtener_citas_empleado(session, id_empleado, fecha_lunes, fecha_domingo)
 
             # Convertir a diccionarios
             citas_data = [
@@ -327,9 +331,6 @@ def generar_imagen_disponibilidad_semana_24h(
             ]
 
         # Calcular el lunes de la semana de esa fecha
-        dias_desde_lunes = fecha_cualquiera.weekday()
-        fecha_lunes = fecha_cualquiera - timedelta(days=dias_desde_lunes)
-        fecha_lunes = fecha_lunes.replace(hour=0, minute=0, second=0, microsecond=0)
         dias_semana = [
             "Lunes",
             "Martes",
@@ -430,7 +431,7 @@ def generar_imagen_disponibilidad_semana_24h(
         plt.tight_layout()
 
         fecha_str = fecha_lunes.strftime("%Y%m%d")
-        filename = f"disponibilidad_semana_24h_{user_id}_{fecha_str}.png"
+        filename = f"disponibilidad_semana_24h_{id_empleado}_{fecha_str}.png"
         filepath = os.path.join(TEMP_DIR, filename)
 
         fig.savefig(filepath, dpi=100, bbox_inches="tight", facecolor="#f8f9fa")

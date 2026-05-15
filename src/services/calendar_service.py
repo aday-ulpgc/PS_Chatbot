@@ -327,27 +327,19 @@ def create_reservation(
             telegram_id = None
             nombre = None
 
-        # Guardar también en la base de datos
-        if telegram_id and not skip_db:
-            from src.BBDD.database_service import obtener_o_crear_usuario_telegram
+        # TODO: Guardar en la nueva arquitectura
+        # La integracion con Google Calendar y la BD de Clientes/Empleados
+        # esta siendo refactorizada. Deshabilitada temporalmente.
+        # if telegram_id and not skip_db:
+        #     from src.BBDD.database_service import obtener_o_crear_cliente_por_telegram
+        #     cliente_result = obtener_o_crear_cliente_por_telegram(telegram_id, nombre)
+        #     # TODO: Completar lógica de guardado
 
-            obtener_o_crear_usuario_telegram(telegram_id=telegram_id, nombre=nombre)
-
-            fecha_obj = datetime.strptime(date, "%Y-%m-%d")
-            success_db = guardar_cita_en_db(
-                telegram_id=telegram_id,
-                fecha=fecha_obj,
-                hora=hour,
-                descripcion="Cita reservada desde Telegram",
-            )
-            if not success_db:
-                print("[WARN] Cita creada en Google Calendar pero no se guardo en DB")
-
-        return f"✅ ¡Reserva confirmada para el {date} a las {hour}!\n"
+        return f"OK Reserva confirmada para el {date} a las {hour}!\n"
 
     except FileNotFoundError as e:
         print(f"[CONFIG ERROR]: {e}")
-        return "❌ Error: No se pudo localizar el archivo de llaves de Google."
+        return "ERROR: No se pudo localizar el archivo de llaves de Google."
     except Exception as e:
         print(f"[SYSTEM ERROR]: {e}")
         return "❌ Lo siento, hubo un problema técnico al crear la reserva."

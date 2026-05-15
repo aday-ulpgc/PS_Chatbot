@@ -11,8 +11,7 @@ from src.BBDD.database_service import (
     actualizar_cita_fecha_db,
     obtener_horas_ocupadas,
     obtener_info_cita_db,
-    obtener_o_crear_usuario_telegram,
-    obtener_usuario_y_contacto_para_cita,
+    obtener_o_crear_cliente_por_telegram,
 )
 from src.bot.telegram.constants import CALENDAR_STEPS, MODO_AUDIO, MODO_TEXTO
 from src.bot.telegram.handlers.commands import handle_action_back_menu
@@ -138,10 +137,10 @@ async def handle_calendar_and_time(
             )
         )
 
-        # Obtener o crear usuario y contacto de la BD
+        # Obtener o crear cliente de la BD
         telegram_id = update.effective_user.id
         user_info = await asyncio.to_thread(
-            obtener_usuario_y_contacto_para_cita,
+            obtener_o_crear_cliente_por_telegram,
             telegram_id,
             update.effective_user.full_name,
         )
@@ -277,10 +276,10 @@ async def handle_calendar_and_time(
         elif result:
             context.user_data["selected_data"] = str(result)
 
-            # Obtener o crear usuario en BD
+            # Obtener o crear cliente en BD
             telegram_id = query.from_user.id
             await asyncio.to_thread(
-                obtener_o_crear_usuario_telegram,
+                obtener_o_crear_cliente_por_telegram,
                 telegram_id,
                 query.from_user.first_name,
             )
