@@ -8,7 +8,8 @@ from src.bot.telegram.chat_actions import send_action_while_thinking
 from src.nlp.gemini_service import NLPService
 from src.services import calendar_service
 from src.services.voice_service import VoiceService
-from src.bot.telegram.constants import MODO_TEXTO, MODO_AUDIO, TRABAJADORES
+from src.bot.telegram.constants import MODO_TEXTO, MODO_AUDIO
+from src.BBDD.database_service import obtener_email_empleado_por_nombre
 from src.bot.telegram.handlers.manage_appointments import (
     handle_action_cancel_menu,
     handle_action_modify_menu,
@@ -87,7 +88,8 @@ async def _handle_booking_intent(
     hora = datos.get("hora")
     nombre_id = f"{update.effective_user.full_name} ({update.effective_user.id})"
     nombre_ia = datos.get("nombre_trabajador") or ""
-    gmail_trabajador = TRABAJADORES.get(nombre_ia.lower())
+    
+    gmail_trabajador = obtener_email_empleado_por_nombre(nombre_ia)
     print(f"Intentando reservar para {nombre_id} el {fecha} a las {hora} con {nombre_ia} ({gmail_trabajador})")
 
     try:
@@ -200,8 +202,9 @@ async def handle_texto_libre(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
     nombre_trabajador_sesion = context.user_data.get("trabajador_actual")
+    
     gmail_consulta = (
-        TRABAJADORES.get(nombre_trabajador_sesion) if nombre_trabajador_sesion else None
+        obtener_email_empleado_por_nombre(nombre_trabajador_sesion) if nombre_trabajador_sesion else None
     )
 
     datos_semanal = await asyncio.to_thread(

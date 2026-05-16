@@ -326,3 +326,30 @@ def obtener_info_cita_db(id_cita: int) -> dict | None:
     except Exception as e:
         print(f"Error al obtener info de la cita: {e}")
     return None
+
+
+def obtener_email_empleado_por_nombre(nombre_empleado: str) -> str | None:
+    """Obtiene el email del empleado por su nombre desde la BD.
+    
+    Args:
+        nombre_empleado: Nombre del empleado a buscar
+        
+    Returns:
+        Email del empleado si existe, None si no se encuentra
+    """
+    try:
+        from src.BBDD.databasecontroller import Empleado
+        
+        with get_session() as session:
+            # Busca el empleado por nombre (case-insensitive), excluyendo eliminados
+            empleado = session.query(Empleado).filter(
+                Empleado.NOMBRE.ilike(f"%{nombre_empleado}%"),
+                Empleado.ELIMINADO == None
+            ).first()
+            
+            if empleado and empleado.EMAIL:
+                return empleado.EMAIL
+            return None
+    except Exception as e:
+        print(f"Error al obtener email del empleado: {e}")
+    return None

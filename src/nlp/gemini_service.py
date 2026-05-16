@@ -15,9 +15,9 @@ load_dotenv(env_path)
 
 class NLPService:
     MODELOS_DISPONIBLES = [
-        "gemini-1.5-flash",                  # Gemini 1.5 Flash (más rápido, recomendado)
-        "gemini-1.5-pro",                    # Gemini 1.5 Pro (más potente)
-        "gemini-2.0-flash-exp",              # Gemini 2.0 Flash Experimental
+        "gemini-3.1-flash-lite",                 
+        "gemini-3-flash-preview",                   
+        "gemini-3.1-pro-preview",              
     ]
     
     # 🔄 Índice del modelo actual (inicia con el mejor)
