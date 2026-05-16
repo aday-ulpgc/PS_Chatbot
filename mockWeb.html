@@ -1968,7 +1968,7 @@
             <p class="booking-sub reveal">Nuestro asistente con IA disponible 24/7 en Telegram.<br>Reserva en menos de
                 un minuto, sin esperas.</p>
             <div class="booking-actions reveal">
-                <a href="https://t.me/noir_barberia_bot" target="_blank" class="btn-telegram">
+                <a href="https://t.me/PS5Mibot" target="_blank" class="btn-telegram">
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="white">
                         <path
                             d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.96 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.244-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
@@ -2039,7 +2039,7 @@
         <div>
             <div class="footer-h3">Reservas</div>
             <ul>
-                <li><a href="https://t.me/noir_barberia_bot">Telegram Bot IA</a></li>
+                <li><a href="https://t.me/PS5Mibot">Telegram Bot IA</a></li>
                 <li><a href="#">Reserva Online</a></li>
                 <li><a href="#">Política de Citas</a></li>
                 <li><a href="#">Privacidad</a></li>
@@ -2172,14 +2172,22 @@
             return new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
         }
 
-        function addMessage(text, type) {
+        function addMessage(text, type, delay = 0, audioUrl = null) {
             return new Promise(resolve => {
-                const msg = document.createElement('div');
-                msg.className = `msg ${type}`;
-                msg.innerHTML = `<div class="msg-bubble">${text.replace(/\n/g, '<br>')}</div><div class="msg-time">${getTime()}</div>`;
-                tgMessages.appendChild(msg);
-                tgMessages.scrollTop = tgMessages.scrollHeight;
-                resolve();
+                setTimeout(() => {
+                    const msg = document.createElement('div');
+                    msg.className = `msg ${type}`;
+                    
+                    let audioHtml = '';
+                    if (audioUrl) {
+                        audioHtml = `<div style="margin-top: 6px; padding: 0 0.9rem;"><audio controls autoplay style="height: 32px; width: 220px; outline: none;" src="${audioUrl}"></audio></div>`;
+                    }
+
+                    msg.innerHTML = `<div class="msg-bubble">${text.replace(/\n/g, '<br>')}</div>${audioHtml}<div class="msg-time">${getTime()}</div>`;
+                    tgMessages.appendChild(msg);
+                    tgMessages.scrollTop = tgMessages.scrollHeight;
+                    resolve();
+                }, delay);
             });
         }
 
@@ -2231,7 +2239,7 @@
 
                 const data = await response.json();
                 removeTyping();
-                await addMessage(data.respuesta, 'bot');
+                await addMessage(data.respuesta, 'bot', 0, data.audio_url);
 
             } catch (err) {
                 removeTyping();

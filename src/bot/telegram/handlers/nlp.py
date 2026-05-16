@@ -330,6 +330,63 @@ async def procesar_flujo_completo(
         else:
             await _reply_to_user(update, context, texto_respuesta)
 
+    # ── Dispatch web: reserva real ────────────────────────────────────────────
+    if es_web and accion == "reservar" and estado == "listo_para_reservar":
+        nombre_ia = datos.get("nombre_trabajador") or ""
+        gmail_trabajador = TRABAJADORES.get(nombre_ia.lower())
+        try:
+            # En la web, usamos el user_id como identificador (ya sea UUID o ID de Telegram)
+            resultado = await asyncio.to_thread(
+                calendar_service.create_reservation,
+                user_id,
+                datos.get("fecha_iso"),
+                datos.get("hora"),
+                gmail_trabajador,
+            )
+            if resultado.startswith("❌"):
+                respuesta_agente["respuesta_usuario"] = (
+                    resultado + "\n\n¿Quieres probar con otro día u otra hora?"
+                )
+                user_data["historial"].pop()
+            else:
+                respuesta_agente["respuesta_usuario"] = f"✅ ¡Todo listo!\n{resultado}"
+                user_data["historial"] = []
+        except Exception as e:
+            print(f"Error al reservar (web): {e}")
+            respuesta_agente["respuesta_usuario"] = (
+                "❌ Fallo interno al conectar con el calendario. Inténtalo más tarde."
+            )
+            user_data["historial"].pop()
+
+    # ── Dispatch web: ajustes (audio) ─────────────────────────────────────────
+    if es_web and accion in ["activar_audio", "desactivar_audio"]:
+        if accion == "activar_audio":
+            user_data["pref_mode"] = MODO_AUDIO
+        else:
+            user_data["pref_mode"] = MODO_TEXTO
+
+    # ── Audio web ─────────────────────────────────────────────────────────────
+    audio_url = None
+    if es_web and user_data.get("pref_mode") == MODO_AUDIO:
+        import uuid
+        import os as _os
+
+        _static_dir = "static"
+        _os.makedirs(_static_dir, exist_ok=True)
+        try:
+            audio_path = await VoiceService.text_to_speech(
+                respuesta_agente.get("respuesta_usuario", "")
+            )
+            audio_filename = f"calia_{uuid.uuid4().hex}.mp3"
+            dest = _os.path.join(_static_dir, audio_filename)
+            _os.rename(audio_path, dest)
+            # URL absoluta para el cliente web
+            audio_url = f"http://localhost:8000/static/{audio_filename}"
+        except Exception as e:
+            print(f"Error al generar audio web: {e}")
+
+    respuesta_agente["audio_url"] = audio_url
+
     # ── Devolver siempre el dict completo (útil para la API web) ─────────────
     return respuesta_agente
 

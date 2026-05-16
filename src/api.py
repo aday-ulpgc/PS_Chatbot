@@ -20,6 +20,7 @@ from typing import AsyncGenerator, Optional
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
@@ -128,6 +129,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ── Servir archivos estáticos (para audios de la web) ──────────────────────────
+import os as _os
+_os.makedirs("static", exist_ok=True)
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
 # ── Schemas Pydantic ───────────────────────────────────────────────────────────
@@ -937,6 +943,7 @@ class ChatWebResponse(BaseModel):
     accion: Optional[str] = None
     estado: Optional[str] = None
     datos_extraidos: Optional[dict] = None
+    audio_url: Optional[str] = None
 
 
 @app.post(
@@ -966,6 +973,7 @@ async def post_chat_web(body: ChatWebRequest):
             accion=respuesta_agente.get("accion"),
             estado=respuesta_agente.get("estado"),
             datos_extraidos=respuesta_agente.get("datos_extraidos"),
+            audio_url=respuesta_agente.get("audio_url"),
         )
     except Exception as e:
         print(f"❌ Error en /v1/chat/web: {e}")
