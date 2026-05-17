@@ -1,7 +1,10 @@
 """Servicio para gestionar la base de datos desde el bot de Telegram."""
 
+import sys
+import os
 from datetime import datetime
-from .databasecontroller import (
+from sqlalchemy import func
+from src.BBDD.databasecontroller import (
     get_session,
     Usuario,
     Contacto,
@@ -9,7 +12,12 @@ from .databasecontroller import (
     crear_contacto,
     crear_cita,
     CitaInd,
+    obtener_citas_por_usuario,
 )
+
+_src_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _src_path not in sys.path:
+    sys.path.insert(0, _src_path)
 
 
 def obtener_o_crear_usuario_telegram(
@@ -32,7 +40,6 @@ def obtener_o_crear_usuario_telegram(
             if usuario:
                 return {"id_usuario": usuario.ID_USUARIO, "creado": False}
 
-            # Crear nuevo usuario
             nuevo_usuario = crear_usuario(
                 session,
                 tipo="I",
@@ -45,6 +52,65 @@ def obtener_o_crear_usuario_telegram(
     except Exception as e:
         print(f"❌ Error en obtener_o_crear_usuario_telegram: {e}")
         return {"id_usuario": None, "creado": False, "error": str(e)}
+
+
+def obtener_usuario_y_contacto_para_cita(
+    telegram_id: int, nombre: str | None = None
+) -> dict:
+    """Obtiene o crea usuario y contacto "Reserva general" para crear una cita.
+
+    Retorna un dict con:
+    - usuario_id: ID de usuario en la BD
+    - contacto_id: ID de contacto en la BD
+    - error: Mensaje de error (si aplica)
+    """
+    try:
+        with get_session() as session:
+            email = f"telegram_{telegram_id}@bot.local"
+            usuario = session.query(Usuario).filter(Usuario.EMAIL == email).first()
+
+            if not usuario:
+                # Crear nuevo usuario
+                nuevo_usuario = crear_usuario(
+                    session,
+                    tipo="I",
+                    nombre=nombre or f"Usuario Telegram {telegram_id}",
+                    email=email,
+                    contrasena="telegram_bot",
+                )
+                session.flush()
+                usuario = nuevo_usuario
+
+            # Obtener o crear contacto "Reserva general"
+            NOMBRE_CONTACTO_BOT = "Reserva general"
+            contacto = (
+                session.query(Contacto)
+                .filter(
+                    Contacto.ID_USUARIO == usuario.ID_USUARIO,
+                    Contacto.NOMBRE == NOMBRE_CONTACTO_BOT,
+                    Contacto.ELIMINADO.is_(None),
+                )
+                .first()
+            )
+
+            if not contacto:
+                contacto = crear_contacto(
+                    session,
+                    id_usuario=usuario.ID_USUARIO,
+                    nombre=NOMBRE_CONTACTO_BOT,
+                    email=f"reserva_general_{usuario.ID_USUARIO}@bot.local",
+                )
+                session.flush()
+
+            session.commit()
+            return {
+                "usuario_id": usuario.ID_USUARIO,
+                "contacto_id": contacto.ID_CONTACTO,
+                "error": None,
+            }
+    except Exception as e:
+        print(f"❌ Error en obtener_usuario_y_contacto_para_cita: {e}")
+        return {"usuario_id": None, "contacto_id": None, "error": str(e)}
 
 
 def guardar_cita_en_db(
@@ -63,7 +129,6 @@ def guardar_cita_en_db(
     """
     try:
         with get_session() as session:
-            # 1. Obtener usuario
             email = f"telegram_{telegram_id}@bot.local"
             usuario = session.query(Usuario).filter(Usuario.EMAIL == email).first()
 
@@ -71,17 +136,13 @@ def guardar_cita_en_db(
                 print(f"❌ Usuario no encontrado: {email}")
                 return False
 
-            # 2. Obtener o crear contacto genérico de reserva
-            # Los contactos representan personas/servicios con los que se agenda,
-            # no al propio usuario del bot. Se usa un contacto genérico "Reserva general"
-            # por usuario para las citas creadas directamente desde el bot.
             NOMBRE_CONTACTO_BOT = "Reserva general"
             contacto = (
                 session.query(Contacto)
                 .filter(
                     Contacto.ID_USUARIO == usuario.ID_USUARIO,
                     Contacto.NOMBRE == NOMBRE_CONTACTO_BOT,
-                    Contacto.ELIMINADO is None,
+                    Contacto.ELIMINADO.is_(None),
                 )
                 .first()
             )
@@ -95,7 +156,6 @@ def guardar_cita_en_db(
                 )
                 session.flush()
 
-            # 3. Combinar fecha y hora
             hora_parts = hora.split(":")
             cita_fecha = fecha.replace(
                 hour=int(hora_parts[0]),
@@ -104,7 +164,6 @@ def guardar_cita_en_db(
                 microsecond=0,
             )
 
-            # 4. Crear cita
             crear_cita(
                 session,
                 id_usuario=usuario.ID_USUARIO,
@@ -123,20 +182,91 @@ def guardar_cita_en_db(
 
 
 def obtener_horas_ocupadas(fecha_str: str) -> list[str]:
-    """Consulta la BD y devuelve una lista de horas ocupadas para una fecha dada."""
+    """Consulta la BD y devuelve una lista de horas ocupadas para una fecha dada.
+    El filtrado se delega al motor SQL (O(1) vs O(N) anterior).
+    """
     try:
         with get_session() as session:
             citas_activas = (
-                session.query(CitaInd).filter(CitaInd.ELIMINADO.is_(None)).all()
+                session.query(CitaInd)
+                .filter(
+                    CitaInd.ELIMINADO.is_(None),
+                    func.date(CitaInd.FECHA) == fecha_str,
+                )
+                .all()
             )
-
-            horas_ocupadas = []
-            for cita in citas_activas:
-                if cita.FECHA.strftime("%Y-%m-%d") == fecha_str:
-                    hora_formateada = f"{cita.FECHA.hour}:{cita.FECHA.minute:02d}"
-                    horas_ocupadas.append(hora_formateada)
-
-            return horas_ocupadas
+            return [
+                f"{cita.FECHA.hour}:{cita.FECHA.minute:02d}" for cita in citas_activas
+            ]
     except Exception as e:
         print(f"❌ Error al leer horas ocupadas: {e}")
         return []
+
+
+def obtener_citas_usuario(telegram_id: int) -> list:
+    """Recupera las citas activas de un usuario por su ID de Telegram."""
+    try:
+        with get_session() as session:
+            email = f"telegram_{telegram_id}@bot.local"
+            usuario = session.query(Usuario).filter(Usuario.EMAIL == email).first()
+
+            if not usuario:
+                return []
+
+            # Usamos la función existente que filtra correctamente por fecha futura
+            citas_db = obtener_citas_por_usuario(session, usuario.ID_USUARIO)
+
+            citas_lista = []
+            for cita in citas_db:
+                citas_lista.append(
+                    {
+                        "ID_CITA": cita.ID_CITA,
+                        "FECHA": cita.FECHA,
+                        "DESCRIPCION": cita.DESCRIPCION,
+                    }
+                )
+
+            return citas_lista
+
+    except Exception as e:
+        print(f"❌ Error al obtener citas: {e}")
+        return []
+
+
+def cancelar_cita_db(id_cita: int) -> bool:
+    """Marca una cita como eliminada en la base de datos delegando en el controlador."""
+    try:
+        with get_session() as session:
+            from src.BBDD.databasecontroller import eliminar_cita
+
+            return eliminar_cita(session, id_cita)
+    except Exception as e:
+        print(f"❌ Error al cancelar cita: {e}")
+    return False
+
+
+def actualizar_cita_fecha_db(id_cita: int, nueva_fecha: datetime) -> bool:
+    """Actualiza la fecha y hora de una cita en la base de datos delegando en el controlador."""
+    try:
+        with get_session() as session:
+            from src.BBDD.databasecontroller import actualizar_cita
+
+            cita = actualizar_cita(session, id_cita, fecha=nueva_fecha)
+            return cita is not None
+    except Exception as e:
+        print(f"❌ Error al actualizar cita: {e}")
+    return False
+
+
+def obtener_info_cita_db(id_cita: int) -> dict | None:
+    """Recupera la fecha de una cita específica delegando en el controlador."""
+    try:
+        with get_session() as session:
+            from src.BBDD.databasecontroller import obtener_cita
+
+            cita = obtener_cita(session, id_cita)
+            if cita:
+                return {"FECHA": cita.FECHA}
+    except Exception as e:
+        print(f"❌ Error al obtener info de la cita: {e}")
+    return None
