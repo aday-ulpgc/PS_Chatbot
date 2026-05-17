@@ -88,7 +88,7 @@ class VoiceService:
     async def text_to_speech(text: str) -> str:
         """
         Recibe un texto, lo normaliza (fechas, horas) y devuelve la ruta del
-        archivo de audio generado con ElevenLabs primero, fallback a gTTS.
+        archivo de audio generado con ElevenLabs (o fallback a gTTS).
         """
         # Normalización automática antes de enviar a la API
         text = formatear_fecha_para_voz(text)

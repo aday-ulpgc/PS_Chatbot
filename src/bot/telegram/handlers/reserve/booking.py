@@ -19,7 +19,11 @@ from src.BBDD.database_service import (
     obtener_o_crear_usuario_telegram,
     obtener_usuario_y_contacto_para_cita,
 )
-
+from src.bot.telegram.constants import CALENDAR_STEPS, MODO_AUDIO, MODO_TEXTO
+from src.bot.telegram.handlers.commands import handle_action_back_menu
+from src.bot.telegram.keyboards import main_menu_keyboard
+from src.services import calendar_service
+from src.services.voice_service import VoiceService
 from .alternatives import handle_alternative_time_selection, parse_alternative_times
 from .utils import send_with_optional_audio, limpiar_estado_reserva
 

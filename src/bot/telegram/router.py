@@ -37,8 +37,12 @@ from src.bot.telegram.handlers.settings import (
     handle_set_mode_audio,
     handle_eleccion_texto_libre,
     handle_eleccion_botones,
+    handle_set_mode_texto,
+    handle_set_mode_audio,
     handle_show_text_reserva,
     handle_show_settings,
+    handle_eleccion_texto_libre,
+    handle_eleccion_botones,
     handle_toggle_modo_interaccion,
     handle_toggle_modo_respuesta,
 )
@@ -73,6 +77,8 @@ CALLBACK_ROUTES = {
     "eleccion_texto_libre": handle_eleccion_texto_libre,
     "action_cancel_menu": handle_action_cancel_menu,
     "action_modify_menu": handle_action_modify_menu,
+    "set_mode_texto": handle_set_mode_texto,
+    "set_mode_audio": handle_set_mode_audio,
     # Ajustes
     "toggle_modo_interaccion": handle_toggle_modo_interaccion,
     "toggle_modo_respuesta": handle_toggle_modo_respuesta,
