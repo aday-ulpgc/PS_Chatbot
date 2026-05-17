@@ -32,11 +32,11 @@ async def test_start():
     )
     assert "reply_markup" in reply
     assert isinstance(reply["reply_markup"], InlineKeyboardMarkup)
-    assert len(reply["reply_markup"].inline_keyboard) == 4
-    assert reply["reply_markup"].inline_keyboard[0][0].text == "📅 Hacer una reserva"
-    assert reply["reply_markup"].inline_keyboard[1][0].text == "📋 Mis citas"
-    assert reply["reply_markup"].inline_keyboard[2][0].text == "⚙️ Ajustes de Chat"
-    assert reply["reply_markup"].inline_keyboard[3][0].text == "❓ Ayuda"
+    assert len(reply["reply_markup"].inline_keyboard) == 2
+    assert (
+        reply["reply_markup"].inline_keyboard[0][0].text == "📋 Cita mediante Botones"
+    )
+    assert reply["reply_markup"].inline_keyboard[1][0].text == "📝 Cita mediante IA"
 
 
 @pytest.mark.asyncio
@@ -72,9 +72,9 @@ async def test_guardar_fecha_en_contexto():
     update.callback_query = query
 
     with patch(
-        "src.bot.telegram.handlers.reserve.DetailedTelegramCalendar.process"
+        "src.bot.telegram.handlers.reserve.booking.DetailedTelegramCalendar.process"
     ) as mock_process, patch(
-        "src.bot.telegram.handlers.reserve.DetailedTelegramCalendar.func"
+        "src.bot.telegram.handlers.reserve.booking.DetailedTelegramCalendar.func"
     ) as mock_func:
         mock_process.return_value = (date(2026, 6, 26), None, None)
 

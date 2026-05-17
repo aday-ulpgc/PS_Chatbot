@@ -147,3 +147,34 @@ if __name__ == "__main__":
     from src.main import main
 
     main()
+
+
+def check_and_install_requirements() -> None:
+    """Comprueba si los requerimientos están al día y pregunta si instalarlos."""
+    requirements_path = os.path.join(os.path.dirname(__file__), "requirements.txt")
+
+    if not os.path.exists(requirements_path):
+        print(f"✗ Error: No se encontró {requirements_path}")
+        sys.exit(1)
+
+    if packages_match_requirements(requirements_path):
+        return  # Todo ok, continuar sin preguntar
+
+    response = input("\nDescargar requerimientos (y/n): ").strip().lower()
+    while response not in ("y", "n"):
+        response = (
+            input("Opción inválida. Por favor ingresa 'y' o 'n': ").strip().lower()
+        )
+
+    if response == "y":
+        install_requirements(requirements_path)
+    else:
+        print("Continuando sin instalar requerimientos...\n")
+
+
+if __name__ == "__main__":
+    check_and_install_requirements()
+
+    from src.main import main
+
+    main()

@@ -1,0 +1,2496 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NOIR — Barbería de Autor</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap"
+        rel="stylesheet">
+    <link rel="icon" type="image/x-icon" href="scissors-solid-full.ico">
+    <style>
+        :root {
+            --gold: #C9A84C;
+            --gold-light: #E8C97A;
+            --gold-dim: #8B6E30;
+            --black: #0A0A0A;
+            --black2: #111111;
+            --black3: #1A1A1A;
+            --black4: #222222;
+            --cream: #F5F0E8;
+            --cream2: #EDE8DE;
+            --red: #8B1A1A;
+            --white: #FAFAF8;
+        }
+
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            background: var(--black);
+            color: var(--cream);
+            font-family: 'DM Sans', sans-serif;
+            font-weight: 300;
+            overflow-x: hidden;
+            cursor: none;
+        }
+
+        /* CUSTOM CURSOR */
+        .cursor {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            background: var(--gold);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 10000;
+            transition: transform 0.1s ease;
+            mix-blend-mode: difference;
+        }
+
+        .cursor-ring {
+            position: fixed;
+            width: 40px;
+            height: 40px;
+            border: 1px solid var(--gold);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 9999;
+            transition: transform 0.15s ease, width 0.3s, height 0.3s, border-color 0.3s;
+            mix-blend-mode: difference;
+        }
+
+        .cursor-ring.hovering {
+            width: 60px;
+            height: 60px;
+            border-color: var(--gold-light);
+        }
+
+        /* GRAIN OVERLAY */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");
+            opacity: 0.03;
+            pointer-events: none;
+            z-index: 9998;
+        }
+
+        /* NAV */
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            padding: 2rem 4rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.5s, padding 0.5s;
+        }
+
+        nav.scrolled {
+            background: rgba(10, 10, 10, 0.95);
+            padding: 1rem 4rem;
+            border-bottom: 1px solid rgba(201, 168, 76, 0.15);
+            backdrop-filter: blur(20px);
+        }
+
+        .logo {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 2rem;
+            letter-spacing: 0.3em;
+            color: var(--gold);
+            text-decoration: none;
+        }
+
+        .logo span {
+            color: var(--cream);
+        }
+
+        nav ul {
+            list-style: none;
+            display: flex;
+            gap: 3rem;
+        }
+
+        nav a {
+            font-family: 'DM Sans', sans-serif;
+            font-size: 0.75rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: var(--cream2);
+            text-decoration: none;
+            transition: color 0.3s;
+            position: relative;
+        }
+
+        nav a::after {
+            content: '';
+            position: absolute;
+            bottom: -4px;
+            left: 0;
+            width: 0;
+            height: 1px;
+            background: var(--gold);
+            transition: width 0.3s ease;
+        }
+
+        nav a:hover {
+            color: var(--gold);
+        }
+
+        nav a:hover::after {
+            width: 100%;
+        }
+
+        .nav-cta {
+            border: 1px solid var(--gold);
+            padding: 0.6rem 1.5rem;
+            color: var(--gold) !important;
+            transition: all 0.3s !important;
+        }
+
+        .nav-cta:hover {
+            background: var(--gold);
+            color: var(--black) !important;
+        }
+
+        .nav-cta::after {
+            display: none !important;
+        }
+
+        /* HERO */
+        #hero {
+            height: 100vh;
+            position: relative;
+            display: flex;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        .hero-bg {
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 20% 50%, rgba(139, 26, 26, 0.08) 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 20%, rgba(201, 168, 76, 0.06) 0%, transparent 50%),
+                linear-gradient(180deg, #0A0A0A 0%, #111111 50%, #0A0A0A 100%);
+        }
+
+        .hero-lines {
+            position: absolute;
+            inset: 0;
+            background-image:
+                repeating-linear-gradient(90deg, rgba(201, 168, 76, 0.03) 0px, rgba(201, 168, 76, 0.03) 1px, transparent 1px, transparent 80px),
+                repeating-linear-gradient(0deg, rgba(201, 168, 76, 0.03) 0px, rgba(201, 168, 76, 0.03) 1px, transparent 1px, transparent 80px);
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 2;
+            padding: 0 4rem;
+            max-width: 900px;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 0.7rem;
+            letter-spacing: 0.35em;
+            text-transform: uppercase;
+            color: var(--gold);
+            margin-bottom: 2rem;
+            opacity: 0;
+            animation: fadeUp 0.8s ease 0.3s forwards;
+        }
+
+        .hero-badge::before {
+            content: '';
+            width: 40px;
+            height: 1px;
+            background: var(--gold);
+        }
+
+        .hero-h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: clamp(4rem, 9vw, 9rem);
+            font-weight: 900;
+            line-height: 0.9;
+            letter-spacing: -0.02em;
+            color: var(--white);
+            opacity: 0;
+            animation: fadeUp 1s ease 0.5s forwards;
+        }
+
+        .hero-h1 em {
+            font-style: italic;
+            color: var(--gold);
+            display: block;
+        }
+
+        .hero-sub {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 1.3rem;
+            font-weight: 300;
+            color: rgba(245, 240, 232, 0.6);
+            margin-top: 2rem;
+            max-width: 480px;
+            line-height: 1.7;
+            opacity: 0;
+            animation: fadeUp 0.8s ease 0.8s forwards;
+        }
+
+        .hero-actions {
+            display: flex;
+            gap: 1.5rem;
+            margin-top: 3rem;
+            align-items: center;
+            opacity: 0;
+            animation: fadeUp 0.8s ease 1s forwards;
+        }
+
+        .btn-primary {
+            background: var(--gold);
+            color: var(--black);
+            padding: 1rem 2.5rem;
+            font-size: 0.75rem;
+            letter-spacing: 0.25em;
+            text-transform: uppercase;
+            text-decoration: none;
+            font-weight: 500;
+            display: inline-block;
+            transition: all 0.4s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-primary::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: var(--gold-light);
+            transform: translateX(-100%);
+            transition: transform 0.4s ease;
+        }
+
+        .btn-primary:hover::before {
+            transform: translateX(0);
+        }
+
+        .btn-primary span {
+            position: relative;
+            z-index: 1;
+        }
+
+        .btn-outline {
+            border: 1px solid rgba(201, 168, 76, 0.4);
+            color: var(--cream);
+            padding: 1rem 2.5rem;
+            font-size: 0.75rem;
+            letter-spacing: 0.25em;
+            text-transform: uppercase;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.4s ease;
+        }
+
+        .btn-outline:hover {
+            border-color: var(--gold);
+            color: var(--gold);
+        }
+
+        .hero-scroll {
+            position: absolute;
+            bottom: 3rem;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+            opacity: 0;
+            animation: fadeIn 1s ease 1.5s forwards;
+        }
+
+        .hero-scroll span {
+            font-size: 0.6rem;
+            letter-spacing: 0.3em;
+            text-transform: uppercase;
+            color: rgba(201, 168, 76, 0.5);
+        }
+
+        .scroll-line {
+            width: 1px;
+            height: 60px;
+            background: linear-gradient(to bottom, var(--gold), transparent);
+            animation: scrollPulse 2s ease infinite;
+        }
+
+        .hero-number {
+            position: absolute;
+            right: 4rem;
+            top: 50%;
+            transform: translateY(-50%);
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 20vw;
+            color: rgba(201, 168, 76, 0.03);
+            line-height: 1;
+            pointer-events: none;
+            user-select: none;
+        }
+
+        /* MARQUEE */
+        .marquee-section {
+            background: var(--gold);
+            padding: 1rem 0;
+            overflow: hidden;
+        }
+
+        .marquee-track {
+            display: flex;
+            animation: marquee 20s linear infinite;
+            white-space: nowrap;
+        }
+
+        .marquee-track span {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 1rem;
+            letter-spacing: 0.3em;
+            color: var(--black);
+            padding: 0 3rem;
+        }
+
+        .marquee-track span.dot {
+            color: rgba(0, 0, 0, 0.3);
+            padding: 0 1rem;
+        }
+
+        /* SECTION COMMONS */
+        section {
+            padding: 8rem 4rem;
+        }
+
+        .section-tag {
+            font-size: 0.65rem;
+            letter-spacing: 0.4em;
+            text-transform: uppercase;
+            color: var(--gold);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .section-tag::before {
+            content: '';
+            width: 30px;
+            height: 1px;
+            background: var(--gold);
+        }
+
+        .section-h2 {
+            font-family: 'Playfair Display', serif;
+            font-size: clamp(2.5rem, 5vw, 5rem);
+            font-weight: 700;
+            line-height: 1.05;
+            color: var(--white);
+        }
+
+        .section-h2 em {
+            font-style: italic;
+            color: var(--gold);
+        }
+
+        /* ABOUT */
+        #about {
+            background: var(--black2);
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6rem;
+            align-items: center;
+        }
+
+        .about-visual {
+            position: relative;
+            height: 600px;
+        }
+
+        .about-frame {
+            position: absolute;
+            inset: 0;
+            background: var(--black3);
+            border: 1px solid rgba(201, 168, 76, 0.15);
+        }
+
+        .about-frame-inner {
+            position: absolute;
+            top: 3rem;
+            left: 3rem;
+            right: -1.5rem;
+            bottom: -1.5rem;
+            border: 1px solid rgba(201, 168, 76, 0.08);
+            background:
+                linear-gradient(135deg, rgba(201, 168, 76, 0.04) 0%, transparent 60%);
+        }
+
+        .barber-pole {
+            position: absolute;
+            right: -40px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 20px;
+            height: 160px;
+            border-radius: 10px;
+            background: var(--black3);
+            border: 1px solid rgba(201, 168, 76, 0.2);
+            overflow: hidden;
+        }
+
+        .barber-pole-inner {
+            width: 100%;
+            height: 100%;
+            background: repeating-linear-gradient(180deg,
+                    var(--red) 0px,
+                    var(--red) 12px,
+                    white 12px,
+                    white 24px,
+                    #1a3a7a 24px,
+                    #1a3a7a 36px);
+            animation: bpScroll 3s linear infinite;
+        }
+
+        .about-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin-top: 3rem;
+        }
+
+        .stat-block {
+            border-left: 1px solid rgba(201, 168, 76, 0.3);
+            padding-left: 1.5rem;
+        }
+
+        .stat-num {
+            font-family: 'Playfair Display', serif;
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--gold);
+            line-height: 1;
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            letter-spacing: 0.1em;
+            color: rgba(245, 240, 232, 0.5);
+            margin-top: 0.5rem;
+            text-transform: uppercase;
+        }
+
+        .about-desc {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 1.15rem;
+            line-height: 1.9;
+            color: rgba(245, 240, 232, 0.7);
+            margin-top: 2rem;
+        }
+
+        /* SERVICES */
+        #services {
+            background: var(--black);
+            position: relative;
+        }
+
+        .services-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1px;
+            margin-top: 4rem;
+            background: rgba(201, 168, 76, 0.1);
+        }
+
+        .service-card {
+            background: var(--black);
+            padding: 3rem;
+            position: relative;
+            overflow: hidden;
+            transition: background 0.5s ease;
+            cursor: none;
+        }
+
+        .service-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(201, 168, 76, 0.06) 0%, transparent 60%);
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        .service-card:hover {
+            background: var(--black3);
+        }
+
+        .service-card:hover::before {
+            opacity: 1;
+        }
+
+        .service-num {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 4rem;
+            color: rgba(201, 168, 76, 0.08);
+            line-height: 1;
+            margin-bottom: 1.5rem;
+            transition: color 0.5s;
+        }
+
+        .service-card:hover .service-num {
+            color: rgba(201, 168, 76, 0.15);
+        }
+
+        .service-icon {
+            width: 48px;
+            height: 48px;
+            border: 1px solid rgba(201, 168, 76, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1.5rem;
+            font-size: 1.2rem;
+            transition: all 0.4s;
+        }
+
+        .service-card:hover .service-icon {
+            background: var(--gold);
+            border-color: var(--gold);
+        }
+
+        .service-name {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--white);
+            margin-bottom: 0.75rem;
+        }
+
+        .service-desc {
+            font-size: 0.85rem;
+            color: rgba(245, 240, 232, 0.5);
+            line-height: 1.7;
+            margin-bottom: 1.5rem;
+        }
+
+        .service-price {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 1.5rem;
+            color: var(--gold);
+            letter-spacing: 0.1em;
+        }
+
+        .service-duration {
+            font-size: 0.7rem;
+            letter-spacing: 0.2em;
+            color: rgba(245, 240, 232, 0.35);
+            text-transform: uppercase;
+            margin-left: 0.5rem;
+        }
+
+        /* TEAM */
+        #team {
+            background: var(--black2);
+        }
+
+        .team-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+            margin-top: 4rem;
+        }
+
+        .barber-card {
+            position: relative;
+            overflow: hidden;
+            background: var(--black3);
+            border: 1px solid rgba(201, 168, 76, 0.1);
+            transition: border-color 0.4s, transform 0.4s;
+        }
+
+        .barber-card:hover {
+            border-color: rgba(201, 168, 76, 0.4);
+            transform: translateY(-8px);
+        }
+
+        .barber-photo {
+            height: 320px;
+            background: var(--black4);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .barber-silhouette {
+            width: 120px;
+            height: 220px;
+            position: relative;
+        }
+
+        .barber-photo::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 50%;
+            background: linear-gradient(to top, var(--black3), transparent);
+        }
+
+        .barber-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(201, 168, 76, 0.08);
+            opacity: 0;
+            transition: opacity 0.4s;
+        }
+
+        .barber-card:hover .barber-overlay {
+            opacity: 1;
+        }
+
+        .barber-info {
+            padding: 1.5rem;
+            border-top: 1px solid rgba(201, 168, 76, 0.1);
+        }
+
+        .barber-name {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--white);
+        }
+
+        .barber-role {
+            font-size: 0.7rem;
+            letter-spacing: 0.25em;
+            text-transform: uppercase;
+            color: var(--gold);
+            margin-top: 0.25rem;
+        }
+
+        .barber-specialty {
+            font-size: 0.8rem;
+            color: rgba(245, 240, 232, 0.5);
+            margin-top: 0.75rem;
+        }
+
+        /* TESTIMONIALS */
+        #reviews {
+            background: var(--black);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .reviews-bg-text {
+            position: absolute;
+            bottom: -2rem;
+            right: -2rem;
+            font-family: 'Playfair Display', serif;
+            font-size: 20rem;
+            font-weight: 900;
+            font-style: italic;
+            color: rgba(201, 168, 76, 0.02);
+            user-select: none;
+            line-height: 1;
+        }
+
+        .reviews-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+            margin-top: 4rem;
+        }
+
+        .review-card {
+            background: var(--black3);
+            border: 1px solid rgba(201, 168, 76, 0.1);
+            padding: 2.5rem;
+            position: relative;
+            transition: border-color 0.4s, transform 0.4s;
+        }
+
+        .review-card:hover {
+            border-color: rgba(201, 168, 76, 0.3);
+            transform: translateY(-4px);
+        }
+
+        .review-quote {
+            font-size: 3rem;
+            color: var(--gold);
+            line-height: 1;
+            font-family: 'Playfair Display', serif;
+            margin-bottom: 1rem;
+            opacity: 0.4;
+        }
+
+        .review-text {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 1.05rem;
+            line-height: 1.8;
+            color: rgba(245, 240, 232, 0.7);
+            font-style: italic;
+        }
+
+        .review-stars {
+            margin: 1.5rem 0 1rem;
+            color: var(--gold);
+            font-size: 0.75rem;
+            letter-spacing: 0.15em;
+        }
+
+        .review-author {
+            font-size: 0.75rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: var(--gold);
+        }
+
+        /* BOOKING CTA */
+        #booking {
+            background: var(--black2);
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .booking-bg {
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 50% 0%, rgba(201, 168, 76, 0.08) 0%, transparent 60%);
+        }
+
+        .booking-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .booking-divider {
+            width: 1px;
+            height: 80px;
+            background: linear-gradient(to bottom, transparent, var(--gold), transparent);
+            margin: 0 auto 3rem;
+        }
+
+        .booking-h2 {
+            font-family: 'Playfair Display', serif;
+            font-size: clamp(2.5rem, 5vw, 5rem);
+            font-weight: 900;
+            color: var(--white);
+            line-height: 1;
+            margin-bottom: 1.5rem;
+        }
+
+        .booking-h2 em {
+            font-style: italic;
+            color: var(--gold);
+        }
+
+        .booking-sub {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 1.2rem;
+            color: rgba(245, 240, 232, 0.6);
+            margin-bottom: 3rem;
+        }
+
+        .booking-actions {
+            display: flex;
+            gap: 1.5rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn-telegram {
+            background: #2AABEE;
+            color: white;
+            padding: 1rem 2.5rem;
+            font-size: 0.75rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            text-decoration: none;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            transition: all 0.4s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-telegram::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.2);
+            transform: translateX(-100%);
+            transition: transform 0.4s ease;
+        }
+
+        .btn-telegram:hover::before {
+            transform: translateX(0);
+        }
+
+        .btn-telegram span,
+        .btn-telegram svg {
+            position: relative;
+            z-index: 1;
+        }
+
+        /* TELEGRAM CHAT WIDGET */
+        #tg-chat-widget {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            z-index: 5000;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 1rem;
+        }
+
+        .tg-bubble {
+            background: var(--black3);
+            border: 1px solid rgba(201, 168, 76, 0.3);
+            width: 380px;
+            max-height: 520px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(201, 168, 76, 0.05);
+            transform: scale(0.9) translateY(20px);
+            opacity: 0;
+            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            pointer-events: none;
+        }
+
+        .tg-bubble.open {
+            transform: scale(1) translateY(0);
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .tg-header {
+            background: #2AABEE;
+            padding: 1rem 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex-shrink: 0;
+        }
+
+        .tg-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+        }
+
+        .tg-info {
+            flex: 1;
+        }
+
+        .tg-name {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .tg-verified {
+            background: white;
+            color: #2AABEE;
+            font-size: 0.5rem;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .tg-status {
+            font-size: 0.7rem;
+            color: rgba(255, 255, 255, 0.7);
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+
+        .tg-status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #4ade80;
+            animation: pulse 2s ease infinite;
+        }
+
+        .tg-close {
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, 0.7);
+            cursor: none;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            padding: 0.25rem;
+            transition: color 0.2s;
+        }
+
+        .tg-close:hover {
+            color: white;
+        }
+
+        .tg-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            background: var(--black4);
+            scroll-behavior: smooth;
+        }
+
+        .tg-messages::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .tg-messages::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .tg-messages::-webkit-scrollbar-thumb {
+            background: rgba(201, 168, 76, 0.2);
+            border-radius: 2px;
+        }
+
+        .msg {
+            display: flex;
+            flex-direction: column;
+            max-width: 82%;
+        }
+
+        .msg.bot {
+            align-self: flex-start;
+        }
+
+        .msg.user {
+            align-self: flex-end;
+        }
+
+        .msg-bubble {
+            padding: 0.6rem 0.9rem;
+            border-radius: 12px;
+            font-size: 0.82rem;
+            line-height: 1.5;
+        }
+
+        .msg.bot .msg-bubble {
+            background: var(--black3);
+            border: 1px solid rgba(201, 168, 76, 0.12);
+            color: var(--cream);
+            border-top-left-radius: 2px;
+        }
+
+        .msg.user .msg-bubble {
+            background: #2AABEE;
+            color: white;
+            border-top-right-radius: 2px;
+        }
+
+        .msg-time {
+            font-size: 0.6rem;
+            color: rgba(245, 240, 232, 0.3);
+            margin-top: 0.25rem;
+            align-self: flex-end;
+        }
+
+        .msg.bot .msg-time {
+            align-self: flex-start;
+        }
+
+        .msg-typing {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+            padding: 0.6rem 0.9rem;
+            background: var(--black3);
+            border: 1px solid rgba(201, 168, 76, 0.12);
+            border-radius: 12px;
+            border-top-left-radius: 2px;
+            width: fit-content;
+        }
+
+        .typing-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: rgba(201, 168, 76, 0.5);
+            animation: typingBounce 1.2s ease infinite;
+        }
+
+        .typing-dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        .tg-quick-replies {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            padding: 0.75rem 1rem;
+            background: var(--black4);
+            border-top: 1px solid rgba(201, 168, 76, 0.08);
+            flex-shrink: 0;
+        }
+
+        .quick-reply {
+            background: none;
+            border: 1px solid rgba(201, 168, 76, 0.25);
+            color: var(--gold);
+            padding: 0.35rem 0.8rem;
+            font-size: 0.7rem;
+            letter-spacing: 0.1em;
+            cursor: none;
+            transition: all 0.2s;
+            font-family: 'DM Sans', sans-serif;
+        }
+
+        .quick-reply:hover {
+            background: rgba(201, 168, 76, 0.1);
+            border-color: var(--gold);
+        }
+
+        .tg-input-area {
+            display: flex;
+            gap: 0;
+            border-top: 1px solid rgba(201, 168, 76, 0.12);
+            flex-shrink: 0;
+        }
+
+        .tg-input {
+            flex: 1;
+            background: var(--black3);
+            border: none;
+            outline: none;
+            padding: 0.9rem 1rem;
+            color: var(--cream);
+            font-family: 'DM Sans', sans-serif;
+            font-size: 0.82rem;
+        }
+
+        .tg-input::placeholder {
+            color: rgba(245, 240, 232, 0.3);
+        }
+
+        .tg-send {
+            background: #2AABEE;
+            border: none;
+            color: white;
+            padding: 0 1.25rem;
+            cursor: none;
+            font-size: 1rem;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+        }
+
+        .tg-send:hover {
+            background: #1a9bde;
+        }
+
+        .tg-btn {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: #2AABEE;
+            border: none;
+            cursor: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 8px 30px rgba(42, 171, 238, 0.4);
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .tg-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 12px 40px rgba(42, 171, 238, 0.6);
+        }
+
+        .tg-btn svg {
+            width: 28px;
+            height: 28px;
+        }
+
+        .tg-notification {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            width: 18px;
+            height: 18px;
+            background: var(--red);
+            border-radius: 50%;
+            font-size: 0.65rem;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 500;
+            animation: notifPulse 2s ease infinite;
+        }
+
+        .tg-label {
+            background: var(--black3);
+            border: 1px solid rgba(201, 168, 76, 0.2);
+            color: var(--cream);
+            padding: 0.4rem 0.9rem;
+            font-size: 0.7rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            white-space: nowrap;
+            border-radius: 20px;
+            opacity: 0;
+            transform: translateX(20px);
+            transition: all 0.4s ease;
+        }
+
+        #tg-chat-widget:not(.chat-open) .tg-label {
+            opacity: 1;
+            transform: translateX(0);
+            animation: labelFloat 3s ease 2s infinite;
+        }
+
+        /* FOOTER */
+        footer {
+            background: var(--black2);
+            border-top: 1px solid rgba(201, 168, 76, 0.1);
+            padding: 4rem;
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr;
+            gap: 3rem;
+        }
+
+        .footer-logo {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 2.5rem;
+            letter-spacing: 0.3em;
+            color: var(--gold);
+        }
+
+        .footer-logo span {
+            color: rgba(245, 240, 232, 0.7);
+        }
+
+        .footer-tagline {
+            font-family: 'Cormorant Garamond', serif;
+            font-style: italic;
+            color: rgba(245, 240, 232, 0.4);
+            margin-top: 0.5rem;
+            font-size: 0.95rem;
+        }
+
+        .footer-address {
+            font-size: 0.8rem;
+            line-height: 1.8;
+            color: rgba(245, 240, 232, 0.5);
+            margin-top: 1.5rem;
+        }
+
+        .footer-h3 {
+            font-size: 0.65rem;
+            letter-spacing: 0.35em;
+            text-transform: uppercase;
+            color: var(--gold);
+            margin-bottom: 1.5rem;
+        }
+
+        footer ul {
+            list-style: none;
+        }
+
+        footer li {
+            margin-bottom: 0.75rem;
+        }
+
+        footer a {
+            font-size: 0.85rem;
+            color: rgba(245, 240, 232, 0.5);
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+
+        footer a:hover {
+            color: var(--gold);
+        }
+
+        .footer-bottom {
+            background: var(--black);
+            border-top: 1px solid rgba(201, 168, 76, 0.08);
+            padding: 1.5rem 4rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .footer-copy {
+            font-size: 0.7rem;
+            color: rgba(245, 240, 232, 0.25);
+            letter-spacing: 0.1em;
+        }
+
+        .footer-social {
+            display: flex;
+            gap: 1.5rem;
+        }
+
+        .footer-social a {
+            font-size: 0.7rem;
+            letter-spacing: 0.2em;
+            color: rgba(245, 240, 232, 0.35);
+            text-decoration: none;
+            text-transform: uppercase;
+            transition: color 0.3s;
+        }
+
+        .footer-social a:hover {
+            color: var(--gold);
+        }
+
+        /* ANIMATIONS */
+        @keyframes fadeUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        @keyframes scrollPulse {
+
+            0%,
+            100% {
+                opacity: 0.3;
+                transform: scaleY(1);
+            }
+
+            50% {
+                opacity: 1;
+                transform: scaleY(1.1);
+            }
+        }
+
+        @keyframes marquee {
+            from {
+                transform: translateX(0);
+            }
+
+            to {
+                transform: translateX(-50%);
+            }
+        }
+
+        @keyframes bpScroll {
+            from {
+                transform: translateY(0);
+            }
+
+            to {
+                transform: translateY(36px);
+            }
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+
+            50% {
+                opacity: 0.6;
+                transform: scale(0.8);
+            }
+        }
+
+        @keyframes notifPulse {
+
+            0%,
+            100% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.15);
+            }
+        }
+
+        @keyframes typingBounce {
+
+            0%,
+            60%,
+            100% {
+                transform: translateY(0);
+            }
+
+            30% {
+                transform: translateY(-6px);
+            }
+        }
+
+        @keyframes labelFloat {
+
+            0%,
+            100% {
+                transform: translateX(0);
+            }
+
+            50% {
+                transform: translateX(-3px);
+            }
+        }
+
+        @keyframes revealUp {
+            from {
+                opacity: 0;
+                transform: translateY(50px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .reveal {
+            opacity: 0;
+            transform: translateY(40px);
+            transition: opacity 0.9s ease, transform 0.9s ease;
+        }
+
+        .reveal.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* SCISSORS DECORATION */
+        .scissors-deco {
+            position: absolute;
+            color: rgba(201, 168, 76, 0.04);
+            font-size: 8rem;
+            user-select: none;
+            pointer-events: none;
+        }
+
+        /* PRICE TABLE */
+        .price-section {
+            background: var(--black2);
+            position: relative;
+        }
+
+        .price-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 2rem;
+            margin-top: 4rem;
+        }
+
+        .price-card {
+            border: 1px solid rgba(201, 168, 76, 0.12);
+            padding: 2.5rem;
+            position: relative;
+            transition: border-color 0.4s;
+        }
+
+        .price-card:hover {
+            border-color: rgba(201, 168, 76, 0.35);
+        }
+
+        .price-card.featured {
+            border-color: rgba(201, 168, 76, 0.4);
+            background: linear-gradient(135deg, rgba(201, 168, 76, 0.04) 0%, transparent 60%);
+        }
+
+        .price-badge {
+            position: absolute;
+            top: -1px;
+            right: 2rem;
+            background: var(--gold);
+            color: var(--black);
+            font-size: 0.6rem;
+            letter-spacing: 0.3em;
+            text-transform: uppercase;
+            padding: 0.3rem 0.75rem;
+            font-weight: 500;
+        }
+
+        .price-plan {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 1.3rem;
+            letter-spacing: 0.15em;
+            color: var(--gold);
+            margin-bottom: 0.5rem;
+        }
+
+        .price-amount {
+            font-family: 'Playfair Display', serif;
+            font-size: 3rem;
+            font-weight: 700;
+            color: var(--white);
+            line-height: 1;
+            margin-bottom: 0.5rem;
+        }
+
+        .price-amount sup {
+            font-size: 1.2rem;
+            vertical-align: top;
+            margin-top: 0.5rem;
+            display: inline-block;
+            color: var(--gold);
+        }
+
+        .price-desc {
+            font-size: 0.8rem;
+            color: rgba(245, 240, 232, 0.4);
+            letter-spacing: 0.1em;
+            margin-bottom: 2rem;
+            padding-bottom: 2rem;
+            border-bottom: 1px solid rgba(201, 168, 76, 0.1);
+        }
+
+        .price-features {
+            list-style: none;
+        }
+
+        .price-features li {
+            font-size: 0.83rem;
+            color: rgba(245, 240, 232, 0.65);
+            padding: 0.5rem 0;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            border-bottom: 1px solid rgba(201, 168, 76, 0.05);
+        }
+
+        .price-features li::before {
+            content: '';
+            width: 16px;
+            height: 1px;
+            background: var(--gold);
+            flex-shrink: 0;
+        }
+
+        /* TELEGRAM LOGIN PANEL */
+        .tg-login-panel {
+            padding: 1.5rem 1.25rem;
+            background: var(--black4);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.9rem;
+            border-bottom: 1px solid rgba(201, 168, 76, 0.12);
+            flex-shrink: 0;
+        }
+
+        .tg-login-panel.hidden { display: none; }
+
+        .tg-login-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--white);
+            text-align: center;
+            line-height: 1.35;
+        }
+
+        .tg-login-desc {
+            font-size: 0.72rem;
+            color: rgba(245, 240, 232, 0.45);
+            text-align: center;
+            line-height: 1.65;
+            max-width: 280px;
+        }
+
+        .tg-skip-btn {
+            background: none;
+            border: none;
+            color: rgba(245, 240, 232, 0.22);
+            font-size: 0.63rem;
+            cursor: none;
+            letter-spacing: 0.08em;
+            text-decoration: underline;
+            font-family: 'DM Sans', sans-serif;
+            padding: 0;
+            transition: color 0.2s;
+        }
+
+        .tg-skip-btn:hover { color: rgba(245, 240, 232, 0.55); }
+
+        .tg-identified-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.45rem 1rem;
+            background: rgba(42, 171, 238, 0.08);
+            border-bottom: 1px solid rgba(42, 171, 238, 0.15);
+            flex-shrink: 0;
+        }
+
+        .tg-identified-bar.hidden { display: none; }
+
+        .tg-identified-bar-info {
+            color: rgba(245, 240, 232, 0.5);
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            font-size: 0.7rem;
+        }
+
+        .tg-identified-bar-info strong { color: #2AABEE; }
+
+        .tg-logout-link {
+            background: none;
+            border: none;
+            color: rgba(245, 240, 232, 0.28);
+            font-size: 0.63rem;
+            cursor: none;
+            font-family: 'DM Sans', sans-serif;
+            text-decoration: underline;
+            padding: 0;
+            letter-spacing: 0.05em;
+            transition: color 0.2s;
+        }
+
+        .tg-logout-link:hover { color: rgba(245, 240, 232, 0.6); }
+
+        /* Hide chat UI while login panel is active */
+        .tg-bubble.login-mode .tg-messages,
+        .tg-bubble.login-mode .tg-quick-replies,
+        .tg-bubble.login-mode .tg-input-area {
+            display: none !important;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- CUSTOM CURSOR -->
+    <div class="cursor" id="cursor"></div>
+    <div class="cursor-ring" id="cursorRing"></div>
+
+    <!-- NAVIGATION -->
+    <nav id="mainNav">
+        <a href="#" class="logo">NOIR<span>.</span></a>
+        <ul>
+            <li><a href="#about">Nosotros</a></li>
+            <li><a href="#services">Servicios</a></li>
+            <li><a href="#team">Maestros</a></li>
+            <li><a href="#reviews">Reseñas</a></li>
+            <li><a href="#booking" class="nav-cta">Reservar</a></li>
+        </ul>
+    </nav>
+
+    <!-- HERO -->
+    <section id="hero">
+        <div class="hero-bg"></div>
+        <div class="hero-lines"></div>
+        <div class="hero-number">1927</div>
+        <div class="hero-content">
+            <div class="hero-badge">Barbería de autor · Desde 1927</div>
+            <h1 class="hero-h1">El arte<em>de ser</em>distinto.</h1>
+            <p class="hero-sub">Cada corte es una obra. Cada cliente, una historia. Tradición e innovación fundidas en
+                una experiencia única.</p>
+            <div class="hero-actions">
+                <a href="#booking" class="btn-primary"><span>Reservar cita</span></a>
+                <a href="#services" class="btn-outline">Ver servicios</a>
+            </div>
+        </div>
+        <div class="hero-scroll">
+            <span>Descubrir</span>
+            <div class="scroll-line"></div>
+        </div>
+    </section>
+
+    <!-- MARQUEE -->
+    <div class="marquee-section">
+        <div class="marquee-track">
+            <span>Corte Clásico</span><span class="dot">◆</span>
+            <span>Afeitado a Navaja</span><span class="dot">◆</span>
+            <span>Perfilado de Barba</span><span class="dot">◆</span>
+            <span>Tratamiento Capilar</span><span class="dot">◆</span>
+            <span>Coloración Artesanal</span><span class="dot">◆</span>
+            <span>Ritual de Lujo</span><span class="dot">◆</span>
+            <span>Corte Clásico</span><span class="dot">◆</span>
+            <span>Afeitado a Navaja</span><span class="dot">◆</span>
+            <span>Perfilado de Barba</span><span class="dot">◆</span>
+            <span>Tratamiento Capilar</span><span class="dot">◆</span>
+            <span>Coloración Artesanal</span><span class="dot">◆</span>
+            <span>Ritual de Lujo</span><span class="dot">◆</span>
+        </div>
+    </div>
+
+    <!-- ABOUT -->
+    <section id="about">
+        <div class="about-visual reveal">
+            <div class="about-frame">
+                <svg viewBox="0 0 400 500" xmlns="http://www.w3.org/2000/svg"
+                    style="width:100%;height:100%;opacity:0.7">
+                    <!-- Vintage barbershop interior illustration -->
+                    <defs>
+                        <linearGradient id="wallGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stop-color="#1A1A1A" />
+                            <stop offset="100%" stop-color="#0A0A0A" />
+                        </linearGradient>
+                    </defs>
+                    <!-- Background -->
+                    <rect width="400" height="500" fill="url(#wallGrad)" />
+                    <!-- Floor -->
+                    <rect x="0" y="380" width="400" height="120" fill="#111" />
+                    <!-- Floor tiles -->
+                    <g stroke="rgba(201,168,76,0.08)" stroke-width="0.5" fill="none">
+                        <line x1="0" y1="400" x2="400" y2="400" />
+                        <line x1="0" y1="420" x2="400" y2="420" />
+                        <line x1="0" y1="440" x2="400" y2="440" />
+                        <line x1="50" y1="380" x2="50" y2="500" />
+                        <line x1="100" y1="380" x2="100" y2="500" />
+                        <line x1="150" y1="380" x2="150" y2="500" />
+                        <line x1="200" y1="380" x2="200" y2="500" />
+                        <line x1="250" y1="380" x2="250" y2="500" />
+                        <line x1="300" y1="380" x2="300" y2="500" />
+                        <line x1="350" y1="380" x2="350" y2="500" />
+                    </g>
+                    <!-- Mirror frame -->
+                    <rect x="80" y="30" width="240" height="300" rx="4" fill="none" stroke="rgba(201,168,76,0.3)"
+                        stroke-width="2" />
+                    <rect x="90" y="40" width="220" height="280" rx="2" fill="rgba(201,168,76,0.03)"
+                        stroke="rgba(201,168,76,0.1)" stroke-width="1" />
+                    <!-- Mirror corner details -->
+                    <rect x="80" y="30" width="20" height="20" fill="rgba(201,168,76,0.15)" />
+                    <rect x="300" y="30" width="20" height="20" fill="rgba(201,168,76,0.15)" />
+                    <rect x="80" y="310" width="20" height="20" fill="rgba(201,168,76,0.15)" />
+                    <rect x="300" y="310" width="20" height="20" fill="rgba(201,168,76,0.15)" />
+                    <!-- Barber chair silhouette -->
+                    <g fill="rgba(201,168,76,0.08)" stroke="rgba(201,168,76,0.2)" stroke-width="1">
+                        <!-- Base -->
+                        <rect x="145" y="350" width="110" height="15" rx="2" />
+                        <rect x="195" y="310" width="10" height="40" />
+                        <!-- Seat -->
+                        <rect x="130" y="290" width="140" height="25" rx="4" />
+                        <!-- Back -->
+                        <rect x="135" y="220" width="130" height="75" rx="6" />
+                        <!-- Armrests -->
+                        <rect x="115" y="265" width="20" height="8" rx="2" />
+                        <rect x="265" y="265" width="20" height="8" rx="2" />
+                        <!-- Headrest -->
+                        <rect x="155" y="200" width="90" height="25" rx="4" />
+                    </g>
+                    <!-- Wall lamp -->
+                    <g stroke="rgba(201,168,76,0.4)" stroke-width="1" fill="none">
+                        <line x1="50" y1="80" x2="70" y2="100" />
+                        <ellipse cx="75" cy="105" rx="12" ry="8" fill="rgba(201,168,76,0.1)"
+                            stroke="rgba(201,168,76,0.3)" />
+                    </g>
+                    <!-- Shelf with products -->
+                    <rect x="0" y="175" width="60" height="4" fill="rgba(201,168,76,0.15)" stroke="rgba(201,168,76,0.2)"
+                        stroke-width="0.5" />
+                    <!-- Products on shelf -->
+                    <rect x="5" y="150" width="10" height="25" rx="1" fill="rgba(201,168,76,0.1)"
+                        stroke="rgba(201,168,76,0.3)" stroke-width="0.5" />
+                    <rect x="20" y="155" width="8" height="20" rx="1" fill="rgba(201,168,76,0.06)"
+                        stroke="rgba(201,168,76,0.2)" stroke-width="0.5" />
+                    <rect x="33" y="148" width="12" height="27" rx="1" fill="rgba(201,168,76,0.08)"
+                        stroke="rgba(201,168,76,0.25)" stroke-width="0.5" />
+                    <!-- Decorative lines -->
+                    <line x1="0" y1="200" x2="80" y2="200" stroke="rgba(201,168,76,0.06)" stroke-width="1" />
+                    <line x1="0" y1="60" x2="60" y2="60" stroke="rgba(201,168,76,0.06)" stroke-width="1" />
+                    <!-- Bottom text -->
+                    <text x="200" y="475" text-anchor="middle" fill="rgba(201,168,76,0.15)"
+                        font-family="'Bebas Neue', sans-serif" font-size="11" letter-spacing="6">NOIR BARBERÍA · GRAN
+                        CANARIA</text>
+                </svg>
+            </div>
+            <div class="about-frame-inner"></div>
+            <div class="barber-pole">
+                <div class="barber-pole-inner"></div>
+            </div>
+        </div>
+
+        <div class="about-text reveal">
+            <div class="section-tag">Nuestra historia</div>
+            <h2 class="section-h2">Donde la tradición<em>se reinventa.</em></h2>
+            <p class="about-desc">
+                NOIR nació de la obsesión por el detalle. No somos solo una barbería: somos un espacio donde el tiempo
+                se detiene y el cuidado personal se convierte en un ritual sagrado. Cada instrumento, cada gesto, cada
+                producto ha sido elegido con precisión.
+            </p>
+            <p class="about-desc" style="margin-top:1rem">
+                Nuestros maestros han perfeccionado su oficio durante años, combinando técnicas clásicas de la barbería
+                europea con las tendencias más contemporáneas. El resultado: una experiencia inigualable, imposible de
+                olvidar.
+            </p>
+            <div class="about-stats">
+                <div class="stat-block">
+                    <div class="stat-num">97+</div>
+                    <div class="stat-label">Años de historia</div>
+                </div>
+                <div class="stat-block">
+                    <div class="stat-num">12K+</div>
+                    <div class="stat-label">Clientes satisfechos</div>
+                </div>
+                <div class="stat-block">
+                    <div class="stat-num">4</div>
+                    <div class="stat-label">Maestros barberos</div>
+                </div>
+                <div class="stat-block">
+                    <div class="stat-num">5★</div>
+                    <div class="stat-label">Valoración media</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- SERVICES -->
+    <section id="services">
+        <div style="max-width:600px" class="reveal">
+            <div class="section-tag">Lo que ofrecemos</div>
+            <h2 class="section-h2">Servicios <em>de autor.</em></h2>
+        </div>
+        <div class="services-grid" style="margin-top:4rem">
+            <div class="service-card reveal">
+                <div class="service-num">01</div>
+                <div class="service-icon">✂</div>
+                <div class="service-name">Corte Clásico</div>
+                <div class="service-desc">Precisión milimétrica con tijera y máquina. El resultado perfecto para cada
+                    morfología de rostro, trabajado con paciencia artesanal.</div>
+                <div><span class="service-price">25€</span><span class="service-duration">45 min</span></div>
+            </div>
+            <div class="service-card reveal">
+                <div class="service-num">02</div>
+                <div class="service-icon">🪒</div>
+                <div class="service-name">Afeitado a Navaja</div>
+                <div class="service-desc">El ritual supremo. Toalla caliente, espuma artesanal y navaja de filo que
+                    transforma el afeitado en una experiencia de spa.</div>
+                <div><span class="service-price">35€</span><span class="service-duration">60 min</span></div>
+            </div>
+            <div class="service-card reveal">
+                <div class="service-num">03</div>
+                <div class="service-icon">✦</div>
+                <div class="service-name">Ritual Completo</div>
+                <div class="service-desc">Corte + barba + tratamiento capilar. La experiencia total NOIR: dos horas de
+                    puro ritual masculino en manos expertas.</div>
+                <div><span class="service-price">75€</span><span class="service-duration">2 h</span></div>
+            </div>
+            <div class="service-card reveal">
+                <div class="service-num">04</div>
+                <div class="service-icon">◈</div>
+                <div class="service-name">Perfilado de Barba</div>
+                <div class="service-desc">Diseño, perfilado y moldeado. Definimos los contornos perfectos que realzan tu
+                    personalidad y estructura facial única.</div>
+                <div><span class="service-price">20€</span><span class="service-duration">30 min</span></div>
+            </div>
+            <div class="service-card reveal">
+                <div class="service-num">05</div>
+                <div class="service-icon">◉</div>
+                <div class="service-name">Tratamiento Capilar</div>
+                <div class="service-desc">Diagnóstico personalizado y tratamiento hidratante de alta gama. Productos de
+                    autor que devuelven vida y brillo a tu cabello.</div>
+                <div><span class="service-price">45€</span><span class="service-duration">75 min</span></div>
+            </div>
+            <div class="service-card reveal">
+                <div class="service-num">06</div>
+                <div class="service-icon">✧</div>
+                <div class="service-name">Coloración Artesanal</div>
+                <div class="service-desc">Técnicas de coloración personalizadas: highlights, babylights, balayage
+                    masculino. Resultados naturales y sofisticados.</div>
+                <div><span class="service-price">desde 55€</span><span class="service-duration">Consultar</span></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- TEAM -->
+    <section id="team">
+        <div class="section-tag reveal">Nuestros maestros</div>
+        <h2 class="section-h2 reveal">Los artistas<em>detrás del corte.</em></h2>
+        <div class="team-grid">
+            <div class="barber-card reveal">
+                <div class="barber-photo">
+                    <svg viewBox="0 0 200 280" style="width:100%;height:100%">
+                        <defs>
+                            <linearGradient id="skinGrad1" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stop-color="#8B6914" stop-opacity="0.3" />
+                                <stop offset="100%" stop-color="#4A3508" stop-opacity="0.5" />
+                            </linearGradient>
+                        </defs>
+                        <!-- Silhouette: professional barber -->
+                        <ellipse cx="100" cy="70" rx="38" ry="42" fill="rgba(201,168,76,0.12)" />
+                        <path d="M62 180 Q60 160 62 140 Q68 120 100 115 Q132 120 138 140 Q140 160 138 180 Z"
+                            fill="rgba(201,168,76,0.08)" />
+                        <path d="M55 280 Q52 220 62 180 L138 180 Q148 220 145 280" fill="rgba(201,168,76,0.06)" />
+                        <!-- Barber jacket details -->
+                        <line x1="100" y1="120" x2="100" y2="200" stroke="rgba(201,168,76,0.15)" stroke-width="1" />
+                        <ellipse cx="100" cy="68" rx="28" ry="32" fill="rgba(201,168,76,0.08)"
+                            stroke="rgba(201,168,76,0.2)" stroke-width="0.5" />
+                        <!-- Scissors in hand -->
+                        <g transform="translate(125, 165) rotate(-30)">
+                            <line x1="0" y1="0" x2="25" y2="0" stroke="rgba(201,168,76,0.5)" stroke-width="1.5"
+                                stroke-linecap="round" />
+                            <line x1="0" y1="0" x2="25" y2="0" stroke="rgba(201,168,76,0.5)" stroke-width="1.5"
+                                stroke-linecap="round" transform="rotate(20, 0, 0)" />
+                            <circle cx="0" cy="0" r="3" fill="rgba(201,168,76,0.4)" />
+                        </g>
+                        <!-- Background texture -->
+                        <rect width="200" height="280" fill="none" stroke="rgba(201,168,76,0.04)" stroke-width="0.5" />
+                    </svg>
+                    <div class="barber-overlay"></div>
+                </div>
+                <div class="barber-info">
+                    <div class="barber-name">Marco Delgado</div>
+                    <div class="barber-role">Maestro Fundador</div>
+                    <div class="barber-specialty">Especialista en cortes clásicos europeos y afeitado tradicional. 25
+                        años de experiencia.</div>
+                </div>
+            </div>
+            <div class="barber-card reveal">
+                <div class="barber-photo">
+                    <svg viewBox="0 0 200 280" style="width:100%;height:100%">
+                        <ellipse cx="100" cy="68" rx="36" ry="40" fill="rgba(201,168,76,0.1)" />
+                        <path d="M64 175 Q62 155 65 138 Q71 118 100 113 Q129 118 135 138 Q138 155 136 175 Z"
+                            fill="rgba(201,168,76,0.07)" />
+                        <path d="M58 280 Q55 218 64 175 L136 175 Q145 218 142 280" fill="rgba(201,168,76,0.05)" />
+                        <ellipse cx="100" cy="66" rx="26" ry="30" fill="rgba(201,168,76,0.07)"
+                            stroke="rgba(201,168,76,0.18)" stroke-width="0.5" />
+                        <g transform="translate(72, 160) rotate(15)">
+                            <rect x="0" y="-2" width="30" height="4" rx="1" fill="rgba(201,168,76,0.3)" />
+                            <rect x="28" y="-1" width="3" height="2" fill="rgba(201,168,76,0.5)" />
+                        </g>
+                        <rect width="200" height="280" fill="none" stroke="rgba(201,168,76,0.04)" stroke-width="0.5" />
+                    </svg>
+                    <div class="barber-overlay"></div>
+                </div>
+                <div class="barber-info">
+                    <div class="barber-name">Iván Suárez</div>
+                    <div class="barber-role">Artista de Barba</div>
+                    <div class="barber-specialty">Perfilado y diseño de barba de autor. Fusiona tendencias
+                        contemporáneas con técnica artesanal.</div>
+                </div>
+            </div>
+            <div class="barber-card reveal">
+                <div class="barber-photo">
+                    <svg viewBox="0 0 200 280" style="width:100%;height:100%">
+                        <ellipse cx="100" cy="70" rx="40" ry="44" fill="rgba(201,168,76,0.11)" />
+                        <path d="M60 182 Q58 162 60 142 Q67 122 100 117 Q133 122 140 142 Q142 162 140 182 Z"
+                            fill="rgba(201,168,76,0.08)" />
+                        <path d="M53 280 Q50 222 60 182 L140 182 Q150 222 147 280" fill="rgba(201,168,76,0.06)" />
+                        <ellipse cx="100" cy="68" rx="30" ry="34" fill="rgba(201,168,76,0.09)"
+                            stroke="rgba(201,168,76,0.22)" stroke-width="0.5" />
+                        <!-- Comb -->
+                        <g transform="translate(130, 155) rotate(-25)">
+                            <rect x="0" y="0" width="22" height="6" rx="1" fill="rgba(201,168,76,0.2)" />
+                            <g stroke="rgba(201,168,76,0.4)" stroke-width="0.8">
+                                <line x1="3" y1="6" x2="3" y2="12" />
+                                <line x1="6" y1="6" x2="6" y2="12" />
+                                <line x1="9" y1="6" x2="9" y2="12" />
+                                <line x1="12" y1="6" x2="12" y2="12" />
+                                <line x1="15" y1="6" x2="15" y2="12" />
+                                <line x1="18" y1="6" x2="18" y2="12" />
+                            </g>
+                        </g>
+                        <rect width="200" height="280" fill="none" stroke="rgba(201,168,76,0.04)" stroke-width="0.5" />
+                    </svg>
+                    <div class="barber-overlay"></div>
+                </div>
+                <div class="barber-info">
+                    <div class="barber-name">Carlos Reyes</div>
+                    <div class="barber-role">Especialista en Color</div>
+                    <div class="barber-specialty">Master en coloración artesanal masculina. Técnicas exclusivas de
+                        balayage y decoloración.</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- REVIEWS -->
+    <section id="reviews">
+        <div class="reviews-bg-text">★</div>
+        <div class="section-tag reveal">Testimonios</div>
+        <h2 class="section-h2 reveal">Ellos ya lo<em>experimentaron.</em></h2>
+        <div class="reviews-grid">
+            <div class="review-card reveal">
+                <div class="review-quote">"</div>
+                <p class="review-text">Nunca pensé que un corte de pelo pudiera ser una experiencia tan completa. Marco
+                    conoce cada detalle de mi cara mejor que yo mismo. Desde que descubrí NOIR, no me fui con nadie más.
+                </p>
+                <div class="review-stars">★★★★★</div>
+                <div class="review-author">Alejandro M. · Cliente desde 2019</div>
+            </div>
+            <div class="review-card reveal">
+                <div class="review-quote">"</div>
+                <p class="review-text">El afeitado a navaja es pura magia. La toalla caliente, el aroma de la espuma
+                    artesanal, la precisión del acero... es un ritual que debería repetirse cada semana. Lo recomiendo
+                    sin dudar.</p>
+                <div class="review-stars">★★★★★</div>
+                <div class="review-author">Roberto G. · Cliente VIP</div>
+            </div>
+            <div class="review-card reveal">
+                <div class="review-quote">"</div>
+                <p class="review-text">El bot de Telegram es increíble. En 30 segundos reservé mi cita, me confirmó todo
+                    al instante y hasta me recordó con antelación. Modernidad y tradición perfectamente integradas.</p>
+                <div class="review-stars">★★★★★</div>
+                <div class="review-author">Diego P. · Tecnología que funciona</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- PRICING -->
+    <section class="price-section" id="pricing">
+        <div style="max-width:600px" class="reveal">
+            <div class="section-tag">Tarifas</div>
+            <h2 class="section-h2">Inversión en <em>ti mismo.</em></h2>
+        </div>
+        <div class="price-grid">
+            <div class="price-card reveal">
+                <div class="price-plan">Esencial</div>
+                <div class="price-amount"><sup>desde </sup>25€</div>
+                <div class="price-desc">Por servicio individual</div>
+                <ul class="price-features">
+                    <li>Corte clásico con tijera</li>
+                    <li>Perfilado básico de barba</li>
+                    <li>Lavado y secado incluido</li>
+                    <li>Consultoría de estilo</li>
+                    <li>Producto de acabado</li>
+                </ul>
+            </div>
+            <div class="price-card featured reveal">
+                <div class="price-badge">Más popular</div>
+                <div class="price-plan">Ritual Completo</div>
+                <div class="price-amount"><sup></sup>75€</div>
+                <div class="price-desc">Experiencia total de 2 horas</div>
+                <ul class="price-features">
+                    <li>Corte artesanal completo</li>
+                    <li>Afeitado a navaja</li>
+                    <li>Tratamiento capilar premium</li>
+                    <li>Masaje capilar con aceites</li>
+                    <li>Toalla caliente y aromaterapia</li>
+                    <li>Whisky de bienvenida</li>
+                </ul>
+            </div>
+            <div class="price-card reveal">
+                <div class="price-plan">Suscripción Mensual</div>
+                <div class="price-amount"><sup></sup>89€<span
+                        style="font-size:1rem;color:rgba(245,240,232,0.4)">/mes</span></div>
+                <div class="price-desc">Para el caballero que cuida cada detalle</div>
+                <ul class="price-features">
+                    <li>2 cortes al mes</li>
+                    <li>Perfilados ilimitados</li>
+                    <li>Prioridad en agenda</li>
+                    <li>Descuento en productos</li>
+                    <li>Acceso a servicios exclusivos</li>
+                </ul>
+            </div>
+            <div class="price-card reveal">
+                <div class="price-plan">Bono Regalo</div>
+                <div class="price-amount"><sup></sup>120€</div>
+                <div class="price-desc">El regalo más memorable</div>
+                <ul class="price-features">
+                    <li>Ritual completo de lujo</li>
+                    <li>Set de productos NOIR</li>
+                    <li>Packaging de regalo exclusivo</li>
+                    <li>Válido 1 año</li>
+                    <li>Envío a domicilio disponible</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- BOOKING CTA -->
+    <section id="booking">
+        <div class="booking-bg"></div>
+        <div class="booking-content">
+            <div class="booking-divider"></div>
+            <h2 class="booking-h2 reveal">Tu cita,<em>cuando quieras.</em></h2>
+            <p class="booking-sub reveal">Nuestro asistente con IA disponible 24/7 en Telegram.<br>Reserva en menos de
+                un minuto, sin esperas.</p>
+            <div class="booking-actions reveal">
+                <a href="https://t.me/PS5Mibot" target="_blank" class="btn-telegram">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="white">
+                        <path
+                            d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.96 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.244-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
+                    </svg>
+                    <span>Reservar en Telegram</span>
+                </a>
+                <a href="tel:+34928000000" class="btn-outline">☎ Llamar ahora</a>
+            </div>
+            <div style="margin-top:3rem;display:flex;justify-content:center;gap:4rem;flex-wrap:wrap" class="reveal">
+                <div style="text-align:center">
+                    <div
+                        style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;color:var(--gold);letter-spacing:0.15em">
+                        Lun – Sáb</div>
+                    <div style="font-size:0.75rem;color:rgba(245,240,232,0.4);letter-spacing:0.15em;margin-top:0.25rem">
+                        09:00 – 20:00</div>
+                </div>
+                <div style="width:1px;background:rgba(201,168,76,0.2)"></div>
+                <div style="text-align:center">
+                    <div
+                        style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;color:var(--gold);letter-spacing:0.15em">
+                        Domingo</div>
+                    <div style="font-size:0.75rem;color:rgba(245,240,232,0.4);letter-spacing:0.15em;margin-top:0.25rem">
+                        10:00 – 14:00</div>
+                </div>
+                <div style="width:1px;background:rgba(201,168,76,0.2)"></div>
+                <div style="text-align:center">
+                    <div
+                        style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;color:var(--gold);letter-spacing:0.15em">
+                        Ubicación</div>
+                    <div style="font-size:0.75rem;color:rgba(245,240,232,0.4);letter-spacing:0.15em;margin-top:0.25rem">
+                        C/ Triana 42, Las Palmas</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer>
+        <div>
+            <div class="footer-logo">NOIR<span>.</span></div>
+            <div class="footer-tagline">El arte de ser distinto.</div>
+            <div class="footer-address">
+                C/ Triana 42, Bajo<br>
+                35002 Las Palmas de Gran Canaria<br>
+                +34 928 000 000
+            </div>
+        </div>
+        <div>
+            <div class="footer-h3">Servicios</div>
+            <ul>
+                <li><a href="#">Corte Clásico</a></li>
+                <li><a href="#">Afeitado a Navaja</a></li>
+                <li><a href="#">Ritual Completo</a></li>
+                <li><a href="#">Coloración</a></li>
+                <li><a href="#">Bono Regalo</a></li>
+            </ul>
+        </div>
+        <div>
+            <div class="footer-h3">La Casa</div>
+            <ul>
+                <li><a href="#">Nuestra Historia</a></li>
+                <li><a href="#">El Equipo</a></li>
+                <li><a href="#">Filosofía</a></li>
+                <li><a href="#">Galería</a></li>
+                <li><a href="#">Blog</a></li>
+            </ul>
+        </div>
+        <div>
+            <div class="footer-h3">Reservas</div>
+            <ul>
+                <li><a href="https://t.me/PS5Mibot">Telegram Bot IA</a></li>
+                <li><a href="#">Reserva Online</a></li>
+                <li><a href="#">Política de Citas</a></li>
+                <li><a href="#">Privacidad</a></li>
+            </ul>
+        </div>
+    </footer>
+    <div class="footer-bottom">
+        <div class="footer-copy">© 2024 NOIR Barbería de Autor · Todos los derechos reservados</div>
+        <div class="footer-social">
+            <a href="#">Instagram</a>
+            <a href="#">TikTok</a>
+            <a href="#">Telegram</a>
+        </div>
+    </div>
+
+    <!-- TELEGRAM CHAT WIDGET -->
+    <div id="tg-chat-widget">
+        <div class="tg-bubble" id="tgBubble">
+            <div class="tg-header">
+                <div class="tg-avatar">✂</div>
+                <div class="tg-info">
+                    <div class="tg-name">
+                        NOIR Bot
+                        <span class="tg-verified">✓</span>
+                    </div>
+                    <div class="tg-status">
+                        <span class="tg-status-dot"></span>
+                        Asistente IA activo · Responde al instante
+                    </div>
+                </div>
+                <button class="tg-close" id="tgClose">✕</button>
+            </div>
+
+            <!-- Identified-user bar — shown after Telegram login -->
+            <div class="tg-identified-bar hidden" id="tgIdentifiedBar">
+                <div class="tg-identified-bar-info">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="#2AABEE">
+                        <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.96 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.244-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+                    </svg>
+                    Hablando como <strong id="tgUserNameBadge">—</strong>
+                </div>
+                <button class="tg-logout-link" onclick="logoutTelegram()">Cambiar cuenta</button>
+            </div>
+
+            <!-- Telegram Login Panel — shown until user identifies or skips -->
+            <div class="tg-login-panel" id="tgLoginPanel">
+                <div style="font-size:2rem;line-height:1">🔐</div>
+                <div class="tg-login-title">Identifícate con<br>Telegram</div>
+                <div class="tg-login-desc">Para reservar y gestionar tus citas de forma personalizada, inicia sesión con tu cuenta de Telegram.</div>
+                <!-- Telegram Login Widget · El dominio debe estar registrado en BotFather con /setdomain -->
+                <script async src="https://telegram.org/js/telegram-widget.js?22"
+                    data-telegram-login="PS5Mibot"
+                    data-size="medium"
+                    data-onauth="onTelegramAuth(user)"
+                    data-request-access="write"
+                    data-domain="barberiaPrueba-NOIR.com">
+                </script>
+                <button class="tg-skip-btn" onclick="skipTelegramLogin()">Continuar sin identificarme</button>
+            </div>
+
+            <div class="tg-messages" id="tgMessages">
+                <div class="msg bot">
+                    <div class="msg-bubble">¡Bienvenido a NOIR Barbería! 🎩 Soy tu asistente con IA. ¿En qué puedo
+                        ayudarte hoy?</div>
+                    <div class="msg-time">Ahora</div>
+                </div>
+            </div>
+            <div class="tg-quick-replies" id="quickReplies">
+                <button class="quick-reply" onclick="sendQuickReply('Quiero reservar una cita')">📅 Reservar
+                    cita</button>
+                <button class="quick-reply" onclick="sendQuickReply('¿Qué servicios ofrecéis?')">✂ Servicios</button>
+                <button class="quick-reply" onclick="sendQuickReply('¿Cuánto cuesta el ritual completo?')">💰
+                    Precios</button>
+                <button class="quick-reply" onclick="sendQuickReply('¿Dónde estáis ubicados?')">📍 Ubicación</button>
+            </div>
+            <div class="tg-input-area">
+                <input class="tg-input" id="tgInput" type="text" placeholder="Escribe un mensaje..."
+                    autocomplete="off" />
+                <button class="tg-send" id="tgSend">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                        <path d="M22 2L11 13M22 2L15 22L11 13M22 2L2 9L11 13" stroke="white" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:0.75rem">
+            <div class="tg-label" id="tgLabel">Reserva con IA ✨</div>
+            <button class="tg-btn" id="tgToggle">
+                <svg viewBox="0 0 24 24" fill="white">
+                    <path
+                        d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.96 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.244-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
+                </svg>
+                <div class="tg-notification" id="tgNotif">1</div>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // CURSOR
+        const cursor = document.getElementById('cursor');
+        const cursorRing = document.getElementById('cursorRing');
+        let mx = 0, my = 0, rx = 0, ry = 0;
+
+        document.addEventListener('mousemove', e => {
+            mx = e.clientX; my = e.clientY;
+            cursor.style.left = mx - 5 + 'px';
+            cursor.style.top = my - 5 + 'px';
+        });
+
+        function animateRing() {
+            rx += (mx - rx - 20) * 0.12;
+            ry += (my - ry - 20) * 0.12;
+            cursorRing.style.left = rx + 'px';
+            cursorRing.style.top = ry + 'px';
+            requestAnimationFrame(animateRing);
+        }
+        animateRing();
+
+        document.querySelectorAll('a, button, .service-card, .barber-card, .review-card').forEach(el => {
+            el.addEventListener('mouseenter', () => cursorRing.classList.add('hovering'));
+            el.addEventListener('mouseleave', () => cursorRing.classList.remove('hovering'));
+        });
+
+        // NAV SCROLL
+        window.addEventListener('scroll', () => {
+            document.getElementById('mainNav').classList.toggle('scrolled', window.scrollY > 80);
+        });
+
+        // REVEAL ON SCROLL
+        const revealEls = document.querySelectorAll('.reveal');
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach((entry, i) => {
+                if (entry.isIntersecting) {
+                    setTimeout(() => entry.target.classList.add('visible'),
+                        Array.from(entry.target.parentElement?.children || []).indexOf(entry.target) * 80);
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.1 });
+        revealEls.forEach(el => observer.observe(el));
+
+        // TELEGRAM CHAT
+        const tgToggle = document.getElementById('tgToggle');
+        const tgBubble = document.getElementById('tgBubble');
+        const tgClose = document.getElementById('tgClose');
+        const tgMessages = document.getElementById('tgMessages');
+        const tgInput = document.getElementById('tgInput');
+        const tgSend = document.getElementById('tgSend');
+        const tgNotif = document.getElementById('tgNotif');
+        const tgLabel = document.getElementById('tgLabel');
+        const chatWidget = document.getElementById('tg-chat-widget');
+        let chatOpen = false;
+
+        // ── Utilidades de UI del chat ────────────────────────────────────────
+        function getTime() {
+            return new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function addMessage(text, type, delay = 0, audioUrl = null) {
+            return new Promise(resolve => {
+                setTimeout(() => {
+                    const msg = document.createElement('div');
+                    msg.className = `msg ${type}`;
+
+                    let audioHtml = '';
+                    if (audioUrl) {
+                        audioHtml = `<div style="margin-top: 6px; padding: 0 0.9rem;"><audio controls autoplay style="height: 32px; width: 220px; outline: none;" src="${escapeHtml(audioUrl)}"></audio></div>`;
+                    }
+
+                    // bot messages may contain intentional HTML (<br>, <strong>); user messages are escaped
+                    const safeText = type === 'user'
+                        ? escapeHtml(text).replace(/\n/g, '<br>')
+                        : text.replace(/\n/g, '<br>');
+
+                    msg.innerHTML = `<div class="msg-bubble">${safeText}</div>${audioHtml}<div class="msg-time">${getTime()}</div>`;
+                    tgMessages.appendChild(msg);
+                    tgMessages.scrollTop = tgMessages.scrollHeight;
+                    resolve();
+                }, delay);
+            });
+        }
+
+        function showTyping() {
+            const typing = document.createElement('div');
+            typing.className = 'msg bot';
+            typing.id = 'typingIndicator';
+            typing.innerHTML = `<div class="msg-typing"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>`;
+            tgMessages.appendChild(typing);
+            tgMessages.scrollTop = tgMessages.scrollHeight;
+        }
+
+        function removeTyping() {
+            const t = document.getElementById('typingIndicator');
+            if (t) t.remove();
+        }
+
+        // ── API BRIDGE ──────────────────────────────────────────────────────
+        const CALIA_API = 'http://localhost:8000/v1/chat/web';
+
+        function escapeHtml(str) {
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        // ── Telegram Login ───────────────────────────────────────────────────
+        const TG_USER_KEY = 'calia_tg_user';
+
+        function getTelegramUser() {
+            try { return JSON.parse(localStorage.getItem(TG_USER_KEY)); } catch { return null; }
+        }
+
+        function setTelegramUser(user) {
+            localStorage.setItem(TG_USER_KEY, JSON.stringify(user));
+        }
+
+        // Called by the Telegram Login Widget (must be in global scope)
+        window.onTelegramAuth = function (user) {
+            setTelegramUser(user);
+            applyLoggedInState(user);
+        };
+
+        function logoutTelegram() {
+            localStorage.removeItem(TG_USER_KEY);
+            sessionStorage.removeItem('calia_skip_login');
+            document.getElementById('tgIdentifiedBar').classList.add('hidden');
+            document.getElementById('tgLoginPanel').classList.remove('hidden');
+            tgBubble.classList.add('login-mode');
+            // Keep only the first welcome message
+            while (tgMessages.children.length > 1) tgMessages.removeChild(tgMessages.lastChild);
+        }
+
+        function skipTelegramLogin() {
+            sessionStorage.setItem('calia_skip_login', '1');
+            document.getElementById('tgLoginPanel').classList.add('hidden');
+            tgBubble.classList.remove('login-mode');
+        }
+
+        function applyLoggedInState(user) {
+            document.getElementById('tgLoginPanel').classList.add('hidden');
+            tgBubble.classList.remove('login-mode');
+            const bar = document.getElementById('tgIdentifiedBar');
+            bar.classList.remove('hidden');
+            const displayName = escapeHtml(user.first_name) + (user.last_name ? ' ' + escapeHtml(user.last_name) : '');
+            document.getElementById('tgUserNameBadge').textContent =
+                user.first_name + (user.last_name ? ' ' + user.last_name : '');
+            addMessage(
+                `✅ ¡Hola, <strong>${displayName}</strong>! Te he reconocido. Ahora puedo gestionar tus citas personalmente. ¿En qué puedo ayudarte?`,
+                'bot', 400
+            );
+        }
+
+        let chatInitialized = false;
+
+        function initChatState() {
+            if (chatInitialized) return;
+            chatInitialized = true;
+            const user = getTelegramUser();
+            const skipped = sessionStorage.getItem('calia_skip_login');
+            if (user) {
+                applyLoggedInState(user);
+            } else if (skipped) {
+                document.getElementById('tgLoginPanel').classList.add('hidden');
+                // login-mode not set → chat is visible normally
+            } else {
+                tgBubble.classList.add('login-mode');
+            }
+        }
+
+        function getUserId() {
+            const tgUser = getTelegramUser();
+            if (tgUser) return 'tg_' + tgUser.id;
+            const KEY = 'calia_user_id';
+            let id = localStorage.getItem(KEY);
+            if (!id) {
+                // Genera un ID único persistente para este visitante web
+                id = 'web_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+                localStorage.setItem(KEY, id);
+            }
+            return id;
+        }
+
+        async function sendMessage(text) {
+            if (!text.trim()) return;
+            await addMessage(text, 'user');
+            tgInput.value = '';
+            document.getElementById('quickReplies').style.display = 'none';
+            showTyping();
+
+            try {
+                const response = await fetch(CALIA_API, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: getUserId(), mensaje: text })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Error del servidor: ${response.status}`);
+                }
+
+                const data = await response.json();
+                removeTyping();
+                await addMessage(data.respuesta, 'bot', 0, data.audio_url);
+
+            } catch (err) {
+                removeTyping();
+                console.error('Error al conectar con Calia:', err);
+                await addMessage(
+                    '⚠️ No puedo conectar con el asistente ahora mismo. Asegúrate de que el servidor está activo o contáctanos directamente por Telegram.',
+                    'bot'
+                );
+            }
+        }
+
+        function sendQuickReply(text) {
+            sendMessage(text);
+        }
+
+        tgToggle.addEventListener('click', () => {
+            chatOpen = !chatOpen;
+            tgBubble.classList.toggle('open', chatOpen);
+            chatWidget.classList.toggle('chat-open', chatOpen);
+            tgNotif.style.display = chatOpen ? 'none' : 'flex';
+            if (chatOpen) {
+                initChatState();
+                tgInput.focus();
+            }
+        });
+
+        tgClose.addEventListener('click', () => {
+            chatOpen = false;
+            tgBubble.classList.remove('open');
+            chatWidget.classList.remove('chat-open');
+        });
+
+        tgSend.addEventListener('click', () => sendMessage(tgInput.value));
+        tgInput.addEventListener('keydown', e => { if (e.key === 'Enter') sendMessage(tgInput.value); });
+
+        // Auto-open hint after 4s
+        setTimeout(() => {
+            if (!chatOpen) {
+                tgToggle.style.animation = 'notifPulse 0.5s ease 3';
+            }
+        }, 4000);
+
+        // Parallax on hero number
+        document.addEventListener('mousemove', e => {
+            const heroNum = document.querySelector('.hero-number');
+            if (heroNum) {
+                const x = (e.clientX / window.innerWidth - 0.5) * 20;
+                const y = (e.clientY / window.innerHeight - 0.5) * 10;
+                heroNum.style.transform = `translateY(-50%) translate(${x}px, ${y}px)`;
+            }
+        });
+    </script>
+</body>
+
+</html>
