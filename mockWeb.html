@@ -8,6 +8,7 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap"
         rel="stylesheet">
+    <link rel="icon" type="image/x-icon" href="scissors-solid-full.ico">
     <style>
         :root {
             --gold: #C9A84C;
@@ -1526,6 +1527,96 @@
             background: var(--gold);
             flex-shrink: 0;
         }
+
+        /* TELEGRAM LOGIN PANEL */
+        .tg-login-panel {
+            padding: 1.5rem 1.25rem;
+            background: var(--black4);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.9rem;
+            border-bottom: 1px solid rgba(201, 168, 76, 0.12);
+            flex-shrink: 0;
+        }
+
+        .tg-login-panel.hidden { display: none; }
+
+        .tg-login-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--white);
+            text-align: center;
+            line-height: 1.35;
+        }
+
+        .tg-login-desc {
+            font-size: 0.72rem;
+            color: rgba(245, 240, 232, 0.45);
+            text-align: center;
+            line-height: 1.65;
+            max-width: 280px;
+        }
+
+        .tg-skip-btn {
+            background: none;
+            border: none;
+            color: rgba(245, 240, 232, 0.22);
+            font-size: 0.63rem;
+            cursor: none;
+            letter-spacing: 0.08em;
+            text-decoration: underline;
+            font-family: 'DM Sans', sans-serif;
+            padding: 0;
+            transition: color 0.2s;
+        }
+
+        .tg-skip-btn:hover { color: rgba(245, 240, 232, 0.55); }
+
+        .tg-identified-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.45rem 1rem;
+            background: rgba(42, 171, 238, 0.08);
+            border-bottom: 1px solid rgba(42, 171, 238, 0.15);
+            flex-shrink: 0;
+        }
+
+        .tg-identified-bar.hidden { display: none; }
+
+        .tg-identified-bar-info {
+            color: rgba(245, 240, 232, 0.5);
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            font-size: 0.7rem;
+        }
+
+        .tg-identified-bar-info strong { color: #2AABEE; }
+
+        .tg-logout-link {
+            background: none;
+            border: none;
+            color: rgba(245, 240, 232, 0.28);
+            font-size: 0.63rem;
+            cursor: none;
+            font-family: 'DM Sans', sans-serif;
+            text-decoration: underline;
+            padding: 0;
+            letter-spacing: 0.05em;
+            transition: color 0.2s;
+        }
+
+        .tg-logout-link:hover { color: rgba(245, 240, 232, 0.6); }
+
+        /* Hide chat UI while login panel is active */
+        .tg-bubble.login-mode .tg-messages,
+        .tg-bubble.login-mode .tg-quick-replies,
+        .tg-bubble.login-mode .tg-input-area {
+            display: none !important;
+        }
     </style>
 </head>
 
@@ -2072,6 +2163,34 @@
                 </div>
                 <button class="tg-close" id="tgClose">✕</button>
             </div>
+
+            <!-- Identified-user bar — shown after Telegram login -->
+            <div class="tg-identified-bar hidden" id="tgIdentifiedBar">
+                <div class="tg-identified-bar-info">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="#2AABEE">
+                        <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.96 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.244-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+                    </svg>
+                    Hablando como <strong id="tgUserNameBadge">—</strong>
+                </div>
+                <button class="tg-logout-link" onclick="logoutTelegram()">Cambiar cuenta</button>
+            </div>
+
+            <!-- Telegram Login Panel — shown until user identifies or skips -->
+            <div class="tg-login-panel" id="tgLoginPanel">
+                <div style="font-size:2rem;line-height:1">🔐</div>
+                <div class="tg-login-title">Identifícate con<br>Telegram</div>
+                <div class="tg-login-desc">Para reservar y gestionar tus citas de forma personalizada, inicia sesión con tu cuenta de Telegram.</div>
+                <!-- Telegram Login Widget · El dominio debe estar registrado en BotFather con /setdomain -->
+                <script async src="https://telegram.org/js/telegram-widget.js?22"
+                    data-telegram-login="PS5Mibot"
+                    data-size="medium"
+                    data-onauth="onTelegramAuth(user)"
+                    data-request-access="write"
+                    data-domain="barberiaPrueba-NOIR.com">
+                </script>
+                <button class="tg-skip-btn" onclick="skipTelegramLogin()">Continuar sin identificarme</button>
+            </div>
+
             <div class="tg-messages" id="tgMessages">
                 <div class="msg bot">
                     <div class="msg-bubble">¡Bienvenido a NOIR Barbería! 🎩 Soy tu asistente con IA. ¿En qué puedo
@@ -2177,13 +2296,18 @@
                 setTimeout(() => {
                     const msg = document.createElement('div');
                     msg.className = `msg ${type}`;
-                    
+
                     let audioHtml = '';
                     if (audioUrl) {
-                        audioHtml = `<div style="margin-top: 6px; padding: 0 0.9rem;"><audio controls autoplay style="height: 32px; width: 220px; outline: none;" src="${audioUrl}"></audio></div>`;
+                        audioHtml = `<div style="margin-top: 6px; padding: 0 0.9rem;"><audio controls autoplay style="height: 32px; width: 220px; outline: none;" src="${escapeHtml(audioUrl)}"></audio></div>`;
                     }
 
-                    msg.innerHTML = `<div class="msg-bubble">${text.replace(/\n/g, '<br>')}</div>${audioHtml}<div class="msg-time">${getTime()}</div>`;
+                    // bot messages may contain intentional HTML (<br>, <strong>); user messages are escaped
+                    const safeText = type === 'user'
+                        ? escapeHtml(text).replace(/\n/g, '<br>')
+                        : text.replace(/\n/g, '<br>');
+
+                    msg.innerHTML = `<div class="msg-bubble">${safeText}</div>${audioHtml}<div class="msg-time">${getTime()}</div>`;
                     tgMessages.appendChild(msg);
                     tgMessages.scrollTop = tgMessages.scrollHeight;
                     resolve();
@@ -2208,7 +2332,82 @@
         // ── API BRIDGE ──────────────────────────────────────────────────────
         const CALIA_API = 'http://localhost:8000/v1/chat/web';
 
+        function escapeHtml(str) {
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        // ── Telegram Login ───────────────────────────────────────────────────
+        const TG_USER_KEY = 'calia_tg_user';
+
+        function getTelegramUser() {
+            try { return JSON.parse(localStorage.getItem(TG_USER_KEY)); } catch { return null; }
+        }
+
+        function setTelegramUser(user) {
+            localStorage.setItem(TG_USER_KEY, JSON.stringify(user));
+        }
+
+        // Called by the Telegram Login Widget (must be in global scope)
+        window.onTelegramAuth = function (user) {
+            setTelegramUser(user);
+            applyLoggedInState(user);
+        };
+
+        function logoutTelegram() {
+            localStorage.removeItem(TG_USER_KEY);
+            sessionStorage.removeItem('calia_skip_login');
+            document.getElementById('tgIdentifiedBar').classList.add('hidden');
+            document.getElementById('tgLoginPanel').classList.remove('hidden');
+            tgBubble.classList.add('login-mode');
+            // Keep only the first welcome message
+            while (tgMessages.children.length > 1) tgMessages.removeChild(tgMessages.lastChild);
+        }
+
+        function skipTelegramLogin() {
+            sessionStorage.setItem('calia_skip_login', '1');
+            document.getElementById('tgLoginPanel').classList.add('hidden');
+            tgBubble.classList.remove('login-mode');
+        }
+
+        function applyLoggedInState(user) {
+            document.getElementById('tgLoginPanel').classList.add('hidden');
+            tgBubble.classList.remove('login-mode');
+            const bar = document.getElementById('tgIdentifiedBar');
+            bar.classList.remove('hidden');
+            const displayName = escapeHtml(user.first_name) + (user.last_name ? ' ' + escapeHtml(user.last_name) : '');
+            document.getElementById('tgUserNameBadge').textContent =
+                user.first_name + (user.last_name ? ' ' + user.last_name : '');
+            addMessage(
+                `✅ ¡Hola, <strong>${displayName}</strong>! Te he reconocido. Ahora puedo gestionar tus citas personalmente. ¿En qué puedo ayudarte?`,
+                'bot', 400
+            );
+        }
+
+        let chatInitialized = false;
+
+        function initChatState() {
+            if (chatInitialized) return;
+            chatInitialized = true;
+            const user = getTelegramUser();
+            const skipped = sessionStorage.getItem('calia_skip_login');
+            if (user) {
+                applyLoggedInState(user);
+            } else if (skipped) {
+                document.getElementById('tgLoginPanel').classList.add('hidden');
+                // login-mode not set → chat is visible normally
+            } else {
+                tgBubble.classList.add('login-mode');
+            }
+        }
+
         function getUserId() {
+            const tgUser = getTelegramUser();
+            if (tgUser) return 'tg_' + tgUser.id;
             const KEY = 'calia_user_id';
             let id = localStorage.getItem(KEY);
             if (!id) {
@@ -2260,7 +2459,10 @@
             tgBubble.classList.toggle('open', chatOpen);
             chatWidget.classList.toggle('chat-open', chatOpen);
             tgNotif.style.display = chatOpen ? 'none' : 'flex';
-            if (chatOpen) tgInput.focus();
+            if (chatOpen) {
+                initChatState();
+                tgInput.focus();
+            }
         });
 
         tgClose.addEventListener('click', () => {
