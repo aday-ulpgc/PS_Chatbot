@@ -30,8 +30,12 @@ async def handle_action_my_appointments(
     if not citas:
         texto_base = "📋 *Mis Citas*"
         texto_citas = (
-            TranslatorService.traducir(texto_base, idioma)
-            + "\n\nActualmente no tienes ninguna reserva activa."
+    TranslatorService.traducir(texto_base, idioma)
+            + "\n\n"
+            + TranslatorService.traducir(
+                "Actualmente no tienes ninguna reserva activa.",
+                idioma,
+            )
         )
     else:
         texto_base = "📋 *Tus Próximas Citas:*"
