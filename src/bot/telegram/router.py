@@ -1,5 +1,8 @@
 from telegram import Update
 from telegram.ext import ContextTypes
+import asyncio
+
+from src.services.translator_service import TranslatorService
 
 from src.bot.telegram.handlers.reserve.alternatives import (
     handle_alternative_time_selection_callback,
@@ -21,6 +24,7 @@ from src.bot.telegram.handlers.reserve.availability import (
 from src.bot.telegram.handlers.reserve.booking import (
     handle_action_reserve,
     handle_calendar_and_time,
+    handle_show_calendar,
 )
 
 from src.bot.telegram.handlers.manage_appointments import (
@@ -111,26 +115,23 @@ async def menu_callback_handler(
     if query is None:
         return
 
+    idioma = context.user_data.get("idioma", "es")
+
     if query.data != "show_text_reserva":
         await query.answer()
 
-    # Manejar selección de hora alternativa
     if query.data.startswith("alt_time_"):
         await handle_alternative_time_selection_callback(query, context, update)
         return
 
-    # Los botones de acción directa (menú, reiniciar, etc.) tienen prioridad
-    # sobre el estado del calendario para que nunca queden bloqueados.
     if query.data in CALLBACK_ROUTES:
         await _run_callback_route(query.data, query, context, update)
         return
 
-    # Manejar calendario de disponibilidad
     if context.user_data.get("availability_calendar"):
         await handle_availability_calendar_selection(query, context, update)
         return
 
-    # Manejar calendario de reserva
     if await handle_calendar_and_time(query, context, update):
         return
 
@@ -142,7 +143,8 @@ async def menu_callback_handler(
         await handle_start_modify_calendar(query, context)
         return
 
-    await query.edit_message_text(text="Acción no reconocida.")
+    msg_error = TranslatorService.traducir("Acción no reconocida.", idioma)
+    await query.edit_message_text(text=msg_error)
 
 
 async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -152,13 +154,19 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     - 'nlp'    : delega directamente a handle_texto_libre.
     """
     modo = context.user_data.get("modo_interaccion", MODO_BOTONES)
+    idioma = context.user_data.get("idioma", "es")
 
     if modo == MODO_NLP:
         await handle_texto_libre(update, context)
     else:
-        await update.message.reply_text(
+        texto_aviso = (
             "Para interactuar conmigo usa el menú de botones\n"
-            "Si prefieres escribir libremente, ve a ⚙️ *Ajustes* y activa el Modo IA.",
+            "Si prefieres escribir libremente, ve a ⚙️ *Ajustes* y activa el Modo IA."
+        )
+        msg_aviso = TranslatorService.traducir(texto_aviso, idioma)
+
+        await update.message.reply_text(
+            text=msg_aviso,
             parse_mode="Markdown",
-            reply_markup=main_menu_keyboard(),
+            reply_markup=main_menu_keyboard(idioma=idioma),
         )

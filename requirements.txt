@@ -32,8 +32,11 @@ httpx==0.28.1
 # Visualización
 matplotlib>=3.9.0
 
-
 # Servicios de Voz
 elevenlabs>=1.0.0
 gtts==2.5.1
 pytz
+
+# Servicio de Traducción
+deep-translator==1.11.4
+langdetect==1.0.9

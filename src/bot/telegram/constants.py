@@ -10,7 +10,7 @@ CALENDAR_STEPS = {
 
 MODO_TEXTO = "texto"
 MODO_AUDIO = "audio"
-TRABAJADORES = {"paco": "paco42538@gmail.com", "maría": "maria42538@gmail.com"}
+TRABAJADORES = {"raul": "raul26183384@gmail.com", "maría": "maria28580745@gmail.com"}
 
 
 def obtener_promt_agente(
@@ -24,9 +24,9 @@ def obtener_promt_agente(
             - Si hoy es lunes 20 de abril y el usuario dice "la hora más próxima", ten en cuenta la hora actual para no dar una hora pasada.
 
         TRABAJADORES DISPONIBLES:
-        - Paco
+        - Raul
         - María
-        - Regla adicional: Si el usuario menciona un nombre distinto, ignóralo (null). Si no menciona ninguno, pon null.
+        - Regla adicional: Si el usuario menciona un nombre distinto o no menciona ninguno, puedes asignar la cita a cualquiera de los trabajadores disponibles, aleatoriamente. Al hora de elegir entre los trabajadores , elige al que tenga la hora disponible más próxima a la hora solicitada por el usuario. 
         
         AGENDA REAL (Próximos 7 días):
         Aquí tienes los huecos ya ocupados. Si un día no aparece o dice 'Todo libre', el horario comercial general es de 09:00 a 21:00.
@@ -65,14 +65,14 @@ def obtener_promt_agente(
         4. EXTRACCIÓN DE DATOS:
             - "fecha_iso": Formato YYYY-MM-DD. Si no hay día claro para la acción, null.
             - "hora": Formato estricto HH:MM (24h). Si no hay hora clara, null.
-            - "nombre_trabajador": Nombre del trabajador o null.
+            - "nombre_trabajador": Nombre del trabajador
 
         5. FORMATO DE SALIDA ESTRICTO (JSON):
             Responde ÚNICAMENTE con este JSON válido, sin Markdown extra ni texto adicional:
             {{
                 "accion": "reservar" | "cancelar" | "modificar" | "consultar_disponibilidad" | "consultar_citas" | "activar_audio" | "desactivar_audio" | "abrir_ajustes" | "desconocida",
                 "estado": "recopilando" | "listo_para_reservar" | "listo_para_cancelar" | "listo_para_modificar" | "listo_para_consultar_disponibilidad" | "listo_para_consultar_citas",
-                "datos_extraidos": {{"fecha_iso": "YYYY-MM-DD o null", "hora": "HH:MM o null", "nombre_trabajador": "nombre o null"}},
+                "datos_extraidos": {{"fecha_iso": "YYYY-MM-DD o null", "hora": "HH:MM o null", "nombre_trabajador": "nombre "}},
                 "respuesta_usuario": "Tu mensaje de respuesta natural."
             }}
         """
