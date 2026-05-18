@@ -969,6 +969,28 @@
             color: white;
         }
 
+        .tg-audio-toggle {
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, 0.6);
+            cursor: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.35rem;
+            transition: all 0.2s;
+            margin: 0 0.35rem;
+            flex-shrink: 0;
+        }
+
+        .tg-audio-toggle:hover {
+            color: white;
+        }
+
+        .tg-audio-toggle.active {
+            color: var(--gold);
+        }
+
         .tg-messages {
             flex: 1;
             overflow-y: auto;
@@ -2161,11 +2183,6 @@
                         Asistente IA activo · Responde al instante
                     </div>
                 </div>
-                <button class="tg-close" id="tgClose">✕</button>
-            </div>
-
-            <!-- Identified-user bar — shown after Telegram login -->
-            <div class="tg-identified-bar hidden" id="tgIdentifiedBar">
                 <div class="tg-identified-bar-info">
                     <svg width="11" height="11" viewBox="0 0 24 24" fill="#2AABEE">
                         <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.96 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.244-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
@@ -2209,6 +2226,14 @@
             <div class="tg-input-area">
                 <input class="tg-input" id="tgInput" type="text" placeholder="Escribe un mensaje..."
                     autocomplete="off" />
+                <button class="tg-audio-toggle" id="tgAudioToggle" title="Activar/desactivar modo audio">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                        <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                        <line x1="12" y1="19" x2="12" y2="23"></line>
+                        <line x1="8" y1="23" x2="16" y2="23"></line>
+                    </svg>
+                </button>
                 <button class="tg-send" id="tgSend">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
                         <path d="M22 2L11 13M22 2L15 22L11 13M22 2L2 9L11 13" stroke="white" stroke-width="2"
@@ -2284,7 +2309,38 @@
         const tgNotif = document.getElementById('tgNotif');
         const tgLabel = document.getElementById('tgLabel');
         const chatWidget = document.getElementById('tg-chat-widget');
+        const tgAudioToggle = document.getElementById('tgAudioToggle');
         let chatOpen = false;
+        
+        // ── Estado de modo audio ──────────────────────────────────────────────
+        const AUDIO_MODE_KEY = 'calia_audio_mode';
+        let audioModeEnabled = localStorage.getItem(AUDIO_MODE_KEY) === 'true';
+        
+        function updateAudioToggleUI() {
+            if (audioModeEnabled) {
+                tgAudioToggle.classList.add('active');
+                tgAudioToggle.title = 'Modo audio activado. Click para desactivar.';
+            } else {
+                tgAudioToggle.classList.remove('active');
+                tgAudioToggle.title = 'Modo audio desactivado. Click para activar.';
+            }
+        }
+        
+        function toggleAudioMode() {
+            audioModeEnabled = !audioModeEnabled;
+            localStorage.setItem(AUDIO_MODE_KEY, audioModeEnabled);
+            updateAudioToggleUI();
+            // Notificar al backend para actualizar la sesión
+            const accion = audioModeEnabled ? 'activar_audio' : 'desactivar_audio';
+            fetch(CALIA_API, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: getUserId(), mensaje: accion })
+            }).catch(() => {});
+        }
+        
+        updateAudioToggleUI();
+        tgAudioToggle.addEventListener('click', toggleAudioMode);
 
         // ── Utilidades de UI del chat ────────────────────────────────────────
         function getTime() {
