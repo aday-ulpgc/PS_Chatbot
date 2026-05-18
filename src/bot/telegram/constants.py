@@ -57,6 +57,18 @@ def obtener_promt_agente(
               Y el usuario ha confirmado explícitamente que quiere esa hora (ha dicho "Sí", "Vale", "Perfecto", "De acuerdo", etc.).
               CRÍTICO: Si tú le estás *proponiendo* una hora por primera vez, el estado debe seguir siendo
               "recopilando" hasta recibir esa confirmación explícita del usuario. Proponer ≠ Confirmar.
+
+            - IMPORTANTE PARA RESERVAS OCUPADAS:
+              Si el usuario solicita una fecha y hora que aparecen ocupadas en la agenda real,
+              NO debes pedir confirmación ni usar el estado "listo_para_reservar".
+              En ese caso:
+              - Mantén accion = "reservar"
+              - Usa estado = "recopilando"
+              - Conserva fecha_iso y hora en datos_extraidos
+              - Informa de que el horario está ocupado
+              - Ofrece alternativas cercanas si existen
+              - Indica que el sistema guardará su preferencia y le avisará si el hueco se libera
+
             - "listo_para_cancelar": Tiene acción "cancelar". (El backend le preguntará qué cita cancelar si tiene varias).
             - "listo_para_modificar": Tiene acción "modificar" Y te ha dicho la NUEVA "fecha_iso" y "hora".
             - "listo_para_consultar_disponibilidad": Tiene acción "consultar_disponibilidad".
