@@ -1,5 +1,6 @@
 from telegram import Update
 from telegram.ext import ContextTypes
+import asyncio
 
 from src.services.translator_service import TranslatorService
 
@@ -23,6 +24,7 @@ from src.bot.telegram.handlers.reserve.availability import (
 from src.bot.telegram.handlers.reserve.booking import (
     handle_action_reserve,
     handle_calendar_and_time,
+    handle_show_calendar,
 )
 
 from src.bot.telegram.handlers.manage_appointments import (

@@ -1,5 +1,5 @@
 from src.services.calendar_service import GoogleCalendarService
-from src.bot.telegram.constants import TRABAJADORES
+from src.BBDD.database_service import obtener_empleados_activos
 
 
 def main():
@@ -7,7 +7,10 @@ def main():
     time_min = f"{date_str}T00:00:00Z"
     time_max = f"{date_str}T23:59:59Z"
 
-    calendars = [None] + list(TRABAJADORES.values())
+    # Obtener empleados desde la BD
+    empleados = obtener_empleados_activos()
+    emails = [emp["EMAIL"] for emp in empleados if emp.get("EMAIL")]
+    calendars = [None] + emails
 
     for cal in calendars:
         print(f"\n--- Revisando calendario: {cal or 'DEFAULT'} ---")
