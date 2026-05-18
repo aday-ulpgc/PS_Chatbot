@@ -212,10 +212,9 @@ async def handle_cancel_appointment(query, context: ContextTypes.DEFAULT_TYPE) -
                 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
                 fecha_iso = cita["FECHA"].strftime("%Y-%m-%d")
                 hora_iso = cita["FECHA"].strftime("%H:%M")
-                
-                # Crear botón de reserva directa
+                texto_boton = TranslatorService.traducir("🗓️ Reservar este hueco ahora", idioma_target)
                 keyboard = InlineKeyboardMarkup(
-                    [[InlineKeyboardButton("🗓️ Reservar este hueco ahora", callback_data=f"waitlistbook_{fecha_iso}_{hora_iso}")]]
+                    [[InlineKeyboardButton(texto_boton, callback_data=f"waitlistbook_{fecha_iso}_{hora_iso}")]]
                 )
 
                 await context.bot.send_message(
