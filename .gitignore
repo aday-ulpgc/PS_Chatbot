@@ -14,3 +14,4 @@ token.json
 .db
 .history/
 agent.md
+temp/

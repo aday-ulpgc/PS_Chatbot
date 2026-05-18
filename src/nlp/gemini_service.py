@@ -3,10 +3,12 @@ import json
 import re
 import asyncio
 import httpx
+import pytz
 from datetime import datetime
 from pathlib import Path
 from dotenv import load_dotenv
 from src.bot.telegram.constants import obtener_promt_agente
+from src.services.translator_service import TranslatorService
 
 # Cargar variables de entorno
 env_path = Path(__file__).resolve().parent.parent.parent / "env" / ".env"
@@ -71,22 +73,15 @@ class NLPService:
 
     @staticmethod
     async def procesar_mensaje(
-        historial_mensajes: list, datos_semanal: str, audio_b64: str = None
+        historial_mensajes: list,
+        datos_semanal: str,
+        audio_b64: str = None,
+        idioma_usuario: str = "es",
     ) -> dict:
         api_key = os.getenv("GEMINI_API_KEY")
-        
-        if not api_key or api_key.startswith("AIzaSy..."):
-            print("\n❌ ERROR: GEMINI_API_KEY no está configurada correctamente")
-            print("📝 Por favor, agrega tu API key de Gemini al archivo env/.env:")
-            print("   GEMINI_API_KEY=AIzaSy_tu_api_key_real_aqui")
-            print("🔗 Obtén tu API key en: https://aistudio.google.com/apikey")
-            return {
-                "respuesta": "❌ El servicio de IA no está configurado. Por favor, contacta al administrador.",
-                "necesita_intervencion": True,
-                "estado": "error"
-            }
-        
-        import pytz
+        modelo = os.getenv("GEMINI_MODEL", "gemini-3-flash-preview")
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent?key={api_key}"
+
         from src.services.calendar_service import TIMEZONE
 
         tz = pytz.timezone(TIMEZONE)
@@ -100,14 +95,22 @@ class NLPService:
         mensajes_gemini = []
         for m in historial_mensajes:
             role = "user" if m["rol"] == "usuario" else "model"
-            mensajes_gemini.append({"role": role, "parts": [{"text": m["texto"]}]})
-        
-        if audio_b64 and mensajes_gemini:
+            texto_original = m["texto"]
+
+            if role == "user":
+                texto_para_gemini, _ = TranslatorService.traducir_a_es(texto_original)
+            else:
+                texto_para_gemini = texto_original
+
+            mensajes_gemini.append(
+                {"role": role, "parts": [{"text": texto_para_gemini}]}
+            )
+
+        if audio_b64:
             mensajes_gemini[-1]["parts"].append(
                 {"inlineData": {"mimeType": "audio/ogg", "data": audio_b64}}
             )
-        
-        # Payload para la API de Gemini
+
         payload = {
             "contents": mensajes_gemini,
             "systemInstruction": {"parts": [{"text": prompt_sistema}]},
@@ -140,14 +143,9 @@ class NLPService:
         
         for intento in range(max_reintentos):
             try:
-                modelo = NLPService.obtener_modelo_actual()
-                url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent?key={api_key}"
-                print(f"📡 Intentando con modelo: {modelo}")
-                
-                async with httpx.AsyncClient(timeout=30.0) as client:
-                    response = await client.post(url, json=payload)
+                async with httpx.AsyncClient() as client:
+                    response = await client.post(url, json=payload, timeout=30.0)
 
-                    # Manejar errores de tasa (429)
                     if response.status_code == 429:
                         print(f"❌ Error 429 (Sobrecargado): {modelo}")
                         if intento < max_reintentos - 1:
@@ -155,41 +153,11 @@ class NLPService:
                             await asyncio.sleep(2)
                             continue
                         else:
-                            return NLPService._respuesta_emergencia(
-                                "Todos mis asistentes están muy ocupados 🥵. ¿Lo intentamos en un minuto?"
+                            msg_error = TranslatorService.traducir(
+                                "Estoy un poco saturada ahora mismo 🥵. ¿Me lo repites en un minutito?",
+                                idioma_usuario,
                             )
-                    
-                    # Manejar errores 400 (Bad Request)
-                    if response.status_code == 400:
-                        try:
-                            error_data = response.json()
-                            error_msg = error_data.get("error", {}).get("message", "Error desconocido")
-                            print(f"❌ Error 400 (Bad Request): {error_msg}")
-                            print(f"📋 Modelo usado: {modelo}")
-                            print(f"📋 Respuesta completa: {json.dumps(error_data, indent=2, ensure_ascii=False)}")
-                        except:
-                            print(f"❌ Error 400 (Bad Request)")
-                            print(f"📋 Respuesta: {response.text}")
-                        
-                        # Probar con siguiente modelo
-                        if intento < max_reintentos - 1:
-                            NLPService.cambiar_al_siguiente_modelo()
-                            await asyncio.sleep(1)
-                            continue
-                        else:
-                            return NLPService._respuesta_emergencia(
-                                "No puedo procesar tu solicitud en este momento. ¿Intentamos de nuevo?"
-                            )
-                    
-                    # Otros errores HTTP
-                    if response.status_code >= 400:
-                        print(f"❌ Error {response.status_code}: {response.text}")
-                        if intento < max_reintentos - 1:
-                            await asyncio.sleep(1)
-                            continue
-                        return NLPService._respuesta_emergencia(
-                            "Parece que hay un problema con el servicio. ¿Intentamos de nuevo?"
-                        )
+                            return NLPService._respuesta_emergencia(msg_error)
 
                     # Éxito
                     data = response.json()
@@ -199,29 +167,30 @@ class NLPService:
                         
                         # Verificar si fue bloqueado por seguridad
                         if candidato.get("finishReason") == "SAFETY":
-                            return NLPService._respuesta_emergencia(
-                                "Lo siento, mi configuración no me permite procesar ese lenguaje. ¿Hablamos de tu reserva? 🗓️"
+                            msg_seguridad = TranslatorService.traducir(
+                                "Lo siento, mi configuración no me permite procesar ese lenguaje. ¿Hablamos de tu reserva? 🗓️",
+                                idioma_usuario,
                             )
-                        
-                        # Extraer texto de respuesta
-                        texto_respuesta = candidato.get("content", {}).get("parts", [{}])[0].get("text", "")
-                        
-                        if not texto_respuesta:
-                            print(f"⚠️  Respuesta vacía de Gemini")
-                            return NLPService._respuesta_emergencia(
-                                "Hmm, no entendí bien. ¿Puedes repetirlo?"
-                            )
-                        
-                        # ✅ Éxito - resetear al modelo preferido para siguiente llamada
-                        NLPService.resetear_a_modelo_preferido()
-                        return NLPService._limpiar_json(texto_respuesta)
+                            return NLPService._respuesta_emergencia(msg_seguridad)
 
-                    except (KeyError, IndexError, TypeError) as e:
-                        print(f"❌ Error procesando respuesta de Gemini: {e}")
-                        print(f"📋 Estructura recibida: {json.dumps(data, indent=2, ensure_ascii=False)}")
-                        return NLPService._respuesta_emergencia(
-                            "Tuve un pequeño cruce de cables 🤖. ¿Puedes volver a decírmelo?"
+                        texto_respuesta = candidato["content"]["parts"][0]["text"]
+                        respuesta_json = NLPService._limpiar_json(texto_respuesta)
+
+                        if respuesta_json and respuesta_json.get("respuesta_usuario"):
+                            texto_traducido = TranslatorService.traducir(
+                                respuesta_json["respuesta_usuario"], idioma_usuario
+                            )
+                            respuesta_json["respuesta_usuario"] = texto_traducido
+
+                        return respuesta_json
+
+                    except (KeyError, IndexError):
+                        print(f"❌ Estructura inesperada de Gemini: {data}")
+                        msg_estructura = TranslatorService.traducir(
+                            "Tuve un pequeño cruce de cables 🤖. ¿Puedes volver a decírmelo?",
+                            idioma_usuario,
                         )
+                        return NLPService._respuesta_emergencia(msg_estructura)
 
             except asyncio.TimeoutError:
                 print(f"⏱️ Timeout con modelo: {NLPService.obtener_modelo_actual()}")
@@ -236,7 +205,8 @@ class NLPService:
             except Exception as e:
                 print(f"❌ Error inesperado: {type(e).__name__}: {e}")
                 if intento == max_reintentos - 1:
-                    return NLPService._respuesta_emergencia(
-                        "Parece que mi conexión falló 🔌. ¿Lo intentamos de nuevo?"
+                    msg_red = TranslatorService.traducir(
+                        "Parece que mi conexión a internet falló 🔌. ¿Lo intentamos de nuevo?",
+                        idioma_usuario,
                     )
-                await asyncio.sleep(1)
+                    return NLPService._respuesta_emergencia(msg_red)

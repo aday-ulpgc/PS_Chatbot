@@ -2,6 +2,8 @@ from telegram import Update
 from telegram.ext import ContextTypes
 import asyncio
 
+from src.services.translator_service import TranslatorService
+
 from src.bot.telegram.handlers.reserve.alternatives import (
     handle_alternative_time_selection_callback,
 )
@@ -113,47 +115,23 @@ async def menu_callback_handler(
     if query is None:
         return
 
+    idioma = context.user_data.get("idioma", "es")
+
     if query.data != "show_text_reserva":
         await query.answer()
 
-    # Manejar selección de hora alternativa
     if query.data.startswith("alt_time_"):
         await handle_alternative_time_selection_callback(query, context, update)
         return
 
-    # Manejar selección de empleado
-    if query.data.startswith("select_emp_"):
-        try:
-            emp_id = int(query.data.split("_")[2])
-            # Buscar el nombre del empleado
-            from src.BBDD.database_service import obtener_empleados_activos
-            empleados = await asyncio.to_thread(obtener_empleados_activos)
-            selected_emp = next((e for e in empleados if e['ID_EMPLEADO'] == emp_id), None)
-            
-            if selected_emp:
-                context.user_data["selected_employee_id"] = emp_id
-                context.user_data["selected_employee_name"] = selected_emp["NOMBRE"]
-                # Mostrar el calendario
-                await handle_show_calendar(query, context)
-            else:
-                await query.edit_message_text("❌ Empleado no encontrado")
-        except Exception as e:
-            print(f"❌ Error en select_emp_: {e}")
-            await query.edit_message_text("❌ Error al seleccionar empleado")
-        return
-
-    # Los botones de acción directa (menú, reiniciar, etc.) tienen prioridad
-    # sobre el estado del calendario para que nunca queden bloqueados.
     if query.data in CALLBACK_ROUTES:
         await _run_callback_route(query.data, query, context, update)
         return
 
-    # Manejar calendario de disponibilidad
     if context.user_data.get("availability_calendar"):
         await handle_availability_calendar_selection(query, context, update)
         return
 
-    # Manejar calendario de reserva
     if await handle_calendar_and_time(query, context, update):
         return
 
@@ -165,7 +143,8 @@ async def menu_callback_handler(
         await handle_start_modify_calendar(query, context)
         return
 
-    await query.edit_message_text(text="Acción no reconocida.")
+    msg_error = TranslatorService.traducir("Acción no reconocida.", idioma)
+    await query.edit_message_text(text=msg_error)
 
 
 async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -175,13 +154,19 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     - 'nlp'    : delega directamente a handle_texto_libre.
     """
     modo = context.user_data.get("modo_interaccion", MODO_BOTONES)
+    idioma = context.user_data.get("idioma", "es")
 
     if modo == MODO_NLP:
         await handle_texto_libre(update, context)
     else:
-        await update.message.reply_text(
+        texto_aviso = (
             "Para interactuar conmigo usa el menú de botones\n"
-            "Si prefieres escribir libremente, ve a ⚙️ *Ajustes* y activa el Modo IA.",
+            "Si prefieres escribir libremente, ve a ⚙️ *Ajustes* y activa el Modo IA."
+        )
+        msg_aviso = TranslatorService.traducir(texto_aviso, idioma)
+
+        await update.message.reply_text(
+            text=msg_aviso,
             parse_mode="Markdown",
-            reply_markup=main_menu_keyboard(),
+            reply_markup=main_menu_keyboard(idioma=idioma),
         )

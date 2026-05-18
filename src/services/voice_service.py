@@ -6,6 +6,8 @@ from uuid import uuid4
 from dotenv import load_dotenv
 from elevenlabs.client import ElevenLabs
 
+from src.services.translator_service import TranslatorService
+
 _DOTENV_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "env", ".env")
 load_dotenv(dotenv_path=_DOTENV_PATH)
 
@@ -73,9 +75,13 @@ def formatear_hora_para_voz(texto: str) -> str:
     def _reemplazar_hora(m: re.Match) -> str:
         hora = int(m.group(1))
         minutos = m.group(2)
+
+        articulo = "la" if hora == 1 or hora == 13 else "las"
+        hora_texto = "una" if hora == 1 or hora == 13 else str(hora)
+
         if minutos == "00":
-            return f"las {hora} en punto"
-        return f"las {hora} y {minutos}"
+            return f"{articulo} {hora_texto} en punto"
+        return f"{articulo} {hora_texto} y {minutos}"
 
     return re.sub(r"\b(\d{1,2}):(\d{2})\b", _reemplazar_hora, texto)
 
@@ -89,9 +95,17 @@ class VoiceService:
         Recibe un texto, lo normaliza (fechas, horas) y devuelve la ruta del
         archivo de audio generado con ElevenLabs.
         """
-        # Normalización automática antes de enviar a la API
-        text = formatear_fecha_para_voz(text)
-        text = formatear_hora_para_voz(text)
+        idioma = TranslatorService.detectar_idioma(text)
+
+        if idioma == "es":
+            text = formatear_fecha_para_voz(text)
+            text = formatear_hora_para_voz(text)
+
+        else:
+            horas_encontradas = re.findall(r"\b(\d{1,2}:\d{2})\b", text)
+            for hora in horas_encontradas:
+                hora_leida = TranslatorService.traducir(hora, idioma)
+                text = text.replace(hora, hora_leida)
 
         api_key = os.getenv("ELEVEN_API_KEY")
         if not api_key:
