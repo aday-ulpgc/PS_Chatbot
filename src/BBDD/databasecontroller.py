@@ -1,16 +1,19 @@
 """Controlador de base de datos MySQL (Aiven) con SQLAlchemy.
 
-Expone modelos ORM y funciones CRUD para USUARIOS, CONTACTOS y CITAS_IND.
+Expone modelos ORM y funciones CRUD para:
+    - USUARIOS (tipo="C" corporativo)
+    - EMPLEADOS (senior/junior dentro de una corporación)
+    - CLIENTES (clientes de los empleados)
+    - CITAS_COR (citas corporativas)
+
 Las funciones reciben una sesión SQLAlchemy como primer argumento, lo que
 las hace usables tanto desde el bot (via get_session()) como desde la API
 FastAPI (via get_db() dependency).
 
-Jerarquía de acceso:
-    USUARIOS (tipo="I") → CONTACTOS (profesionales) → CITAS_IND (citas)
+Arquitectura:
+    USUARIO (Corporativo) → EMPLEADO → CLIENTE → CITA_COR
 
-Restricción de tipo:
-    Solo usuarios con TIPO en TIPOS_INDIVIDUALES pueden operar sobre
-    CONTACTOS y CITAS_IND. Ampliar TIPOS_INDIVIDUALES para nuevos tipos.
+Nota: Arquitectura Individual (CitaInd, Contactos) está deprecada.
 """
 
 import os
@@ -21,6 +24,7 @@ from typing import Generator
 from dotenv import load_dotenv
 import bcrypt
 from sqlalchemy import (
+    BigInteger,
     Column,
     DateTime,
     ForeignKey,
@@ -84,10 +88,8 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     )
 
 
-# ── Control de acceso por tipo ─────────────────────────────────────────────────
-# Añadir aquí nuevos tipos de usuario que deban acceder a contactos/citas.
-TIPOS_INDIVIDUALES: list[str] = ["I"]
-TIPOS_CORPORATIVOS: list[str] = ["C"]
+# ── Constantes ─────────────────────────────────────────────────────────────
+TIPOS_EMPLEADOS: list[str] = ["senior", "junior"]
 
 
 # ── Modelos ORM ────────────────────────────────────────────────────────────────
@@ -95,33 +97,6 @@ TIPOS_CORPORATIVOS: list[str] = ["C"]
 
 class Base(DeclarativeBase):
     pass
-
-
-class Usuario(Base):
-    __tablename__ = "USUARIOS"
-
-    ID_USUARIO = Column(Integer, primary_key=True, autoincrement=True)
-    TIPO = Column(String(10), nullable=False, default="I")
-    NOMBRE = Column(String(100), nullable=False)
-    EMAIL = Column(String(200), nullable=False, unique=True)
-    CONTRASENA = Column("CONTRASEÑA", String(255), nullable=False)
-    ELIMINADO = Column(DateTime, nullable=True, default=None)
-
-    contactos = relationship("Contacto", back_populates="usuario")
-    citas = relationship("CitaInd", back_populates="usuario")
-    empleados = relationship("Empleado", back_populates="usuario")
-
-
-class Contacto(Base):
-    __tablename__ = "CONTACTOS"
-
-    ID_CONTACTO = Column(Integer, primary_key=True, autoincrement=True)
-    ID_USUARIO = Column(Integer, ForeignKey("USUARIOS.ID_USUARIO"), nullable=True)
-    NOMBRE = Column(String(100), nullable=False)
-    EMAIL = Column(String(200), nullable=True)
-    ELIMINADO = Column(DateTime, nullable=True, default=None)
-
-    usuario = relationship("Usuario", back_populates="contactos")
 
 
 class CitaInd(Base):
@@ -138,7 +113,8 @@ class CitaInd(Base):
     PRIORIDAD = Column(Integer, nullable=True, default=1)
     ELIMINADO = Column(DateTime, nullable=True, default=None)
 
-    usuario = relationship("Usuario", back_populates="citas")
+    # DEPRECATED: Usuario model was removed
+    # usuario = relationship("Usuario", back_populates="citas")
 
 
 class ListaEspera(Base):
@@ -154,14 +130,11 @@ class Empleado(Base):
     __tablename__ = "EMPLEADOS"
 
     ID_EMPLEADO = Column(Integer, primary_key=True, autoincrement=True)
-    ID_USUARIO = Column(Integer, ForeignKey("USUARIOS.ID_USUARIO"), nullable=True)
-    ID_ADMIN = Column(Integer, ForeignKey("EMPLEADOS.ID_EMPLEADO"), nullable=True)
-    TIPO = Column(String(1), nullable=False)  # 'A' = Admin | 'E' = Empleado
     NOMBRE = Column(String(100), nullable=False)
-    CONTRASENA_CORP = Column("CONTRASEÑA_CORPORATIVA", String(255), nullable=True)
+    EMAIL = Column(String(200), nullable=False, unique=True)
+    # CONTRASENA = Column("CONTRASEÑA", String(255), nullable=True)
     ELIMINADO = Column(DateTime, nullable=True, default=None)
 
-    usuario = relationship("Usuario", back_populates="empleados")
     clientes = relationship(
         "Cliente",
         back_populates="empleado_usual",
@@ -179,6 +152,11 @@ class Cliente(Base):
     )
     DNI = Column(String(9), nullable=False, unique=True)
     NOMBRE = Column(String(100), nullable=False)
+    TELEGRAM_ID = Column(
+        "ID_TELEGRAM", BigInteger, nullable=True, unique=True
+    )  # Para identificar usuario del bot
+    EMAIL = Column(String(200), nullable=True)
+    TELEFONO = Column(String(20), nullable=True)
     ELIMINADO = Column(DateTime, nullable=True, default=None)
 
     empleado_usual = relationship(
@@ -188,7 +166,7 @@ class Cliente(Base):
 
 
 class CitaCorp(Base):
-    __tablename__ = "CITAS_COR"
+    __tablename__ = "CITAS"
 
     ID_CITA = Column(Integer, primary_key=True, autoincrement=True)
     ID_EMPLEADO = Column(Integer, ForeignKey("EMPLEADOS.ID_EMPLEADO"), nullable=False)
@@ -264,241 +242,8 @@ def init_db() -> None:
 # ── Helpers internos ───────────────────────────────────────────────────────────
 
 
-def _verificar_acceso(usuario: Usuario, tipos_permitidos: list[str]) -> None:
-    """Lanza PermissionError si el tipo de usuario no está en la lista permitida."""
-    if usuario.TIPO not in tipos_permitidos:
-        raise PermissionError(
-            f"El tipo de usuario '{usuario.TIPO}' no tiene acceso a esta operación"
-        )
-
-
-def _get_usuario_activo(session: Session, id_usuario: int) -> Usuario:
-    """Devuelve el usuario activo o lanza ValueError si no existe o está eliminado."""
-    usuario = session.get(Usuario, id_usuario)
-    if usuario is None:
-        raise ValueError(f"Usuario {id_usuario} no encontrado")
-    if usuario.ELIMINADO is not None:
-        raise ValueError("El usuario está dado de baja")
-    return usuario
-
-
-# ── CRUD USUARIOS ──────────────────────────────────────────────────────────────
-
-
-def crear_usuario(
-    session: Session,
-    tipo: str,
-    nombre: str,
-    email: str,
-    contrasena: str,
-) -> Usuario:
-    usuario = Usuario(
-        TIPO=tipo,
-        NOMBRE=nombre,
-        EMAIL=email,
-        CONTRASENA=hash_password(contrasena),
-    )
-    session.add(usuario)
-    session.flush()
-    return usuario
-
-
-def obtener_usuario(session: Session, id_usuario: int) -> Usuario | None:
-    usuario = session.get(Usuario, id_usuario)
-    if usuario is None or usuario.ELIMINADO is not None:
-        return None
-    return usuario
-
-
-def eliminar_usuario(session: Session, id_usuario: int) -> bool:
-    usuario = session.get(Usuario, id_usuario)
-    if usuario is None or usuario.ELIMINADO is not None:
-        return False
-    usuario.ELIMINADO = datetime.now(timezone.utc)
-    session.commit()
-    return True
-
-
-# ── CRUD CONTACTOS ─────────────────────────────────────────────────────────────
-
-
-def crear_contacto(
-    session: Session,
-    id_usuario: int,
-    nombre: str,
-    email: str | None = None,
-) -> Contacto:
-    usuario = _get_usuario_activo(session, id_usuario)
-    _verificar_acceso(usuario, TIPOS_INDIVIDUALES)
-    contacto = Contacto(ID_USUARIO=id_usuario, NOMBRE=nombre, EMAIL=email)
-    session.add(contacto)
-    session.flush()
-    return contacto
-
-
-def obtener_contactos(session: Session, id_usuario: int) -> list[Contacto]:
-    usuario = _get_usuario_activo(session, id_usuario)
-    _verificar_acceso(usuario, TIPOS_INDIVIDUALES)
-    return (
-        session.query(Contacto)
-        .filter(Contacto.ID_USUARIO == id_usuario, Contacto.ELIMINADO.is_(None))
-        .all()
-    )
-
-
-def obtener_contacto(session: Session, id_contacto: int) -> Contacto | None:
-    contacto = session.get(Contacto, id_contacto)
-    if contacto is None or contacto.ELIMINADO is not None:
-        return None
-    return contacto
-
-
-def obtener_contactos_eliminados(session: Session, id_usuario: int) -> list[Contacto]:
-    usuario = _get_usuario_activo(session, id_usuario)
-    _verificar_acceso(usuario, TIPOS_INDIVIDUALES)
-    return (
-        session.query(Contacto)
-        .filter(Contacto.ID_USUARIO == id_usuario, Contacto.ELIMINADO.isnot(None))
-        .all()
-    )
-
-
-def eliminar_contacto(session: Session, id_contacto: int) -> bool:
-    contacto = session.get(Contacto, id_contacto)
-    if contacto is None or contacto.ELIMINADO is not None:
-        return False
-    contacto.ELIMINADO = datetime.now(timezone.utc)
-    return True
-
-
-# ── CRUD CITAS_IND ─────────────────────────────────────────────────────────────
-
-
-def crear_cita(
-    session: Session,
-    id_usuario: int,
-    fecha: datetime,
-    id_contacto: int | None = None,
-    descripcion: str | None = None,
-    prioridad: int = 1,
-    duracion: int | None = None,
-) -> CitaInd:
-    usuario = _get_usuario_activo(session, id_usuario)
-    _verificar_acceso(usuario, TIPOS_INDIVIDUALES)
-    cita = CitaInd(
-        ID_USUARIO=id_usuario,
-        ID_CONTACTO=id_contacto,
-        FECHA=fecha,
-        DESCRIPCION=descripcion,
-        PRIORIDAD=prioridad,
-        DURACION=duracion,
-    )
-    session.add(cita)
-    session.flush()
-    return cita
-
-
-def obtener_citas_por_usuario(
-    session: Session,
-    id_usuario: int,
-    fecha: datetime | None = None,
-    anterior: bool = False,
-) -> list[CitaInd]:
-    if fecha is None:
-        fecha = datetime.now()
-    usuario = _get_usuario_activo(session, id_usuario)
-    _verificar_acceso(usuario, TIPOS_INDIVIDUALES)
-    q = session.query(CitaInd).filter(
-        CitaInd.ID_USUARIO == id_usuario, CitaInd.ELIMINADO.is_(None)
-    )
-    if anterior:
-        q = q.filter(CitaInd.FECHA < fecha).order_by(CitaInd.FECHA.desc())
-    else:
-        q = q.filter(CitaInd.FECHA >= fecha).order_by(CitaInd.FECHA.asc())
-    return q.all()
-
-
-def obtener_cita(session: Session, id_cita: int) -> CitaInd | None:
-    cita = session.get(CitaInd, id_cita)
-    if cita is None or cita.ELIMINADO is not None:
-        return None
-    return cita
-
-
-def obtener_citas_eliminadas_por_usuario(
-    session: Session,
-    id_usuario: int,
-    fecha: datetime | None = None,
-    anterior: bool = False,
-) -> list[CitaInd]:
-    if fecha is None:
-        fecha = datetime.now()
-    usuario = _get_usuario_activo(session, id_usuario)
-    _verificar_acceso(usuario, TIPOS_INDIVIDUALES)
-    q = session.query(CitaInd).filter(
-        CitaInd.ID_USUARIO == id_usuario, CitaInd.ELIMINADO.isnot(None)
-    )
-    if anterior:
-        q = q.filter(CitaInd.FECHA < fecha).order_by(CitaInd.FECHA.desc())
-    else:
-        q = q.filter(CitaInd.FECHA >= fecha).order_by(CitaInd.FECHA.asc())
-    return q.all()
-
-
-def actualizar_cita(
-    session: Session,
-    id_cita: int,
-    fecha: datetime | None = None,
-    descripcion: str | None = None,
-    prioridad: int | None = None,
-    duracion: int | None = None,
-) -> CitaInd | None:
-    cita = session.get(CitaInd, id_cita)
-    if cita is None or cita.ELIMINADO is not None:
-        return None
-    if fecha is not None:
-        cita.FECHA = fecha
-    if descripcion is not None:
-        cita.DESCRIPCION = descripcion
-    if prioridad is not None:
-        cita.PRIORIDAD = prioridad
-    if duracion is not None:
-        cita.DURACION = duracion
-    return cita
-
-
-def eliminar_cita(session: Session, id_cita: int) -> bool:
-    cita = session.get(CitaInd, id_cita)
-    if cita is None or cita.ELIMINADO is not None:
-        return False
-    cita.ELIMINADO = datetime.now(timezone.utc)
-    return True
-
-
-def get_citas_ind_en_rango(
-    session: Session,
-    fecha_inicio: datetime,
-    fecha_fin: datetime,
-) -> list[CitaInd]:
-    """Devuelve todas las CITAS_IND activas en el rango [fecha_inicio, fecha_fin).
-    Se amplía 1 día hacia atrás para capturar citas que empezaron antes pero
-    podrían solapar con el inicio del rango.
-    """
-    return (
-        session.query(CitaInd)
-        .filter(
-            CitaInd.ELIMINADO.is_(None),
-            CitaInd.FECHA >= fecha_inicio - timedelta(days=1),
-            CitaInd.FECHA < fecha_fin,
-        )
-        .all()
-    )
-
-
-# ── CRUD EMPLEADOS ─────────────────────────────────────────────────────────────
-
-
 def _get_empleado_activo(session: Session, id_empleado: int) -> Empleado:
+    """Devuelve el empleado activo o lanza ValueError si no existe o está eliminado."""
     empleado = session.get(Empleado, id_empleado)
     if empleado is None:
         raise ValueError(f"Empleado {id_empleado} no encontrado")
@@ -507,43 +252,54 @@ def _get_empleado_activo(session: Session, id_empleado: int) -> Empleado:
     return empleado
 
 
+# ── CRUD USUARIOS ──────────────────────────────────────────────────────────────
+
+# ── CRUD EMPLEADOS ─────────────────────────────────────────────────────────────
+
+
 def crear_empleado(
     session: Session,
-    id_usuario: int,  # Este es el ID de la clínica/admin que viene de la URL
     tipo: str,
     nombre: str,
+    email: str,
     contrasena: str | None = None,
     id_admin: int | None = None,
 ) -> Empleado:
-    usuario = _get_usuario_activo(session, id_usuario)
-    _verificar_acceso(usuario, TIPOS_CORPORATIVOS)
-
+    """Crea un empleado independiente (sin necesidad de Usuario corporativo)."""
     empleado = Empleado(
-        ID_USUARIO=id_usuario,
         TIPO=tipo,
         NOMBRE=nombre,
-        CONTRASENA_CORP=hash_password(contrasena),
+        EMAIL=email,
+        CONTRASENA=hash_password(contrasena) if contrasena else None,
         ID_ADMIN=id_admin,
     )
     session.add(empleado)
-    session.flush()  # Esto dispara el error si los IDs están mal
+    session.flush()
     return empleado
 
 
-def obtener_empleados(session: Session, id_usuario: int) -> list[Empleado]:
-    usuario = _get_usuario_activo(session, id_usuario)
-    _verificar_acceso(usuario, TIPOS_CORPORATIVOS)
-    return (
-        session.query(Empleado)
-        .filter(Empleado.ID_USUARIO == id_usuario, Empleado.ELIMINADO.is_(None))
-        .all()
-    )
+def obtener_empleados(session: Session) -> list[Empleado]:
+    """Retorna todos los empleados activos."""
+    return session.query(Empleado).filter(Empleado.ELIMINADO.is_(None)).all()
 
 
 def obtener_empleado(session: Session, id_empleado: int) -> Empleado | None:
     empleado = session.get(Empleado, id_empleado)
     if empleado is None or empleado.ELIMINADO is not None:
         return None
+    return empleado
+
+
+def obtener_empleado_por_nombre(session: Session, nombre: str) -> Empleado | None:
+    """Obtiene un empleado por su nombre. Retorna None si no existe o está eliminado."""
+    empleado = (
+        session.query(Empleado)
+        .filter(
+            Empleado.NOMBRE.ilike(nombre),  # ilike = case-insensitive
+            Empleado.ELIMINADO.is_(None),
+        )
+        .first()
+    )
     return empleado
 
 
@@ -563,8 +319,12 @@ def crear_cliente(
     id_empleado: int,
     dni: str,
     nombre: str,
+    telegram_id: int | None = None,
+    email: str | None = None,
+    telefono: str | None = None,
     id_empleado_usual: int | None = None,
 ) -> Cliente:
+    """Crea un cliente directamente (sin necesidad de Usuario)."""
     _get_empleado_activo(session, id_empleado)
     cliente = Cliente(
         ID_EMPLEADO_USUAL=id_empleado_usual
@@ -572,6 +332,9 @@ def crear_cliente(
         else id_empleado,
         DNI=dni,
         NOMBRE=nombre,
+        TELEGRAM_ID=telegram_id,
+        EMAIL=email,
+        TELEFONO=telefono,
     )
     session.add(cliente)
     session.flush()
@@ -591,6 +354,48 @@ def obtener_cliente(session: Session, id_cliente: int) -> Cliente | None:
     cliente = session.get(Cliente, id_cliente)
     if cliente is None or cliente.ELIMINADO is not None:
         return None
+    return cliente
+
+
+def obtener_cliente_por_telegram(session: Session, telegram_id: int) -> Cliente | None:
+    """Obtiene un cliente por su telegram_id (para el bot)."""
+    cliente = (
+        session.query(Cliente)
+        .filter(Cliente.TELEGRAM_ID == telegram_id, Cliente.ELIMINADO.is_(None))
+        .first()
+    )
+    return cliente
+
+
+def obtener_o_crear_cliente_telegram(
+    session: Session,
+    telegram_id: int,
+    id_empleado_default: int,
+    nombre: str | None = None,
+    dni: str | None = None,
+) -> Cliente:
+    """Obtiene o crea un cliente para el bot usando telegram_id.
+
+    Si no existe, crea un nuevo cliente asignado al empleado por defecto.
+    """
+    cliente = obtener_cliente_por_telegram(session, telegram_id)
+    if cliente:
+        return cliente
+
+    # Crear nuevo cliente
+    empleado = _get_empleado_activo(session, id_empleado_default)
+    # DNI: usar los últimos 9 dígitos del telegram_id (para caber en VARCHAR(9))
+    dni_default = str(telegram_id)[-9:] if telegram_id else "000000000"
+
+    cliente = crear_cliente(
+        session,
+        id_empleado=id_empleado_default,
+        dni=dni or dni_default,
+        nombre=nombre or f"Usuario Telegram {telegram_id}",
+        telegram_id=telegram_id,
+        id_empleado_usual=id_empleado_default,
+    )
+    session.flush()
     return cliente
 
 
@@ -629,27 +434,84 @@ def crear_cita_corp(
     return cita
 
 
-def obtener_citas_corp_por_usuario(
+def obtener_citas_cliente(
     session: Session,
-    id_usuario: int,
+    id_cliente: int,
     fecha: datetime | None = None,
     anterior: bool = False,
 ) -> list[CitaCorp]:
-    """Devuelve todas las citas corporativas activas de todos los empleados del usuario."""
+    """Devuelve todas las citas corporativas activas de un cliente."""
     if fecha is None:
         fecha = datetime.now()
-    usuario = _get_usuario_activo(session, id_usuario)
-    _verificar_acceso(usuario, TIPOS_CORPORATIVOS)
-    q = (
-        session.query(CitaCorp)
-        .join(Empleado, CitaCorp.ID_EMPLEADO == Empleado.ID_EMPLEADO)
-        .filter(Empleado.ID_USUARIO == id_usuario, CitaCorp.ELIMINADO.is_(None))
+    cliente = session.get(Cliente, id_cliente)
+    if cliente is None or cliente.ELIMINADO is not None:
+        raise ValueError(f"Cliente {id_cliente} no encontrado")
+    q = session.query(CitaCorp).filter(
+        CitaCorp.ID_CLIENTE == id_cliente, CitaCorp.ELIMINADO.is_(None)
     )
     if anterior:
         q = q.filter(CitaCorp.FECHA < fecha).order_by(CitaCorp.FECHA.desc())
     else:
         q = q.filter(CitaCorp.FECHA >= fecha).order_by(CitaCorp.FECHA.asc())
     return q.all()
+
+
+def obtener_citas_cliente_eliminadas(
+    session: Session,
+    id_cliente: int,
+    fecha: datetime | None = None,
+    anterior: bool = False,
+) -> list[CitaCorp]:
+    """Devuelve todas las citas corporativas eliminadas de un cliente."""
+    if fecha is None:
+        fecha = datetime.now()
+    cliente = session.get(Cliente, id_cliente)
+    if cliente is None or cliente.ELIMINADO is not None:
+        raise ValueError(f"Cliente {id_cliente} no encontrado")
+    q = session.query(CitaCorp).filter(
+        CitaCorp.ID_CLIENTE == id_cliente, CitaCorp.ELIMINADO.isnot(None)
+    )
+    if anterior:
+        q = q.filter(CitaCorp.FECHA < fecha).order_by(CitaCorp.FECHA.desc())
+    else:
+        q = q.filter(CitaCorp.FECHA >= fecha).order_by(CitaCorp.FECHA.asc())
+    return q.all()
+
+
+def obtener_citas_empleado(
+    session: Session,
+    id_empleado: int,
+    fecha_inicio: datetime | None = None,
+    fecha_fin: datetime | None = None,
+) -> list[CitaCorp]:
+    """Devuelve todas las citas corporativas activas de un empleado en un rango de fechas."""
+    if fecha_inicio is None:
+        fecha_inicio = datetime.now()
+    if fecha_fin is None:
+        fecha_fin = fecha_inicio + timedelta(days=30)
+    empleado = _get_empleado_activo(session, id_empleado)
+    return (
+        session.query(CitaCorp)
+        .filter(
+            CitaCorp.ID_EMPLEADO == id_empleado,
+            CitaCorp.ELIMINADO.is_(None),
+            CitaCorp.FECHA >= fecha_inicio,
+            CitaCorp.FECHA < fecha_fin,
+        )
+        .all()
+    )
+
+
+# Aliases para compatibilidad (deprecated)
+def obtener_citas_corp_por_usuario(
+    session: Session,
+    id_usuario: int,
+    fecha: datetime | None = None,
+    anterior: bool = False,
+) -> list[CitaCorp]:
+    raise NotImplementedError(
+        "obtener_citas_corp_por_usuario() está deprecated. Use obtener_citas_cliente() o obtener_citas_empleado()."
+    )
 
 
 def obtener_citas_corp_eliminadas_por_usuario(
@@ -658,21 +520,9 @@ def obtener_citas_corp_eliminadas_por_usuario(
     fecha: datetime | None = None,
     anterior: bool = False,
 ) -> list[CitaCorp]:
-    """Devuelve todas las citas corporativas eliminadas de todos los empleados del usuario."""
-    if fecha is None:
-        fecha = datetime.now()
-    usuario = _get_usuario_activo(session, id_usuario)
-    _verificar_acceso(usuario, TIPOS_CORPORATIVOS)
-    q = (
-        session.query(CitaCorp)
-        .join(Empleado, CitaCorp.ID_EMPLEADO == Empleado.ID_EMPLEADO)
-        .filter(Empleado.ID_USUARIO == id_usuario, CitaCorp.ELIMINADO.isnot(None))
+    raise NotImplementedError(
+        "obtener_citas_corp_eliminadas_por_usuario() está deprecated. Use obtener_citas_cliente_eliminadas()."
     )
-    if anterior:
-        q = q.filter(CitaCorp.FECHA < fecha).order_by(CitaCorp.FECHA.desc())
-    else:
-        q = q.filter(CitaCorp.FECHA >= fecha).order_by(CitaCorp.FECHA.asc())
-    return q.all()
 
 
 def obtener_cita_corp(session: Session, id_cita: int) -> CitaCorp | None:

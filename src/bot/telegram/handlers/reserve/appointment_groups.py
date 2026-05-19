@@ -1,7 +1,7 @@
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
-from src.BBDD.database_service import obtener_o_crear_usuario_telegram
+from src.BBDD.database_service import obtener_o_crear_cliente_por_telegram
 
 from .utils import _send_or_edit
 
@@ -9,52 +9,40 @@ from .utils import _send_or_edit
 async def handle_action_my_appointments(
     query, context: ContextTypes.DEFAULT_TYPE, update: Update
 ) -> None:
-    """Muestra las citas del usuario agrupadas en bloques de 9."""
+    """Muestra las citas del cliente agrupadas en bloques de 9."""
     try:
-        # Obtener usuario de Telegram
+        # Obtener cliente de Telegram
         user_id = update.effective_user.id
-        usuario = obtener_o_crear_usuario_telegram(user_id)
-        user_db_id = usuario.get("id_usuario")
+        cliente_result = obtener_o_crear_cliente_por_telegram(user_id)
+        cliente_id = cliente_result.get("cliente_id")
 
-        if not user_db_id:
-            await _send_or_edit(
-                query, update, "❌ Error al obtener tus datos de usuario"
-            )
+        if not cliente_id:
+            await _send_or_edit(query, update, "Error al obtener tus datos")
             return
 
-        # Obtener citas del usuario de la BD
-        from src.BBDD.databasecontroller import obtener_citas_por_usuario, get_session
+        # Obtener citas del cliente de la BD
+        from src.BBDD.databasecontroller import obtener_citas_cliente, get_session
 
         with get_session() as session:
-            citas = obtener_citas_por_usuario(session, user_db_id)
+            citas = obtener_citas_cliente(session, cliente_id, None, None)
             # Invertir para mostrar más recientes primero
             citas = sorted(citas, key=lambda c: c.FECHA, reverse=True)
 
             # Convertir a diccionarios DENTRO de la sesión para no perder datos
             citas_dict = [
-                {"fecha": c.FECHA, "descripcion": c.DESCRIPCION or "Sin descripción"}
+                {"fecha": c.FECHA, "descripcion": c.DESCRIPCION or "Sin descripcion"}
                 for c in citas
             ]
 
             if not citas_dict:
                 keyboard = [
-                    [
-                        InlineKeyboardButton(
-                            "📅 Ver disponibilidad",
-                            callback_data="action_view_availability",
-                        )
-                    ],
-                    [
-                        InlineKeyboardButton(
-                            "⫶☰ Volver", callback_data="action_back_menu"
-                        )
-                    ],
+                    [InlineKeyboardButton("Volver", callback_data="action_back_menu")],
                 ]
                 reply_markup = InlineKeyboardMarkup(keyboard)
                 await _send_or_edit(
                     query,
                     update,
-                    text="📋 *Mis citas:*\n\n*No hay citas registradas*",
+                    text="*Mis citas:*\n\n*No hay citas registradas*",
                     reply_markup=reply_markup,
                     parse_mode="Markdown",
                 )
@@ -72,7 +60,7 @@ async def handle_action_my_appointments(
             context.user_data["citas_bloque_actual"] = 0
 
             # Mostrar primer bloque
-            bloque_texto = f"📋 *Mis citas* (grupo 1 de {len(bloques)})\n\n"
+            bloque_texto = f"*Mis citas* (grupo 1 de {len(bloques)})\n\n"
             for idx, cita in enumerate(bloques[0]):
                 fecha_str = cita["fecha"].strftime("%d/%m/%Y %H:%M")
                 bloque_texto += f"{emojis[idx]} *{fecha_str}* - {cita['descripcion']}\n"
@@ -83,21 +71,15 @@ async def handle_action_my_appointments(
                 keyboard.append(
                     [
                         InlineKeyboardButton(
-                            "⬅️ Anterior", callback_data="action_prev_citas_group"
+                            "Anterior", callback_data="action_prev_citas_group"
                         ),
                         InlineKeyboardButton(
-                            "Siguiente ➡️", callback_data="action_next_citas_group"
+                            "Siguiente", callback_data="action_next_citas_group"
                         ),
                     ]
                 )
             keyboard.extend(
                 [
-                    [
-                        InlineKeyboardButton(
-                            "📅 Ver disponibilidad",
-                            callback_data="action_view_availability",
-                        )
-                    ],
                     [
                         InlineKeyboardButton(
                             "⫶☰ Volver", callback_data="action_back_menu"

@@ -28,7 +28,7 @@ class TranslatorService:
             return texto
 
         try:
-            traductor = GoogleTranslator(source="auto", target=idioma_destino)
+            traductor = GoogleTranslator(source="es", target=idioma_destino)
             return traductor.translate(texto)
         except Exception as e:
             print(f"⚠️ Error traduciendo '{texto}': {e}")

@@ -1,4 +1,6 @@
-"""Handlers para visualizar disponibilidad - DESHABILITADO TEMPORALMENTE."""
+"""Script para reparar availability.py"""
+
+content = '''"""Handlers para visualizar disponibilidad - DESHABILITADO TEMPORALMENTE."""
 
 from telegram import Update
 from telegram.ext import ContextTypes
@@ -53,3 +55,11 @@ async def handle_prev_week(query, context, update):
 
 async def handle_next_week(query, context, update):
     pass
+'''
+
+with open(
+    "src/bot/telegram/handlers/reserve/availability.py", "w", encoding="utf-8"
+) as f:
+    f.write(content)
+
+print("OK availability.py fixed")

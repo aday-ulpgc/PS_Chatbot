@@ -1,14 +1,5 @@
 import os
-import sys
-import httpx
 from datetime import datetime, timedelta
-
-# Forzar salida UTF-8 en Windows para evitar UnicodeEncodeError con emojis
-if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
-    try:
-        sys.stdout.reconfigure(encoding="utf-8")
-    except AttributeError:
-        pass
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from src.BBDD.database_service import guardar_cita_en_db
@@ -85,9 +76,7 @@ class GoogleCalendarService:
             .execute()
         )
 
-    def delete_event(
-        self, user_id: str, date_str: str, hour_str: str, force: bool = False
-    ) -> bool:
+    def delete_event(self, user_id: str, date_str: str, hour_str: str) -> bool:
         """Busca y elimina un evento específico en el calendario."""
         time_min = f"{date_str}T00:00:00Z"
         time_max = f"{date_str}T23:59:59Z"
@@ -105,70 +94,23 @@ class GoogleCalendarService:
 
         events = events_result.get("items", [])
         formatted_hour = hour_str.zfill(5)
+        expected_summary = f"Reserva de {user_id}"
 
-        # Extraer el ID de telegram del user_id (ej: "Nombre (12345)")
-        telegram_id = ""
-        if "(" in user_id and ")" in user_id:
-            telegram_id = user_id.split("(")[-1].rstrip(")")
-
-        print(
-            f"[DELETE] Buscando en cal={self.calendar_id} | fecha={date_str} | hora={formatted_hour} | telegram_id={telegram_id}"
-        )
-
-        events_del_usuario = []
         for event in events:
             start_time = event["start"].get("dateTime", "")
             summary = event.get("summary", "")
-            id_coincide = telegram_id and f"({telegram_id})" in summary
-            summary_coincide = summary == f"Reserva de {user_id}"
 
-            print(
-                f"  -> start='{start_time}' | summary='{summary}' | id_coincide={id_coincide}"
-            )
-
-            hora_coincide = f"T{formatted_hour}:00" in start_time
-
-            if hora_coincide and (id_coincide or summary_coincide or force):
+            if f"T{formatted_hour}:00" in start_time and summary == expected_summary:
                 event_id = event["id"]
                 self.service.events().delete(
                     calendarId=self.calendar_id, eventId=event_id
                 ).execute()
-
-                if force and not (id_coincide or summary_coincide):
-                    print(
-                        f"[INFO] Evento fantasma borrado por fuerza (hora exacta): {date_str} a las {hour_str}"
-                    )
-                else:
-                    print(
-                        f"[INFO] Evento borrado en Google Calendar: {date_str} a las {hour_str}"
-                    )
+                print(
+                    f"✅ Evento borrado en Google Calendar: {date_str} a las {hour_str}"
+                )
                 return True
 
-            if id_coincide or summary_coincide:
-                events_del_usuario.append(event)
-
-        # Fallback: si hay exactamente un evento de este usuario ese día y no
-        # coincidió la hora (posible desfase UTC vs hora local en la BD),
-        # lo borramos igualmente para evitar duplicados.
-        if len(events_del_usuario) == 1:
-            event = events_del_usuario[0]
-            event_id = event["id"]
-            start_time = event["start"].get("dateTime", "")
-            self.service.events().delete(
-                calendarId=self.calendar_id, eventId=event_id
-            ).execute()
-            print(
-                f"[INFO] Evento borrado por fallback (unico evento del usuario ese dia): {start_time}"
-            )
-            return True
-        elif len(events_del_usuario) > 1:
-            print(
-                f"[WARN] Hay {len(events_del_usuario)} eventos del usuario ese dia, no se puede borrar por fallback sin hora exacta."
-            )
-
-        print(
-            f"[WARN] No se encontro el evento en Google Calendar para borrarlo. Eventos en ese dia: {len(events)}"
-        )
+        print("⚠️ No se encontró el evento en Google Calendar para borrarlo.")
         return False
 
     def get_available_hours(self, date_str: str) -> list:
@@ -211,19 +153,9 @@ class GoogleCalendarService:
                 except (IndexError, ValueError):
                     pass
 
-        import pytz
-        from datetime import datetime
-
-        tz = pytz.timezone(TIMEZONE)
-        now = datetime.now(tz)
-        is_today = date_str == now.strftime("%Y-%m-%d")
-        current_hour = now.hour
-
         # Generar lista de horas disponibles (9:00 a 20:00)
         available_hours = []
         for h in range(9, 21):
-            if is_today and h <= current_hour:
-                continue
             hour_code = f"{h:02d}"
             if hour_code not in occupied_hours:
                 available_hours.append(f"{h:02d}:00")
@@ -265,7 +197,7 @@ def create_reservation(
     date: str,
     hour: str,
     gmail_trabajador: str = None,
-    skip_db: bool = False,
+    id_empleado_seleccionado: int = None,
 ) -> str:
     """
     Función de fachada (Facade) que orquestra la reserva.
@@ -278,6 +210,7 @@ def create_reservation(
         user_id: Formato "Nombre Completo (telegram_id)"
         date: Formato "YYYY-MM-DD"
         hour: Formato "HH:MM"
+        id_empleado_seleccionado: ID del empleado seleccionado por el usuario (opcional)
     """
     try:
         calendar = GoogleCalendarService(gmail_trabajador)
@@ -323,146 +256,72 @@ def create_reservation(
             telegram_id = int(telegram_id_str)
             nombre = user_id.split("(")[0].strip()
         except (IndexError, ValueError):
-            print(f"[WARN] No se pudo extraer telegram_id de {user_id}")
+            print(f"⚠️ No se pudo extraer telegram_id de {user_id}")
             telegram_id = None
             nombre = None
 
-        # Guardar también en la base de datos
-        if telegram_id and not skip_db:
-            from src.BBDD.database_service import obtener_o_crear_usuario_telegram
+        # Guardar en la BD (arquitectura nueva)
+        if telegram_id:
+            from src.BBDD.database_service import obtener_o_crear_cliente_por_telegram
+            from src.BBDD.databasecontroller import Empleado, get_session
 
-            obtener_o_crear_usuario_telegram(telegram_id=telegram_id, nombre=nombre)
+            cliente_result = obtener_o_crear_cliente_por_telegram(telegram_id, nombre)
+            cliente_id = cliente_result.get("cliente_id")
 
-            fecha_obj = datetime.strptime(date, "%Y-%m-%d")
-            success_db = guardar_cita_en_db(
-                telegram_id=telegram_id,
-                fecha=fecha_obj,
-                hora=hour,
-                descripcion="Cita reservada desde Telegram",
-            )
-            if not success_db:
-                print("[WARN] Cita creada en Google Calendar pero no se guardo en DB")
+            if cliente_id:
+                # Usar el empleado seleccionado o obtener el primero activo
+                id_empleado = id_empleado_seleccionado
 
-        return f"✅ ¡Reserva confirmada para el {date} a las {hour}!\n"
+                if not id_empleado:
+                    try:
+                        with get_session() as session:
+                            empleado = (
+                                session.query(Empleado)
+                                .filter(Empleado.ELIMINADO == None)
+                                .first()
+                            )
+                            if empleado:
+                                id_empleado = empleado.ID_EMPLEADO
+                    except Exception as e:
+                        print(f"⚠️ Error getting first empleado: {e}")
+                        id_empleado = 1
+
+                # Crear datetime con fecha Y hora
+                fecha_obj = datetime.strptime(f"{date} {hour}", "%Y-%m-%d %H:%M")
+                success_db = guardar_cita_en_db(
+                    id_empleado=id_empleado,
+                    id_cliente=cliente_id,
+                    fecha=fecha_obj,
+                    descripcion="Cita reservada desde Telegram",
+                )
+                if success_db:
+                    return f"✅ ¡Reserva confirmada para el {date} a las {hour}!\n"
+                else:
+                    print("⚠️ Cita creada en Google Calendar pero no se guardó en DB")
+
+        return f"OK Reserva confirmada para el {date} a las {hour}!\n"
 
     except FileNotFoundError as e:
         print(f"[CONFIG ERROR]: {e}")
-        return "❌ Error: No se pudo localizar el archivo de llaves de Google."
+        return "ERROR: No se pudo localizar el archivo de llaves de Google."
     except Exception as e:
         print(f"[SYSTEM ERROR]: {e}")
         return "❌ Lo siento, hubo un problema técnico al crear la reserva."
 
 
-async def create_reservation_via_api(
-    telegram_id: int,
-    date: str,
-    hour: str,
-    usuario_id: int,
-    contacto_id: int,
-    bloqueante: int = 7,
-) -> str:
-    """
-    Crea una reserva llamando al endpoint POST /citas con parámetro bloqueante.
-
-    Args:
-        telegram_id: ID de Telegram del usuario
-        date: Fecha en formato "YYYY-MM-DD"
-        hour: Hora en formato "HH:MM"
-        usuario_id: ID de usuario en la BD
-        contacto_id: ID de contacto en la BD
-        bloqueante: Días de búsqueda (±N días) para alternativas. Default: 7
-
-    Returns:
-        Mensaje con resultado o alternativas disponibles
-    """
-    try:
-        api_url = os.getenv("API_URL", "http://localhost:8000")
-
-        # Construir el datetime completo
-        fecha_dt = datetime.strptime(f"{date} {hour}", "%Y-%m-%d %H:%M")
-
-        # Payload para la API
-        cita_payload = {
-            "ID_USUARIO": usuario_id,
-            "ID_CONTACTO": contacto_id,
-            "FECHA": fecha_dt.isoformat(),
-            "DESCRIPCION": "Cita reservada desde Telegram",
-            "PRIORIDAD": 1,
-        }
-
-        # Hacer la llamada a la API con bloqueante
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            response = await client.post(
-                f"{api_url}/citas",
-                json=cita_payload,
-                params={"bloqueante": bloqueante},
-            )
-
-        # Si fue exitoso (201 Created)
-        if response.status_code == 201:
-            fecha_display = datetime.strptime(date, "%Y-%m-%d").strftime("%d/%m/%Y")
-            return f"✅ ¡Reserva confirmada para el {fecha_display} a las {hour}!\n"
-
-        # Si hay conflicto de disponibilidad (409)
-        if response.status_code == 409:
-            error_detail = response.json().get("detail", "")
-            # El mensaje ya contiene las alternativas en el formato:
-            # "Horario no disponible. Otras fechas cercanas que podrían interesarte: DD/MM/YYYY HH:MM  DD/MM/YYYY HH:MM"
-            return f"❌ {error_detail}"
-
-        # Otros errores
-        error_detail = response.json().get("detail", "Error desconocido")
-        return f"❌ Error al crear la reserva: {error_detail}"
-
-    except httpx.TimeoutException:
-        print("[TIMEOUT] La API tardó demasiado en responder")
-        return "❌ Lo siento, la API tardó demasiado en responder. Inténtalo de nuevo."
-    except httpx.RequestError as e:
-        print(f"[HTTP ERROR] Error de conexión con la API: {e}")
-        return "❌ Error de conexión con el servidor. Inténtalo de nuevo más tarde."
-    except Exception as e:
-        print(f"[ERROR] Error en create_reservation_via_api: {e}")
-        import traceback
-
-        traceback.print_exc()
-        return "❌ Error técnico al procesar tu reserva."
-
-
-def delete_reservation(user_id: str, date: str, hour: str, force: bool = False) -> bool:
+def delete_reservation(user_id: str, date: str, hour: str) -> bool:
     """
     Función de fachada (Facade) para eliminar una reserva.
     Es llamada cuando el usuario cancela o modifica desde Telegram.
-    Intenta eliminar en el calendario por defecto y, si no lo encuentra, en el de los trabajadores.
     """
     try:
-        from src.bot.telegram.constants import TRABAJADORES
+        calendar = GoogleCalendarService()
 
-        # 1. Intentar en el calendario por defecto
-        calendar_default = GoogleCalendarService()
-        if calendar_default.calendar_id:
-            if calendar_default.delete_event(user_id, date, hour, force):
-                return True
+        if not calendar.calendar_id:
+            print("❌ Error: No se ha configurado el CALENDAR_ID.")
+            return False
 
-        # 2. Si no se encontró, buscar en los calendarios de los trabajadores
-        for nombre, gmail in TRABAJADORES.items():
-            try:
-                calendar_trabajador = GoogleCalendarService(gmail_trabajador=gmail)
-                if calendar_trabajador.calendar_id:
-                    if calendar_trabajador.delete_event(user_id, date, hour, force):
-                        return True
-            except Exception as e:
-                if "404" in str(e):
-                    print(
-                        f"[INFO] Calendario no encontrado o sin permisos (404) para {nombre} ({gmail}). Saltando..."
-                    )
-                else:
-                    print(
-                        f"[WARN] Error al revisar el calendario de {nombre} ({gmail}): {e}"
-                    )
-                continue
-
-        print("[ERROR] No se encontro la cita en ningun calendario para borrarla.")
-        return False
+        return calendar.delete_event(user_id, date, hour)
 
     except Exception as e:
         print(f"[SYSTEM ERROR]: Error al intentar borrar la reserva en Google: {e}")
@@ -521,3 +380,53 @@ def get_weekly_availability(days=7, gmail_trabajador: str = None) -> str:
     except Exception as e:
         print(f"Error en vista semanal: {e}")
         return "No disponible."
+
+
+async def create_reservation_via_api(
+    telegram_id: int,
+    date: str,
+    hour: str,
+    usuario_id: int = None,
+    contacto_id: int = None,
+    bloqueante: int = None,
+    nombre: str = None,
+    id_empleado: int = None,
+) -> str:
+    """
+    Función async para crear reservas desde los handlers del bot.
+    Delegada a create_reservation() con parámetros de Telegram.
+
+    Args:
+        telegram_id: ID del usuario en Telegram
+        date: Fecha en formato "YYYY-MM-DD"
+        hour: Hora en formato "HH:MM"
+        usuario_id: ID del usuario (deprecated, para compatibilidad)
+        contacto_id: ID del contacto (deprecated, para compatibilidad)
+        bloqueante: Empleado ID (deprecated, para compatibilidad)
+        nombre: Nombre del usuario (si no se proporciona, se usa "Usuario")
+        id_empleado: ID del empleado seleccionado por el usuario
+
+    Returns:
+        Mensaje de confirmación o error para el usuario
+    """
+    try:
+        # Construir el user_id en formato esperado
+        if nombre:
+            user_id_str = f"{nombre} ({telegram_id})"
+        else:
+            user_id_str = f"Usuario ({telegram_id})"
+
+        # Llamar a la función sincrónica create_reservation
+        response = create_reservation(
+            user_id=user_id_str,
+            date=date,
+            hour=hour,
+            gmail_trabajador=None,
+            id_empleado_seleccionado=id_empleado,
+        )
+
+        return response
+
+    except Exception as e:
+        print(f"❌ Error en create_reservation_via_api: {e}")
+        return f"❌ Error al crear la reserva: {str(e)}"
