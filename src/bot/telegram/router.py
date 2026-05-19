@@ -24,7 +24,6 @@ from src.bot.telegram.handlers.reserve.availability import (
 from src.bot.telegram.handlers.reserve.booking import (
     handle_action_reserve,
     handle_calendar_and_time,
-    handle_show_calendar,
 )
 
 from src.bot.telegram.handlers.manage_appointments import (
