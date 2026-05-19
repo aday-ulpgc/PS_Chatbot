@@ -217,12 +217,10 @@ def create_reservation(
             )
 
         if not calendar.is_slot_available(date, hour):
-            # Buscar horas alternativas
             hour_before, hour_after = calendar.find_alternative_hours(date, hour)
 
             error_msg = f"❌ Lo siento, la cita de las {hour}h ya no está disponible."
 
-            # Si hay alternativas, incluirlas en el mensaje
             alternatives = []
             if hour_before:
                 alternatives.append(hour_before)
@@ -230,7 +228,6 @@ def create_reservation(
                 alternatives.append(hour_after)
 
             if alternatives:
-                # Convertir fecha a DD/MM/YYYY para el mensaje
                 fecha_obj = datetime.strptime(date, "%Y-%m-%d")
                 fecha_formato = fecha_obj.strftime("%d/%m/%Y")
 

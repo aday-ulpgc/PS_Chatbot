@@ -10,6 +10,7 @@ from src.services.voice_service import VoiceService
 from src.services.translator_service import TranslatorService
 from src.BBDD.database_service import obtener_email_empleado_por_nombre
 from src.bot.telegram.constants import MODO_TEXTO, MODO_AUDIO, TRABAJADORES
+from src.BBDD.database_service import obtener_email_empleado_por_nombre
 from src.bot.telegram.handlers.manage_appointments import (
     handle_action_cancel_menu,
     handle_action_modify_menu,
