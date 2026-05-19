@@ -8,6 +8,7 @@ from src.nlp.gemini_service import NLPService
 from src.services import calendar_service
 from src.services.voice_service import VoiceService
 from src.services.translator_service import TranslatorService
+from src.BBDD.database_service import obtener_email_empleado_por_nombre
 from src.bot.telegram.constants import MODO_TEXTO, MODO_AUDIO, TRABAJADORES
 from src.bot.telegram.handlers.manage_appointments import (
     handle_action_cancel_menu,
@@ -104,6 +105,7 @@ async def _handle_booking_intent(
     nombre_ia = datos.get("nombre_trabajador") or ""
     
     gmail_trabajador = obtener_email_empleado_por_nombre(nombre_ia)
+    gmail_trabajador = gmail_trabajador if gmail_trabajador else TRABAJADORES.get(nombre_ia.lower())
     print(f"Intentando reservar para {nombre_id} el {fecha} a las {hora} con {nombre_ia} ({gmail_trabajador})")
 
     try:

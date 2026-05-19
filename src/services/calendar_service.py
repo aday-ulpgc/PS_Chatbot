@@ -243,10 +243,8 @@ def create_reservation(
         start_time = datetime.strptime(f"{date} {hour}", "%Y-%m-%d %H:%M")
         end_time = start_time + timedelta(hours=1)
 
-        # Crear en Google Calendar
         calendar.create_event(user_id, start_time, end_time)
 
-        # Extraer telegram_id y nombre del formato "Nombre Completo (telegram_id)"
         try:
             telegram_id_str = user_id.split("(")[-1].rstrip(")")
             telegram_id = int(telegram_id_str)
@@ -256,7 +254,6 @@ def create_reservation(
             telegram_id = None
             nombre = None
 
-        # Guardar en la BD (arquitectura nueva)
         if telegram_id:
             from src.BBDD.database_service import obtener_o_crear_cliente_por_telegram
             from src.BBDD.databasecontroller import Empleado, get_session
@@ -265,9 +262,20 @@ def create_reservation(
             cliente_id = cliente_result.get("cliente_id")
             
             if cliente_id:
-                # Usar el empleado seleccionado o obtener el primero activo
                 id_empleado = id_empleado_seleccionado
-                
+
+                if not id_empleado and gmail_trabajador:
+                    try:
+                        with get_session() as session:
+                            empleado = session.query(Empleado).filter(
+                                Empleado.EMAIL == gmail_trabajador,
+                                Empleado.ELIMINADO == None,
+                            ).first()
+                            if empleado:
+                                id_empleado = empleado.ID_EMPLEADO
+                    except Exception as e:
+                        print(f"⚠️ Error al obtener empleado por email: {e}")
+
                 if not id_empleado:
                     try:
                         with get_session() as session:
@@ -385,6 +393,7 @@ async def create_reservation_via_api(
     bloqueante: int = None,
     nombre: str = None,
     id_empleado: int = None,
+    gmail_trabajador: str = None,
 ) -> str:
     """
     Función async para crear reservas desde los handlers del bot.
@@ -415,8 +424,8 @@ async def create_reservation_via_api(
             user_id=user_id_str,
             date=date,
             hour=hour,
-            gmail_trabajador=None,
-            id_empleado_seleccionado=id_empleado
+            gmail_trabajador=gmail_trabajador,
+            id_empleado_seleccionado=id_empleado,
         )
         
         return response
