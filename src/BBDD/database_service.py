@@ -271,17 +271,22 @@ def obtener_info_cita_db(id_cita: int) -> dict | None:
         print(f"❌ Error al obtener info de la cita: {e}")
     return None
 
+
 def guardar_peticion_fallida(telegram_id: int, fecha: datetime) -> bool:
     try:
         with get_session() as session:
             from src.BBDD.databasecontroller import ListaEspera
 
             # Evitar duplicados
-            existente = session.query(ListaEspera).filter(
-                ListaEspera.TELEGRAM_ID == telegram_id,
-                ListaEspera.FECHA == fecha,
-                ListaEspera.NOTIFICADO == 0
-            ).first()
+            existente = (
+                session.query(ListaEspera)
+                .filter(
+                    ListaEspera.TELEGRAM_ID == telegram_id,
+                    ListaEspera.FECHA == fecha,
+                    ListaEspera.NOTIFICADO == 0,
+                )
+                .first()
+            )
 
             if existente:
                 return True
@@ -312,18 +317,25 @@ def obtener_usuarios_esperando(fecha: datetime) -> list:
                 .filter(
                     ListaEspera.FECHA == fecha,
                     ListaEspera.NOTIFICADO == 0,
-                    ListaEspera.FECHA >= datetime.now()
+                    ListaEspera.FECHA >= datetime.now(),
                 )
                 .order_by(ListaEspera.ID_LISTA.asc())
                 .first()
             )
 
             from collections import namedtuple
-            EsperaData = namedtuple('EsperaData', ['ID_LISTA', 'TELEGRAM_ID', 'FECHA'])
-            
+
+            EsperaData = namedtuple("EsperaData", ["ID_LISTA", "TELEGRAM_ID", "FECHA"])
+
             resultado = []
             if espera:
-                resultado.append(EsperaData(ID_LISTA=espera.ID_LISTA, TELEGRAM_ID=espera.TELEGRAM_ID, FECHA=espera.FECHA))
+                resultado.append(
+                    EsperaData(
+                        ID_LISTA=espera.ID_LISTA,
+                        TELEGRAM_ID=espera.TELEGRAM_ID,
+                        FECHA=espera.FECHA,
+                    )
+                )
 
             return resultado
 

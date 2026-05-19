@@ -130,7 +130,9 @@ class NLPService:
                         respuesta_json = NLPService._limpiar_json(texto_respuesta)
 
                         if respuesta_json and respuesta_json.get("respuesta_usuario"):
-                            respuesta_json["respuesta_original"] = respuesta_json["respuesta_usuario"]
+                            respuesta_json["respuesta_original"] = respuesta_json[
+                                "respuesta_usuario"
+                            ]
                             texto_traducido = TranslatorService.traducir(
                                 respuesta_json["respuesta_usuario"], idioma_usuario
                             )

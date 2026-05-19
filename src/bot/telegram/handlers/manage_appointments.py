@@ -30,7 +30,7 @@ async def handle_action_my_appointments(
     if not citas:
         texto_base = "📋 *Mis Citas*"
         texto_citas = (
-    TranslatorService.traducir(texto_base, idioma)
+            TranslatorService.traducir(texto_base, idioma)
             + "\n\n"
             + TranslatorService.traducir(
                 "Actualmente no tienes ninguna reserva activa.",
@@ -180,14 +180,13 @@ async def handle_cancel_appointment(query, context: ContextTypes.DEFAULT_TYPE) -
     exito = await asyncio.to_thread(cancelar_cita_db, id_cita)
 
     from src.BBDD.database_service import (
-    obtener_usuarios_esperando,
-    marcar_espera_notificada,
+        obtener_usuarios_esperando,
+        marcar_espera_notificada,
     )
 
     if cita:
         usuarios_espera = await asyncio.to_thread(
-            obtener_usuarios_esperando,
-            cita["FECHA"]
+            obtener_usuarios_esperando, cita["FECHA"]
         )
 
         for usuario in usuarios_espera:
@@ -195,7 +194,9 @@ async def handle_cancel_appointment(query, context: ContextTypes.DEFAULT_TYPE) -
                 fecha_str = cita["FECHA"].strftime("%d/%m/%Y")
                 hora_str = cita["FECHA"].strftime("%H:%M")
 
-                user_data_target = context.application.user_data.get(usuario.TELEGRAM_ID, {})
+                user_data_target = context.application.user_data.get(
+                    usuario.TELEGRAM_ID, {}
+                )
                 idioma_target = user_data_target.get("idioma", "es")
 
                 msg_notificacion = TranslatorService.traducir(
@@ -204,27 +205,34 @@ async def handle_cancel_appointment(query, context: ContextTypes.DEFAULT_TYPE) -
                     f"📅 Fecha: {fecha_str}\n"
                     f"⏰ Hora: {hora_str}\n\n"
                     f"Si aún deseas esta cita, ya está disponible para que la reserves.",
-                    idioma_target
+                    idioma_target,
                 )
 
                 # Marcar notificado ANTES de enviar el mensaje, para evitar intentos infinitos si el usuario bloqueó el bot
-                await asyncio.to_thread(
-                    marcar_espera_notificada,
-                    usuario.ID_LISTA
-                )
+                await asyncio.to_thread(marcar_espera_notificada, usuario.ID_LISTA)
 
                 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+
                 fecha_iso = cita["FECHA"].strftime("%Y-%m-%d")
                 hora_iso = cita["FECHA"].strftime("%H:%M")
-                texto_boton = TranslatorService.traducir("🗓️ Reservar este hueco ahora", idioma_target)
+                texto_boton = TranslatorService.traducir(
+                    "🗓️ Reservar este hueco ahora", idioma_target
+                )
                 keyboard = InlineKeyboardMarkup(
-                    [[InlineKeyboardButton(texto_boton, callback_data=f"waitlistbook_{fecha_iso}_{hora_iso}")]]
+                    [
+                        [
+                            InlineKeyboardButton(
+                                texto_boton,
+                                callback_data=f"waitlistbook_{fecha_iso}_{hora_iso}",
+                            )
+                        ]
+                    ]
                 )
 
                 await context.bot.send_message(
                     chat_id=usuario.TELEGRAM_ID,
                     text=msg_notificacion,
-                    reply_markup=keyboard
+                    reply_markup=keyboard,
                 )
 
             except Exception as e:

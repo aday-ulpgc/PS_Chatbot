@@ -153,10 +153,7 @@ async def _handle_booking_intent(
                 from datetime import datetime
                 from src.BBDD.database_service import guardar_peticion_fallida
 
-                fecha_hora = datetime.strptime(
-                    f"{fecha} {hora}",
-                    "%Y-%m-%d %H:%M"
-                )
+                fecha_hora = datetime.strptime(f"{fecha} {hora}", "%Y-%m-%d %H:%M")
 
                 await asyncio.to_thread(
                     guardar_peticion_fallida,
@@ -281,6 +278,7 @@ INTENT_HANDLERS = {
     "cancelar": _handle_cancel_intent,
     "modificar": _handle_modify_intent,
 }
+
 
 async def handle_texto_libre(
     update: Update, context: ContextTypes.DEFAULT_TYPE

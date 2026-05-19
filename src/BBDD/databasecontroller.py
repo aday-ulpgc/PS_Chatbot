@@ -140,6 +140,7 @@ class CitaInd(Base):
 
     usuario = relationship("Usuario", back_populates="citas")
 
+
 class ListaEspera(Base):
     __tablename__ = "LISTA_ESPERA"
 
@@ -147,6 +148,7 @@ class ListaEspera(Base):
     TELEGRAM_ID = Column(BigInteger, nullable=False)
     FECHA = Column(DateTime, nullable=False)
     NOTIFICADO = Column(Integer, default=0)
+
 
 class Empleado(Base):
     __tablename__ = "EMPLEADOS"

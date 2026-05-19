@@ -435,6 +435,7 @@ async def handle_action_reserve(query, context: ContextTypes.DEFAULT_TYPE) -> No
     except BadRequest:
         pass
 
+
 async def handle_waitlist_booking(
     query,
     context: ContextTypes.DEFAULT_TYPE,
@@ -442,7 +443,7 @@ async def handle_waitlist_booking(
 ) -> None:
     """Procesa el intento de reserva directa desde la notificación de lista de espera."""
     idioma = context.user_data.get("idioma", "es")
-    
+
     # query.data format: waitlistbook_YYYY-MM-DD_HH:MM
     try:
         _, fecha_iso, hora_iso = query.data.split("_")
@@ -462,7 +463,9 @@ async def handle_waitlist_booking(
     )
 
     if user_info.get("error"):
-        msg_error = TranslatorService.traducir("❌ Error al obtener tus datos de usuario.", idioma)
+        msg_error = TranslatorService.traducir(
+            "❌ Error al obtener tus datos de usuario.", idioma
+        )
         await query.edit_message_text(text=msg_error)
         return
 
