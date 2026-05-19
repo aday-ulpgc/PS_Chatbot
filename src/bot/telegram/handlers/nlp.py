@@ -105,9 +105,7 @@ async def _handle_booking_intent(
 
     gmail_trabajador = obtener_email_empleado_por_nombre(nombre_ia)
     gmail_trabajador = (
-        gmail_trabajador
-        if gmail_trabajador
-        else TRABAJADORES.get(nombre_ia.lower())
+        gmail_trabajador if gmail_trabajador else TRABAJADORES.get(nombre_ia.lower())
     )
 
     nombre_id = f"{update.effective_user.full_name} ({update.effective_user.id})"
@@ -118,9 +116,7 @@ async def _handle_booking_intent(
 
     if fecha and hora:
         slot_disponible = await asyncio.to_thread(
-            calendar_service.GoogleCalendarService(
-                gmail_trabajador
-            ).is_slot_available,
+            calendar_service.GoogleCalendarService(gmail_trabajador).is_slot_available,
             fecha,
             hora,
         )
@@ -166,9 +162,7 @@ async def _handle_booking_intent(
                 from datetime import datetime
                 from src.BBDD.database_service import guardar_peticion_fallida
 
-                fecha_hora = datetime.strptime(
-                    f"{fecha} {hora}", "%Y-%m-%d %H:%M"
-                )
+                fecha_hora = datetime.strptime(f"{fecha} {hora}", "%Y-%m-%d %H:%M")
 
                 await asyncio.to_thread(
                     guardar_peticion_fallida,
@@ -189,9 +183,7 @@ async def _handle_booking_intent(
             )
 
             if msg_lista_espera:
-                final_text = (
-                    f"{msg_error}\n\n{msg_lista_espera}\n\n{msg_intento}"
-                )
+                final_text = f"{msg_error}\n\n{msg_lista_espera}\n\n{msg_intento}"
             else:
                 final_text = f"{msg_error}\n\n{msg_intento}"
 
@@ -221,9 +213,7 @@ async def _handle_booking_intent(
                         os.remove(audio_path)
                     await mensaje_espera.delete()
                 except Exception as e:
-                    print(
-                        f"Error al generar audio final en NLP (fallback texto): {e}"
-                    )
+                    print(f"Error al generar audio final en NLP (fallback texto): {e}")
                     await mensaje_espera.edit_text(final_text)
         else:
             await mensaje_espera.edit_text(final_text)
@@ -359,9 +349,7 @@ async def handle_texto_libre(
     msg_error_comunicacion = TranslatorService.traducir(
         "Ha habido un error de comunicación.", idioma
     )
-    texto_respuesta = respuesta_agente.get(
-        "respuesta_usuario", msg_error_comunicacion
-    )
+    texto_respuesta = respuesta_agente.get("respuesta_usuario", msg_error_comunicacion)
     context.user_data["historial"].append(
         {"rol": "asistente", "texto": texto_respuesta}
     )
@@ -412,9 +400,7 @@ async def handle_texto_libre(
         gmail_trabajador = TRABAJADORES.get(nombre_ia.lower())
 
         slot_disponible = await asyncio.to_thread(
-            calendar_service.GoogleCalendarService(
-                gmail_trabajador
-            ).is_slot_available,
+            calendar_service.GoogleCalendarService(gmail_trabajador).is_slot_available,
             fecha,
             hora,
         )

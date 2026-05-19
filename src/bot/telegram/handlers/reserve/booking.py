@@ -69,7 +69,7 @@ async def handle_select_employee(query, context: ContextTypes.DEFAULT_TYPE) -> N
         for emp in empleados:
             btn = InlineKeyboardButton(
                 text=f"👤 {emp['NOMBRE']} ({emp['EMAIL']})",
-                callback_data=f"select_emp_{emp['EMAIL']}"
+                callback_data=f"select_emp_{emp['EMAIL']}",
             )
             keyboard.append([btn])
 
@@ -88,7 +88,9 @@ async def handle_select_employee(query, context: ContextTypes.DEFAULT_TYPE) -> N
         await query.edit_message_text("❌ Error al cargar los empleados")
 
 
-async def handle_select_employee_callback(query, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def handle_select_employee_callback(
+    query, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """Guarda el empleado elegido y muestra el calendario de reservas."""
     idioma = context.user_data.get("idioma", "es")
 
@@ -184,9 +186,7 @@ async def handle_calendar_and_time(
                         ],
                         [
                             InlineKeyboardButton(
-                                TranslatorService.traducir(
-                                    "⫶☰ Menú Principal", idioma
-                                ),
+                                TranslatorService.traducir("⫶☰ Menú Principal", idioma),
                                 callback_data="action_back_menu",
                             )
                         ],

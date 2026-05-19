@@ -268,10 +268,14 @@ def create_reservation(
                 if not id_empleado and gmail_trabajador:
                     try:
                         with get_session() as session:
-                            empleado = session.query(Empleado).filter(
-                                Empleado.EMAIL == gmail_trabajador,
-                                Empleado.ELIMINADO == None,
-                            ).first()
+                            empleado = (
+                                session.query(Empleado)
+                                .filter(
+                                    Empleado.EMAIL == gmail_trabajador,
+                                    Empleado.ELIMINADO == None,
+                                )
+                                .first()
+                            )
                             if empleado:
                                 id_empleado = empleado.ID_EMPLEADO
                     except Exception as e:
