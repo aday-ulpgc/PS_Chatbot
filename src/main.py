@@ -4,8 +4,12 @@ Carga la configuración desde el archivo .env, valida que el token
 de Telegram esté presente y arranca el bot en modo polling.
 """
 
+import asyncio
+import atexit
 import os
+import subprocess
 import sys
+import tempfile
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 import threading
@@ -26,18 +30,68 @@ from src.bot.telegram.handlers.reminders import check_daily_reminders
 from datetime import time
 
 os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
-# Aseguramos que la raíz del proyecto esté en el path para que los imports desde 'src.' funcionen correctamente
+
+# ── Lock de instancia única ───────────────────────────────────────────────────
+_LOCK_FILE = os.path.join(tempfile.gettempdir(), "ps_chatbot_bot.lock")
+
+
+def _is_pid_alive(pid: int) -> bool:
+    try:
+        result = subprocess.run(
+            ["tasklist", "/FI", f"PID eq {pid}", "/NH"],
+            capture_output=True, text=True, timeout=3,
+        )
+        return str(pid) in result.stdout
+    except Exception:
+        return False
+
+
+def _acquire_lock() -> None:
+    if os.path.exists(_LOCK_FILE):
+        try:
+            with open(_LOCK_FILE) as f:
+                pid = int(f.read().strip())
+            if _is_pid_alive(pid):
+                print(f"❌ Ya hay una instancia del bot en ejecución (PID {pid}).")
+                print("   Ciérrala o ejecuta: Get-Process python* | Stop-Process -Force")
+                sys.exit(1)
+        except (ValueError, OSError):
+            pass
+    with open(_LOCK_FILE, "w") as f:
+        f.write(str(os.getpid()))
+    atexit.register(_release_lock)
+
+
+def _release_lock() -> None:
+    try:
+        if os.path.exists(_LOCK_FILE):
+            os.remove(_LOCK_FILE)
+    except OSError:
+        pass
+
+
+# ── Loop asíncrono (compatible con Python 3.14) ───────────────────────────────
+async def _run_polling(app) -> None:
+    async with app:
+        await app.updater.start_polling(
+            poll_interval=2.0,
+            timeout=10,
+            allowed_updates=None,
+            drop_pending_updates=True,
+        )
+        await app.start()
+        print("Bot iniciado. Esperando mensajes...")
+        try:
+            await asyncio.Event().wait()  # espera indefinida hasta Ctrl+C
+        finally:
+            # Limpieza explícita antes de que async-with llame a shutdown()
+            await app.updater.stop()
+            await app.stop()
 
 
 def main() -> None:
-    """Inicializa y arranca el bot de Telegram.
+    _acquire_lock()
 
-    1. Carga las variables de entorno desde ``env/.env``.
-    2. Valida que ``TELEGRAM_TOKEN`` esté definido.
-    3. Construye la aplicación con ``ApplicationBuilder``.
-    4. Registra los handlers de comandos.
-    5. Inicia el loop de polling.
-    """
     dotenv_path: str = os.path.join(os.path.dirname(__file__), "..", "env", ".env")
     load_dotenv(dotenv_path=dotenv_path)
 
@@ -52,7 +106,6 @@ def main() -> None:
 
     app = ApplicationBuilder().token(token).build()
 
-    # Recordatorio todos los días a las 08:00 de la mañana
     hora_recordatorio = time(hour=8, minute=0, second=0)
     app.job_queue.run_daily(check_daily_reminders, time=hora_recordatorio)
 
@@ -63,6 +116,7 @@ def main() -> None:
             (filters.TEXT | filters.VOICE) & ~filters.COMMAND, message_handler
         )
     )
+
     api_thread = threading.Thread(
         target=uvicorn.run,
         kwargs={"app": fastapi_app, "host": "0.0.0.0", "port": 8000},
@@ -71,14 +125,14 @@ def main() -> None:
     api_thread.start()
     print("API iniciada en http://localhost:8000/docs")
 
-    print("Bot iniciado. Esperando mensajes...")
-    # Aumentar timeouts para conectividad débil/lenta
-    app.run_polling(
-        poll_interval=2.0,  # Esperar 2 segundos entre polls
-        timeout=10,  # Timeout de 10 segundos (por defecto es 5)
-        allowed_updates=None,
-        drop_pending_updates=True,  # Ignorar mensajes antiguos al reiniciar
-    )
+    try:
+        asyncio.run(_run_polling(app))
+    except (KeyboardInterrupt, SystemExit):
+        pass
+
+
+if __name__ == "__main__":
+    main()
 
 
 if __name__ == "__main__":

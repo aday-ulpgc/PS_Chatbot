@@ -863,31 +863,43 @@
         /* TELEGRAM CHAT WIDGET */
         #tg-chat-widget {
             position: fixed;
-            bottom: 2rem;
-            right: 2rem;
+            top: 0;
+            right: 0;
+            bottom: 0;
             z-index: 5000;
             display: flex;
             flex-direction: column;
             align-items: flex-end;
             gap: 1rem;
+            pointer-events: none;
+        }
+
+        #tg-chat-widget > * {
+            pointer-events: all;
         }
 
         .tg-bubble {
             background: var(--black3);
-            border: 1px solid rgba(201, 168, 76, 0.3);
-            width: 380px;
-            max-height: 520px;
+            border-left: 1px solid rgba(201, 168, 76, 0.3);
+            border-top: 1px solid rgba(201, 168, 76, 0.3);
+            width: 35vw;
+            min-width: 340px;
+            height: 80vh;
+            max-height: 66.667vh;
             display: flex;
             flex-direction: column;
-            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(201, 168, 76, 0.05);
-            transform: scale(0.9) translateY(20px);
+            box-shadow: -10px 0 60px rgba(0, 0, 0, 0.6);
+            transform: translateX(100%);
             opacity: 0;
-            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.4s ease;
             pointer-events: none;
+            position: absolute;
+            bottom: 0;
+            right: 0;
         }
 
         .tg-bubble.open {
-            transform: scale(1) translateY(0);
+            transform: translateX(0);
             opacity: 1;
             pointer-events: all;
         }
@@ -1030,10 +1042,10 @@
         }
 
         .msg-bubble {
-            padding: 0.6rem 0.9rem;
+            padding: 0.7rem 1rem;
             border-radius: 12px;
-            font-size: 0.82rem;
-            line-height: 1.5;
+            font-size: 1.5rem;
+            line-height: 1.55;
         }
 
         .msg.bot .msg-bubble {
@@ -1102,8 +1114,8 @@
             background: none;
             border: 1px solid rgba(201, 168, 76, 0.25);
             color: var(--gold);
-            padding: 0.35rem 0.8rem;
-            font-size: 0.7rem;
+            padding: 0.4rem 0.9rem;
+            font-size: 0.8rem;
             letter-spacing: 0.1em;
             cursor: none;
             transition: all 0.2s;
@@ -1130,7 +1142,7 @@
             padding: 0.9rem 1rem;
             color: var(--cream);
             font-family: 'DM Sans', sans-serif;
-            font-size: 0.82rem;
+            font-size: 0.95rem;
         }
 
         .tg-input::placeholder {
@@ -1214,6 +1226,38 @@
             opacity: 1;
             transform: translateX(0);
             animation: labelFloat 3s ease 2s infinite;
+        }
+
+        #tg-chat-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 4999;
+            background: transparent;
+            cursor: none;
+            pointer-events: none;
+        }
+
+        #tg-chat-overlay.visible {
+            display: block;
+            pointer-events: auto;
+        }
+
+        #tg-chat-widget .tg-widget-controls {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            z-index: 5001;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+
+        #tg-chat-widget.chat-open .tg-widget-controls {
+            opacity: 0;
+            transform: scale(0.7);
+            pointer-events: none;
         }
 
         /* FOOTER */
@@ -2168,6 +2212,8 @@
         </div>
     </div>
 
+    <div id="tg-chat-overlay"></div>
+
     <!-- TELEGRAM CHAT WIDGET -->
     <div id="tg-chat-widget">
         <div class="tg-bubble" id="tgBubble">
@@ -2190,6 +2236,7 @@
                     Hablando como <strong id="tgUserNameBadge">—</strong>
                 </div>
                 <button class="tg-logout-link" onclick="logoutTelegram()">Cambiar cuenta</button>
+                <button class="tg-close" id="tgClose" title="Cerrar chat">✕</button>
             </div>
 
             <!-- Telegram Login Panel — shown until user identifies or skips -->
@@ -2243,7 +2290,7 @@
             </div>
         </div>
 
-        <div style="display:flex;align-items:center;gap:0.75rem">
+        <div class="tg-widget-controls">
             <div class="tg-label" id="tgLabel">Reserva con IA ✨</div>
             <button class="tg-btn" id="tgToggle">
                 <svg viewBox="0 0 24 24" fill="white">
@@ -2510,22 +2557,31 @@
             sendMessage(text);
         }
 
-        tgToggle.addEventListener('click', () => {
-            chatOpen = !chatOpen;
-            tgBubble.classList.toggle('open', chatOpen);
-            chatWidget.classList.toggle('chat-open', chatOpen);
-            tgNotif.style.display = chatOpen ? 'none' : 'flex';
-            if (chatOpen) {
-                initChatState();
-                tgInput.focus();
-            }
-        });
+        const chatOverlay = document.getElementById('tg-chat-overlay');
 
-        tgClose.addEventListener('click', () => {
+        function openChat() {
+            chatOpen = true;
+            tgBubble.classList.add('open');
+            chatWidget.classList.add('chat-open');
+            chatOverlay.classList.add('visible');
+            tgNotif.style.display = 'none';
+            initChatState();
+            tgInput.focus();
+        }
+
+        function closeChat() {
             chatOpen = false;
             tgBubble.classList.remove('open');
             chatWidget.classList.remove('chat-open');
+            chatOverlay.classList.remove('visible');
+        }
+
+        tgToggle.addEventListener('click', () => {
+            chatOpen ? closeChat() : openChat();
         });
+
+        tgClose.addEventListener('click', closeChat);
+        chatOverlay.addEventListener('click', closeChat);
 
         tgSend.addEventListener('click', () => sendMessage(tgInput.value));
         tgInput.addEventListener('keydown', e => { if (e.key === 'Enter') sendMessage(tgInput.value); });
