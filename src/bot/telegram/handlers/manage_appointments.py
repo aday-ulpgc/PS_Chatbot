@@ -56,18 +56,40 @@ async def handle_action_my_appointments(
             fecha_dt = cita["FECHA"]
             if idioma == "es":
                 meses_es = {
-                    1: "enero", 2: "febrero", 3: "marzo", 4: "abril", 5: "mayo", 6: "junio",
-                    7: "julio", 8: "agosto", 9: "septiembre", 10: "octubre", 11: "noviembre", 12: "diciembre"
+                    1: "enero",
+                    2: "febrero",
+                    3: "marzo",
+                    4: "abril",
+                    5: "mayo",
+                    6: "junio",
+                    7: "julio",
+                    8: "agosto",
+                    9: "septiembre",
+                    10: "octubre",
+                    11: "noviembre",
+                    12: "diciembre",
                 }
                 nombre_mes = meses_es.get(fecha_dt.month, "enero")
                 fecha_formateada = f"{fecha_dt.strftime('%d')} de {nombre_mes} de {fecha_dt.strftime('%Y')}"
             else:
                 meses_en = {
-                    1: "January", 2: "February", 3: "March", 4: "April", 5: "May", 6: "June",
-                    7: "July", 8: "August", 9: "September", 10: "October", 11: "November", 12: "December"
+                    1: "January",
+                    2: "February",
+                    3: "March",
+                    4: "April",
+                    5: "May",
+                    6: "June",
+                    7: "July",
+                    8: "August",
+                    9: "September",
+                    10: "October",
+                    11: "November",
+                    12: "December",
                 }
                 nombre_mes = meses_en.get(fecha_dt.month, "January")
-                fecha_formateada = f"{nombre_mes} {fecha_dt.strftime('%d')}, {fecha_dt.strftime('%Y')}"
+                fecha_formateada = (
+                    f"{nombre_mes} {fecha_dt.strftime('%d')}, {fecha_dt.strftime('%Y')}"
+                )
 
             hora_str = fecha_dt.strftime("%H:%M")
             nombre_empleado = cita.get("NOMBRE_EMPLEADO", "No especificado")
@@ -206,7 +228,11 @@ async def handle_cancel_appointment(query, context: ContextTypes.DEFAULT_TYPE) -
         email_empleado = cita.get("EMAIL_EMPLEADO")
 
         await asyncio.to_thread(
-            calendar_service.delete_reservation, name_and_id, old_fecha, old_hora, email_empleado
+            calendar_service.delete_reservation,
+            name_and_id,
+            old_fecha,
+            old_hora,
+            email_empleado,
         )
 
     exito = await asyncio.to_thread(cancelar_cita_db, id_cita)

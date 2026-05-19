@@ -13,12 +13,42 @@ class TranslatorService:
         # Heurística para palabras cortas y comunes en español
         texto_clean = texto.strip().lower()
         palabras_es = {
-            "si", "sí", "no", "hola", "gracias", "ok", "vale", "perfecto", 
-            "adios", "adiós", "avisame", "avísame", "confirmar", "confirmo",
-            "citas", "cita", "reserva", "reservar", "ver", "disponibilidad", "mañana",
-            "libera", "liberar", "avisas", "queria", "quería", "fecha"
+            "si",
+            "sí",
+            "no",
+            "hola",
+            "gracias",
+            "ok",
+            "vale",
+            "perfecto",
+            "adios",
+            "adiós",
+            "avisame",
+            "avísame",
+            "confirmar",
+            "confirmo",
+            "citas",
+            "cita",
+            "reserva",
+            "reservar",
+            "ver",
+            "disponibilidad",
+            "mañana",
+            "libera",
+            "liberar",
+            "avisas",
+            "queria",
+            "quería",
+            "fecha",
         }
-        palabras_usuario = set(texto_clean.replace(",", " ").replace(".", " ").replace("¡", "").replace("!", "").replace("?", "").split())
+        palabras_usuario = set(
+            texto_clean.replace(",", " ")
+            .replace(".", " ")
+            .replace("¡", "")
+            .replace("!", "")
+            .replace("?", "")
+            .split()
+        )
         if palabras_usuario.intersection(palabras_es) and len(texto) < 35:
             return "es"
 

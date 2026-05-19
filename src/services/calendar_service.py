@@ -44,6 +44,7 @@ class GoogleCalendarService:
         if self.calendar_id == general_calendar_id:
             try:
                 from src.BBDD.database_service import obtener_empleados_activos
+
                 empleados = obtener_empleados_activos()
                 if empleados:
                     for emp in empleados:
@@ -239,6 +240,7 @@ def create_reservation(
         if not gmail_trabajador:
             try:
                 from src.BBDD.database_service import obtener_empleados_activos
+
                 empleados = obtener_empleados_activos()
                 empleado_libre = None
                 for emp in empleados:
@@ -317,7 +319,7 @@ def create_reservation(
                                 session.query(Empleado)
                                 .filter(
                                     Empleado.EMAIL == gmail_trabajador,
-                                    Empleado.ELIMINADO == None,
+                                    Empleado.ELIMINADO is None,
                                 )
                                 .first()
                             )
@@ -331,7 +333,7 @@ def create_reservation(
                         with get_session() as session:
                             empleado = (
                                 session.query(Empleado)
-                                .filter(Empleado.ELIMINADO == None)
+                                .filter(Empleado.ELIMINADO is None)
                                 .first()
                             )
                             if empleado:
@@ -363,7 +365,9 @@ def create_reservation(
         return "❌ Lo siento, hubo un problema técnico al crear la reserva."
 
 
-def delete_reservation(user_id: str, date: str, hour: str, gmail_trabajador: str = None, *args, **kwargs) -> bool:
+def delete_reservation(
+    user_id: str, date: str, hour: str, gmail_trabajador: str = None, *args, **kwargs
+) -> bool:
     """
     Función de fachada (Facade) para eliminar una reserva.
     Es llamada cuando el usuario cancela o modifica desde Telegram.

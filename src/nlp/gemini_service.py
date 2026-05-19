@@ -68,7 +68,9 @@ class NLPService:
             print(f"JSON Limpio: {texto_json}")
             return json.loads(texto_json.strip())
         except Exception as e:
-            print(f"❌ Error decodificando JSON de Gemini: {e}. Texto original: {texto}")
+            print(
+                f"❌ Error decodificando JSON de Gemini: {e}. Texto original: {texto}"
+            )
             return NLPService._respuesta_emergencia(
                 "Uy, me he liado un poco. ¿Me repites qué querías hacer?"
             )
@@ -172,7 +174,9 @@ class NLPService:
                             return NLPService._respuesta_emergencia(msg_error)
 
                     if response.status_code != 200:
-                        print(f"❌ Error HTTP {response.status_code} con modelo {modelo}: {response.text[:200]}")
+                        print(
+                            f"❌ Error HTTP {response.status_code} con modelo {modelo}: {response.text[:200]}"
+                        )
                         if intento < max_reintentos - 1:
                             NLPService.cambiar_al_siguiente_modelo()
                             await asyncio.sleep(1)
