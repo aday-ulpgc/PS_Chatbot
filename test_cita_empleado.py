@@ -21,7 +21,7 @@ from src.BBDD.database_service import (
     obtener_o_crear_cliente_por_telegram,
     guardar_cita_en_db,
 )
-from src.BBDD.databasecontroller import get_session, CitaCorp, Empleado, Cliente
+from src.BBDD.databasecontroller import get_session, CitaCorp
 
 
 def test_empleados():
@@ -65,7 +65,7 @@ def test_crear_cliente(empleados):
         telegram_id=telegram_id, nombre=nombre, id_empleado_default=empleado_id
     )
 
-    print(f"\nResultado:")
+    print("\nResultado:")
     pprint(cliente_result)
 
     if cliente_result.get("error"):
@@ -87,7 +87,7 @@ def test_crear_cita(empleado_id, empleado_nombre, cliente_id):
     fecha = datetime.now() + timedelta(days=1)
     descripcion = "Cita de prueba desde script"
 
-    print(f"\nDatos de la cita:")
+    print("\nDatos de la cita:")
     print(f"   Empleado: {empleado_nombre} (ID: {empleado_id})")
     print(f"   ID Cliente: {cliente_id}")
     print(f"   Fecha: {fecha}")
@@ -102,10 +102,10 @@ def test_crear_cita(empleado_id, empleado_nombre, cliente_id):
     )
 
     if success:
-        print(f"\nCita creada exitosamente")
+        print("\nCita creada exitosamente")
         return True
     else:
-        print(f"\nError al crear cita")
+        print("\nError al crear cita")
         return False
 
 
@@ -120,7 +120,7 @@ def test_leer_cita_desde_bd(cliente_id, empleado_id):
             # Obtener las citas del cliente
             citas = (
                 session.query(CitaCorp)
-                .filter(CitaCorp.ID_CLIENTE == cliente_id, CitaCorp.ELIMINADO == None)
+                .filter(CitaCorp.ID_CLIENTE == cliente_id, CitaCorp.ELIMINADO is None)
                 .all()
             )
 
@@ -138,14 +138,14 @@ def test_leer_cita_desde_bd(cliente_id, empleado_id):
 
                 # Mostrar datos del empleado
                 if cita.empleado:
-                    print(f"\n   [EMPLEADO] Datos del Empleado:")
+                    print("\n   [EMPLEADO] Datos del Empleado:")
                     print(f"      ID: {cita.empleado.ID_EMPLEADO}")
                     print(f"      Nombre: {cita.empleado.NOMBRE}")
                     print(f"      Email: {cita.empleado.EMAIL}")
 
                 # Mostrar datos del cliente
                 if cita.cliente:
-                    print(f"\n   [CLIENTE] Datos del Cliente:")
+                    print("\n   [CLIENTE] Datos del Cliente:")
                     print(f"      ID: {cita.cliente.ID_CLIENTE}")
                     print(f"      Nombre: {cita.cliente.NOMBRE}")
                     print(f"      Telegram ID: {cita.cliente.TELEGRAM_ID}")

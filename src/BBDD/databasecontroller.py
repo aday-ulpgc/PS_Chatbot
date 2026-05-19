@@ -24,7 +24,6 @@ from typing import Generator
 from dotenv import load_dotenv
 import bcrypt
 from sqlalchemy import (
-    BigInteger,
     Column,
     DateTime,
     ForeignKey,
@@ -383,7 +382,7 @@ def obtener_o_crear_cliente_telegram(
         return cliente
 
     # Crear nuevo cliente
-    empleado = _get_empleado_activo(session, id_empleado_default)
+    _get_empleado_activo(session, id_empleado_default)
     # DNI: usar los últimos 9 dígitos del telegram_id (para caber en VARCHAR(9))
     dni_default = str(telegram_id)[-9:] if telegram_id else "000000000"
 
@@ -489,7 +488,7 @@ def obtener_citas_empleado(
         fecha_inicio = datetime.now()
     if fecha_fin is None:
         fecha_fin = fecha_inicio + timedelta(days=30)
-    empleado = _get_empleado_activo(session, id_empleado)
+    _get_empleado_activo(session, id_empleado)
     return (
         session.query(CitaCorp)
         .filter(

@@ -4,14 +4,13 @@
 import sys
 import os
 from sqlalchemy import text
+from src.BBDD.databasecontroller import engine
 
 # Agregar paths para imports - subir 2 niveles desde migrations
 _script_dir = os.path.dirname(os.path.abspath(__file__))
 _root_path = os.path.abspath(os.path.join(_script_dir, "..", ".."))
 if _root_path not in sys.path:
     sys.path.insert(0, _root_path)
-
-from src.BBDD.databasecontroller import engine
 
 
 def migrate_id_telegram_bigint():

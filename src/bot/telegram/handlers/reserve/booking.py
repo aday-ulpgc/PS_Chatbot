@@ -303,8 +303,6 @@ async def handle_calendar_and_time(
             )
             return True
 
-        selected_emp_id = context.user_data.get("selected_emp_id")
-
         response_message = await calendar_service.create_reservation_via_api(
             telegram_id=telegram_id,
             date=selected_data,
@@ -524,7 +522,6 @@ async def handle_waitlist_booking(
     """Procesa el intento de reserva directa desde la notificación de lista de espera."""
     idioma = context.user_data.get("idioma", "es")
 
-    # query.data format: waitlistbook_YYYY-MM-DD_HH:MM
     try:
         _, fecha_iso, hora_iso = query.data.split("_")
     except ValueError:
@@ -535,27 +532,11 @@ async def handle_waitlist_booking(
     msg = TranslatorService.traducir("⏳ Procesando tu reserva...", idioma)
     await query.edit_message_text(text=msg)
 
-    telegram_id = update.effective_user.id
-    user_info = await asyncio.to_thread(
-        obtener_usuario_y_contacto_para_cita,
-        telegram_id,
-        update.effective_user.full_name,
-    )
-
-    if user_info.get("error"):
-        msg_error = TranslatorService.traducir(
-            "❌ Error al obtener tus datos de usuario.", idioma
-        )
-        await query.edit_message_text(text=msg_error)
-        return
-
     response_message = await calendar_service.create_reservation_via_api(
-        telegram_id=telegram_id,
+        telegram_id=update.effective_user.id,
         date=fecha_iso,
         hour=hora_iso,
-        usuario_id=user_info["usuario_id"],
-        contacto_id=user_info["contacto_id"],
-        bloqueante=7,
+        nombre=update.effective_user.full_name,
     )
 
     response_traducida = TranslatorService.traducir(response_message, idioma)

@@ -57,7 +57,7 @@ try:
         conn.execute(text("SET FOREIGN_KEY_CHECKS = 0"))
 
         # 1. Borrar citas de empleados que no sean Raul (ID=7) ni Maria (ID=8)
-        print(f"🔄 Borrando citas de empleados que no sean Raul ni Maria...")
+        print("🔄 Borrando citas de empleados que no sean Raul ni Maria...")
         result = conn.execute(
             text(f"""
             DELETE FROM {table_name}

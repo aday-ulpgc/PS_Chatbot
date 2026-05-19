@@ -2,10 +2,8 @@
 """Script para verificar las citas guardadas en la BD."""
 
 import os
-from datetime import datetime
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
-from sqlalchemy.orm import Session
 
 # Cargar .env
 _dotenv_path = os.path.join(os.path.dirname(__file__), "env", ".env")

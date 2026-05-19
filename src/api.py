@@ -11,39 +11,27 @@ Arrancar con:
 Documentación interactiva disponible en: http://localhost:8000/docs
 """
 
-import math
 from contextlib import asynccontextmanager
 from datetime import date as date_type
 from datetime import datetime, timedelta
 from typing import AsyncGenerator, Optional
 
 from fastapi import Depends, FastAPI, HTTPException, Query
-from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
 from src.BBDD.databasecontroller import (
-    actualizar_cita_corp,
     crear_cita_corp,
     get_citas_cor_en_rango,
     crear_cliente,
-    crear_empleado,
-    eliminar_cita_corp,
     eliminar_cliente,
     eliminar_empleado,
     get_db,
     init_db,
-    obtener_cita_corp,
-    obtener_citas_cliente,
-    obtener_citas_cliente_eliminadas,
-    obtener_citas_empleado,
     obtener_cliente,
-    obtener_cliente_por_telegram,
-    obtener_clientes_por_empleado,
     obtener_empleado,
     obtener_empleado_por_nombre,
     obtener_empleados,
-    obtener_o_crear_cliente_telegram,
 )
 
 
@@ -440,7 +428,6 @@ def post_cliente(body: ClienteCreate, db: Session = Depends(get_db)):
 def get_clientes_list(db: Session = Depends(get_db)):
     """Lista todos los clientes activos."""
     # Esta función necesita ser creada en databasecontroller
-    from sqlalchemy import func
 
     with db:
         from src.BBDD.databasecontroller import Cliente

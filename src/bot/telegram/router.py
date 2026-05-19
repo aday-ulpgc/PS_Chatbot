@@ -1,6 +1,5 @@
 from telegram import Update
 from telegram.ext import ContextTypes
-import asyncio
 
 from src.services.translator_service import TranslatorService
 

@@ -42,11 +42,11 @@ def test_ciclo_modelos():
     # Resetear al inicio
     NLPService.resetear_a_modelo_preferido()
 
-    print(f"\n📋 Lista de modelos disponibles:")
+    print("\n📋 Lista de modelos disponibles:")
     for i, modelo in enumerate(NLPService.MODELOS_DISPONIBLES):
         print(f"   {i+1}. {modelo}")
 
-    print(f"\n🔄 Recorriendo todos los modelos:")
+    print("\n🔄 Recorriendo todos los modelos:")
     modelos_visitados = []
 
     for i in range(len(NLPService.MODELOS_DISPONIBLES) + 1):
@@ -63,7 +63,7 @@ def test_ciclo_modelos():
             f"\n✅ TEST 2 PASSED: Ciclo completo funciona (vuelve a {modelos_visitados[0]})"
         )
     else:
-        print(f"\n❌ TEST 2 FAILED: No volvió al modelo inicial")
+        print("\n❌ TEST 2 FAILED: No volvió al modelo inicial")
 
 
 def test_reset_modelo():
@@ -88,9 +88,9 @@ def test_reset_modelo():
     print(f"   Modelo después del reset: {modelo_reset}")
 
     if modelo_reset == NLPService.MODELOS_DISPONIBLES[0]:
-        print(f"\n✅ TEST 3 PASSED: Reset funciona correctamente")
+        print("\n✅ TEST 3 PASSED: Reset funciona correctamente")
     else:
-        print(f"\n❌ TEST 3 FAILED: No reseteó al modelo preferido")
+        print("\n❌ TEST 3 FAILED: No reseteó al modelo preferido")
 
 
 def test_estado_actual():
@@ -99,20 +99,20 @@ def test_estado_actual():
     print("🧪 TEST 4: Estado Actual del Sistema")
     print("=" * 70)
 
-    print(f"\n📊 Información del Sistema NLPService:")
+    print("\n📊 Información del Sistema NLPService:")
     print(f"   Total de modelos disponibles: {len(NLPService.MODELOS_DISPONIBLES)}")
     print(f"   Modelo en uso: {NLPService.obtener_modelo_actual()}")
     print(f"   Índice actual: {NLPService._modelo_actual_idx}")
     print(f"   Modelo preferido (respaldo): {NLPService.MODELOS_DISPONIBLES[0]}")
 
-    print(f"\n📋 Orden de fallback:")
+    print("\n📋 Orden de fallback:")
     for i, modelo in enumerate(NLPService.MODELOS_DISPONIBLES):
         if i == NLPService._modelo_actual_idx:
             print(f"   >>> {i+1}. {modelo} (ACTIVO)")
         else:
             print(f"       {i+1}. {modelo}")
 
-    print(f"\n✅ TEST 4 PASSED: Estado mostrado correctamente")
+    print("\n✅ TEST 4 PASSED: Estado mostrado correctamente")
 
 
 def mostrar_instrucciones_logs():
