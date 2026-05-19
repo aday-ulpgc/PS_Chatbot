@@ -25,6 +25,7 @@ from src.bot.telegram.handlers.reserve.booking import (
     handle_action_reserve,
     handle_calendar_and_time,
     handle_waitlist_booking,
+    handle_select_employee_callback,
 )
 
 from src.bot.telegram.handlers.manage_appointments import (
@@ -122,6 +123,10 @@ async def menu_callback_handler(
 
     if query.data.startswith("alt_time_"):
         await handle_alternative_time_selection_callback(query, context, update)
+        return
+
+    if query.data.startswith("select_emp_"):
+        await handle_select_employee_callback(query, context)
         return
 
     if query.data in CALLBACK_ROUTES:
