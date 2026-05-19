@@ -305,7 +305,6 @@ def obtener_usuarios_esperando(fecha: datetime) -> list:
     try:
         with get_session() as session:
             from src.BBDD.databasecontroller import ListaEspera
-            from sqlalchemy import func
 
             # Obtener solo el primer usuario (el más antiguo) para fechas futuras
             espera = (
