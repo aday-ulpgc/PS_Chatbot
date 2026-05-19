@@ -24,11 +24,11 @@ from typing import Generator
 from dotenv import load_dotenv
 import bcrypt
 from sqlalchemy import (
-    BigInteger,
     Column,
     DateTime,
     ForeignKey,
     Integer,
+    BigInteger,
     String,
     create_engine,
     text,
@@ -116,6 +116,15 @@ class CitaInd(Base):
     # usuario = relationship("Usuario", back_populates="citas")
 
 
+class ListaEspera(Base):
+    __tablename__ = "LISTA_ESPERA"
+
+    ID_LISTA = Column(Integer, primary_key=True, autoincrement=True)
+    TELEGRAM_ID = Column(BigInteger, nullable=False)
+    FECHA = Column(DateTime, nullable=False)
+    NOTIFICADO = Column(Integer, default=0)
+
+
 class Empleado(Base):
     __tablename__ = "EMPLEADOS"
 
@@ -142,7 +151,9 @@ class Cliente(Base):
     )
     DNI = Column(String(9), nullable=False, unique=True)
     NOMBRE = Column(String(100), nullable=False)
-    TELEGRAM_ID = Column("ID_TELEGRAM", BigInteger, nullable=True, unique=True)  # Para identificar usuario del bot
+    TELEGRAM_ID = Column(
+        "ID_TELEGRAM", BigInteger, nullable=True, unique=True
+    )  # Para identificar usuario del bot
     EMAIL = Column(String(200), nullable=True)
     TELEFONO = Column(String(20), nullable=True)
     ELIMINADO = Column(DateTime, nullable=True, default=None)
@@ -240,7 +251,6 @@ def _get_empleado_activo(session: Session, id_empleado: int) -> Empleado:
     return empleado
 
 
-
 # ── CRUD USUARIOS ──────────────────────────────────────────────────────────────
 
 # ── CRUD EMPLEADOS ─────────────────────────────────────────────────────────────
@@ -269,11 +279,7 @@ def crear_empleado(
 
 def obtener_empleados(session: Session) -> list[Empleado]:
     """Retorna todos los empleados activos."""
-    return (
-        session.query(Empleado)
-        .filter(Empleado.ELIMINADO.is_(None))
-        .all()
-    )
+    return session.query(Empleado).filter(Empleado.ELIMINADO.is_(None)).all()
 
 
 def obtener_empleado(session: Session, id_empleado: int) -> Empleado | None:
@@ -289,7 +295,7 @@ def obtener_empleado_por_nombre(session: Session, nombre: str) -> Empleado | Non
         session.query(Empleado)
         .filter(
             Empleado.NOMBRE.ilike(nombre),  # ilike = case-insensitive
-            Empleado.ELIMINADO.is_(None)
+            Empleado.ELIMINADO.is_(None),
         )
         .first()
     )
@@ -354,10 +360,7 @@ def obtener_cliente_por_telegram(session: Session, telegram_id: int) -> Cliente 
     """Obtiene un cliente por su telegram_id (para el bot)."""
     cliente = (
         session.query(Cliente)
-        .filter(
-            Cliente.TELEGRAM_ID == telegram_id,
-            Cliente.ELIMINADO.is_(None)
-        )
+        .filter(Cliente.TELEGRAM_ID == telegram_id, Cliente.ELIMINADO.is_(None))
         .first()
     )
     return cliente
@@ -371,18 +374,18 @@ def obtener_o_crear_cliente_telegram(
     dni: str | None = None,
 ) -> Cliente:
     """Obtiene o crea un cliente para el bot usando telegram_id.
-    
+
     Si no existe, crea un nuevo cliente asignado al empleado por defecto.
     """
     cliente = obtener_cliente_por_telegram(session, telegram_id)
     if cliente:
         return cliente
-    
+
     # Crear nuevo cliente
-    empleado = _get_empleado_activo(session, id_empleado_default)
+    _get_empleado_activo(session, id_empleado_default)
     # DNI: usar los últimos 9 dígitos del telegram_id (para caber en VARCHAR(9))
     dni_default = str(telegram_id)[-9:] if telegram_id else "000000000"
-    
+
     cliente = crear_cliente(
         session,
         id_empleado=id_empleado_default,
@@ -442,7 +445,9 @@ def obtener_citas_cliente(
     cliente = session.get(Cliente, id_cliente)
     if cliente is None or cliente.ELIMINADO is not None:
         raise ValueError(f"Cliente {id_cliente} no encontrado")
-    q = session.query(CitaCorp).filter(CitaCorp.ID_CLIENTE == id_cliente, CitaCorp.ELIMINADO.is_(None))
+    q = session.query(CitaCorp).filter(
+        CitaCorp.ID_CLIENTE == id_cliente, CitaCorp.ELIMINADO.is_(None)
+    )
     if anterior:
         q = q.filter(CitaCorp.FECHA < fecha).order_by(CitaCorp.FECHA.desc())
     else:
@@ -462,7 +467,9 @@ def obtener_citas_cliente_eliminadas(
     cliente = session.get(Cliente, id_cliente)
     if cliente is None or cliente.ELIMINADO is not None:
         raise ValueError(f"Cliente {id_cliente} no encontrado")
-    q = session.query(CitaCorp).filter(CitaCorp.ID_CLIENTE == id_cliente, CitaCorp.ELIMINADO.isnot(None))
+    q = session.query(CitaCorp).filter(
+        CitaCorp.ID_CLIENTE == id_cliente, CitaCorp.ELIMINADO.isnot(None)
+    )
     if anterior:
         q = q.filter(CitaCorp.FECHA < fecha).order_by(CitaCorp.FECHA.desc())
     else:
@@ -481,7 +488,7 @@ def obtener_citas_empleado(
         fecha_inicio = datetime.now()
     if fecha_fin is None:
         fecha_fin = fecha_inicio + timedelta(days=30)
-    empleado = _get_empleado_activo(session, id_empleado)
+    _get_empleado_activo(session, id_empleado)
     return (
         session.query(CitaCorp)
         .filter(
@@ -495,11 +502,26 @@ def obtener_citas_empleado(
 
 
 # Aliases para compatibilidad (deprecated)
-def obtener_citas_corp_por_usuario(session: Session, id_usuario: int, fecha: datetime | None = None, anterior: bool = False) -> list[CitaCorp]:
-    raise NotImplementedError("obtener_citas_corp_por_usuario() está deprecated. Use obtener_citas_cliente() o obtener_citas_empleado().")
+def obtener_citas_corp_por_usuario(
+    session: Session,
+    id_usuario: int,
+    fecha: datetime | None = None,
+    anterior: bool = False,
+) -> list[CitaCorp]:
+    raise NotImplementedError(
+        "obtener_citas_corp_por_usuario() está deprecated. Use obtener_citas_cliente() o obtener_citas_empleado()."
+    )
 
-def obtener_citas_corp_eliminadas_por_usuario(session: Session, id_usuario: int, fecha: datetime | None = None, anterior: bool = False) -> list[CitaCorp]:
-    raise NotImplementedError("obtener_citas_corp_eliminadas_por_usuario() está deprecated. Use obtener_citas_cliente_eliminadas().")
+
+def obtener_citas_corp_eliminadas_por_usuario(
+    session: Session,
+    id_usuario: int,
+    fecha: datetime | None = None,
+    anterior: bool = False,
+) -> list[CitaCorp]:
+    raise NotImplementedError(
+        "obtener_citas_corp_eliminadas_por_usuario() está deprecated. Use obtener_citas_cliente_eliminadas()."
+    )
 
 
 def obtener_cita_corp(session: Session, id_cita: int) -> CitaCorp | None:

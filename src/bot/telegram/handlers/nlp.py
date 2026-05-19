@@ -8,6 +8,7 @@ from src.nlp.gemini_service import NLPService
 from src.services import calendar_service
 from src.services.voice_service import VoiceService
 from src.services.translator_service import TranslatorService
+from src.BBDD.database_service import obtener_email_empleado_por_nombre
 from src.bot.telegram.constants import MODO_TEXTO, MODO_AUDIO, TRABAJADORES
 from src.bot.telegram.handlers.manage_appointments import (
     handle_action_cancel_menu,
@@ -72,7 +73,7 @@ async def _handle_settings_intent(
             parse_mode="Markdown",
             reply_markup=settings_menu_keyboard(
                 modo_interaccion, modo_respuesta, idioma=idioma
-            ),  # 📌 Pasar idioma
+            ),
         )
 
 
@@ -100,11 +101,51 @@ async def _handle_booking_intent(
     datos = agente.get("datos_extraidos", {})
     fecha = datos.get("fecha_iso")
     hora = datos.get("hora")
-    nombre_id = f"{update.effective_user.full_name} ({update.effective_user.id})"
     nombre_ia = datos.get("nombre_trabajador") or ""
-    
+
     gmail_trabajador = obtener_email_empleado_por_nombre(nombre_ia)
-    print(f"Intentando reservar para {nombre_id} el {fecha} a las {hora} con {nombre_ia} ({gmail_trabajador})")
+    gmail_trabajador = (
+        gmail_trabajador if gmail_trabajador else TRABAJADORES.get(nombre_ia.lower())
+    )
+
+    nombre_id = f"{update.effective_user.full_name} ({update.effective_user.id})"
+
+    print(
+        f"Intentando reservar para {nombre_id} el {fecha} a las {hora} con {nombre_ia} ({gmail_trabajador})"
+    )
+
+    if fecha and hora:
+        slot_disponible = await asyncio.to_thread(
+            calendar_service.GoogleCalendarService(gmail_trabajador).is_slot_available,
+            fecha,
+            hora,
+        )
+
+        if not slot_disponible:
+            from datetime import datetime
+            from src.BBDD.database_service import guardar_peticion_fallida
+
+            fecha_hora = datetime.strptime(f"{fecha} {hora}", "%Y-%m-%d %H:%M")
+
+            await asyncio.to_thread(
+                guardar_peticion_fallida,
+                update.effective_user.id,
+                fecha_hora,
+            )
+
+            msg_ocupado = TranslatorService.traducir(
+                (
+                    f"❌ Lo siento, la cita de las {hora}h ya no está disponible.\n\n"
+                    "He guardado tu interés en ese horario. "
+                    "Si se libera, te avisaré automáticamente.\n\n"
+                    "¿Quieres probar con otro día u otra hora?"
+                ),
+                idioma,
+            )
+
+            await mensaje_espera.edit_text(msg_ocupado)
+            context.user_data["historial"].pop()
+            return
 
     try:
         resultado = await asyncio.to_thread(
@@ -117,11 +158,35 @@ async def _handle_booking_intent(
 
         final_text = ""
         if resultado.startswith("❌"):
+            if "ya no está disponible" in resultado:
+                from datetime import datetime
+                from src.BBDD.database_service import guardar_peticion_fallida
+
+                fecha_hora = datetime.strptime(f"{fecha} {hora}", "%Y-%m-%d %H:%M")
+
+                await asyncio.to_thread(
+                    guardar_peticion_fallida,
+                    update.effective_user.id,
+                    fecha_hora,
+                )
+
+                msg_lista_espera = TranslatorService.traducir(
+                    "He guardado tu interés en ese horario. Si se libera, te avisaré automáticamente.",
+                    idioma,
+                )
+            else:
+                msg_lista_espera = ""
+
             msg_error = TranslatorService.traducir(resultado, idioma)
             msg_intento = TranslatorService.traducir(
                 "¿Quieres probar con otro día u otra hora?", idioma
             )
-            final_text = f"{msg_error}\n\n{msg_intento}"
+
+            if msg_lista_espera:
+                final_text = f"{msg_error}\n\n{msg_lista_espera}\n\n{msg_intento}"
+            else:
+                final_text = f"{msg_error}\n\n{msg_intento}"
+
             context.user_data["historial"].pop()
         else:
             msg_exito = TranslatorService.traducir("✅ ¡Todo listo!", idioma)
@@ -136,7 +201,9 @@ async def _handle_booking_intent(
             await mensaje_espera.edit_text(msg_generando)
 
             async with send_action_while_thinking(
-                context.bot, update.effective_chat.id, constants.ChatAction.RECORD_VOICE
+                context.bot,
+                update.effective_chat.id,
+                constants.ChatAction.RECORD_VOICE,
             ):
                 try:
                     audio_path = await VoiceService.text_to_speech(final_text)
@@ -228,9 +295,11 @@ async def handle_texto_libre(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
     nombre_trabajador_sesion = context.user_data.get("trabajador_actual")
-    
+
     gmail_consulta = (
-        obtener_email_empleado_por_nombre(nombre_trabajador_sesion) if nombre_trabajador_sesion else None
+        obtener_email_empleado_por_nombre(nombre_trabajador_sesion)
+        if nombre_trabajador_sesion
+        else None
     )
 
     datos_semanal = await asyncio.to_thread(
@@ -320,6 +389,44 @@ async def handle_texto_libre(
                         await update.message.reply_photo(photo=img_file)
         except Exception as e:
             print(f"Error al generar imagen de disponibilidad semanal: {e}")
+
+    if accion == "reservar" and datos.get("fecha_iso") and datos.get("hora"):
+        from datetime import datetime
+        from src.BBDD.database_service import guardar_peticion_fallida
+
+        fecha = datos.get("fecha_iso")
+        hora = datos.get("hora")
+        nombre_ia = datos.get("nombre_trabajador") or ""
+        gmail_trabajador = TRABAJADORES.get(nombre_ia.lower())
+
+        slot_disponible = await asyncio.to_thread(
+            calendar_service.GoogleCalendarService(gmail_trabajador).is_slot_available,
+            fecha,
+            hora,
+        )
+
+        if not slot_disponible:
+            fecha_hora = datetime.strptime(f"{fecha} {hora}", "%Y-%m-%d %H:%M")
+
+            await asyncio.to_thread(
+                guardar_peticion_fallida,
+                update.effective_user.id,
+                fecha_hora,
+            )
+
+            msg_ocupado = TranslatorService.traducir(
+                (
+                    f"❌ Lo siento, la cita de las {hora}h ya no está disponible.\n\n"
+                    "He guardado tu interest en ese horario. "
+                    "Si se libera, te avisaré automáticamente.\n\n"
+                    "¿Quieres probar con otro día u otra hora?"
+                ),
+                idioma,
+            )
+
+            await _reply_to_user(update, context, msg_ocupado)
+            context.user_data["historial"].pop()
+            return
 
     handler = INTENT_HANDLERS.get(accion)
 

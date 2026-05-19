@@ -10,7 +10,6 @@ from datetime import datetime
 from sqlalchemy import func
 from src.BBDD.databasecontroller import (
     get_session,
-    crear_cliente,
     obtener_o_crear_cliente_telegram,
 )
 
@@ -44,30 +43,34 @@ def obtener_o_crear_cliente_por_telegram(
             # Si no hay empleado por defecto, obtener el primero activo
             if id_empleado_default is None:
                 from src.BBDD.databasecontroller import Empleado
-                empleado_default = session.query(Empleado).filter(
-                    Empleado.ELIMINADO == None
-                ).first()
-                
+
+                empleado_default = (
+                    session.query(Empleado).filter(Empleado.ELIMINADO is None).first()
+                )
+
                 if empleado_default:
                     id_empleado_default = empleado_default.ID_EMPLEADO
                 else:
                     return {
                         "cliente_id": None,
                         "creado": False,
-                        "error": "No hay empleados disponibles en la BD"
+                        "error": "No hay empleados disponibles en la BD",
                     }
-            
+
             cliente_data = obtener_o_crear_cliente_telegram(
                 session, telegram_id, id_empleado_default, nombre
             )
             return {
                 "cliente_id": cliente_data.ID_CLIENTE,
-                "creado": cliente_data.CREADO if hasattr(cliente_data, "CREADO") else False,
+                "creado": cliente_data.CREADO
+                if hasattr(cliente_data, "CREADO")
+                else False,
                 "error": None,
             }
     except Exception as e:
         print(f"❌ Error en obtener_o_crear_cliente_por_telegram: {e}")
         import traceback
+
         traceback.print_exc()
         return {
             "cliente_id": None,
@@ -116,6 +119,7 @@ def guardar_cita_en_db(
     except Exception as e:
         print(f"❌ Error en guardar_cita_en_db: {e}")
         import traceback
+
         traceback.print_exc()
         return {
             "cita_id": None,
@@ -127,7 +131,7 @@ def obtener_o_crear_usuario_telegram(
     telegram_id: int, nombre: str | None = None
 ) -> dict:
     """DEPRECATED - Use obtener_o_crear_cliente_por_telegram instead.
-    
+
     This function is kept for backward compatibility but should not be used.
     """
     raise NotImplementedError(
@@ -162,7 +166,7 @@ def obtener_horas_ocupadas(fecha_str: str) -> list[str]:
     """
     try:
         from src.BBDD.databasecontroller import CitaCorp
-        
+
         with get_session() as session:
             citas_activas = (
                 session.query(CitaCorp)
@@ -190,22 +194,23 @@ def obtener_citas_usuario(telegram_id: int) -> list:
 
 def obtener_cliente_por_telegram_id(telegram_id: int) -> int | None:
     """Obtiene el cliente_id basado en el telegram_id.
-    
+
     Args:
         telegram_id: ID único del usuario en Telegram
-        
+
     Returns:
         cliente_id si existe, None si no se encuentra
     """
     try:
         from src.BBDD.databasecontroller import Cliente
-        
+
         with get_session() as session:
-            cliente = session.query(Cliente).filter(
-                Cliente.TELEGRAM_ID == telegram_id,
-                Cliente.ELIMINADO == None
-            ).first()
-            
+            cliente = (
+                session.query(Cliente)
+                .filter(Cliente.TELEGRAM_ID == telegram_id, Cliente.ELIMINADO is None)
+                .first()
+            )
+
             if cliente:
                 return cliente.ID_CLIENTE
             return None
@@ -216,37 +221,43 @@ def obtener_cliente_por_telegram_id(telegram_id: int) -> int | None:
 
 def obtener_citas_cliente(cliente_id: int) -> list[dict]:
     """Obtiene todas las citas activas de un cliente.
-    
+
     Args:
         cliente_id: ID del cliente
-        
+
     Returns:
         Lista de dicts con info de citas: FECHA, ID_EMPLEADO, NOMBRE_EMPLEADO, etc.
     """
     try:
         from src.BBDD.databasecontroller import CitaCorp, Empleado
-        
+
         with get_session() as session:
-            citas = session.query(CitaCorp).filter(
-                CitaCorp.ID_CLIENTE == cliente_id,
-                CitaCorp.ELIMINADO == None
-            ).order_by(CitaCorp.FECHA).all()
-            
+            citas = (
+                session.query(CitaCorp)
+                .filter(CitaCorp.ID_CLIENTE == cliente_id, CitaCorp.ELIMINADO is None)
+                .order_by(CitaCorp.FECHA)
+                .all()
+            )
+
             result = []
             for cita in citas:
-                empleado = session.query(Empleado).filter(
-                    Empleado.ID_EMPLEADO == cita.ID_EMPLEADO
-                ).first()
-                
-                result.append({
-                    "ID_CITA": cita.ID_CITA,
-                    "FECHA": cita.FECHA,
-                    "DESCRIPCION": cita.DESCRIPCION,
-                    "DURACION": cita.DURACION,
-                    "ID_EMPLEADO": cita.ID_EMPLEADO,
-                    "NOMBRE_EMPLEADO": empleado.NOMBRE if empleado else "Unknown",
-                })
-            
+                empleado = (
+                    session.query(Empleado)
+                    .filter(Empleado.ID_EMPLEADO == cita.ID_EMPLEADO)
+                    .first()
+                )
+
+                result.append(
+                    {
+                        "ID_CITA": cita.ID_CITA,
+                        "FECHA": cita.FECHA,
+                        "DESCRIPCION": cita.DESCRIPCION,
+                        "DURACION": cita.DURACION,
+                        "ID_EMPLEADO": cita.ID_EMPLEADO,
+                        "NOMBRE_EMPLEADO": empleado.NOMBRE if empleado else "Unknown",
+                    }
+                )
+
             return result
     except Exception as e:
         print(f"Error al obtener citas del cliente: {e}")
@@ -257,7 +268,7 @@ def cancelar_cita_db(id_cita: int) -> bool:
     """Marca una cita como eliminada."""
     try:
         from src.BBDD.databasecontroller import CitaCorp
-        
+
         with get_session() as session:
             cita = session.query(CitaCorp).filter(CitaCorp.ID_CITA == id_cita).first()
             if cita:
@@ -272,18 +283,16 @@ def cancelar_cita_db(id_cita: int) -> bool:
 
 def obtener_empleados_activos() -> list[dict]:
     """Obtiene todos los empleados activos (no eliminados).
-    
+
     Devuelve:
         Lista de dicts con: ID_EMPLEADO, NOMBRE, EMAIL
     """
     try:
         from src.BBDD.databasecontroller import Empleado
-        
+
         with get_session() as session:
-            empleados = session.query(Empleado).filter(
-                Empleado.ELIMINADO == None
-            ).all()
-            
+            empleados = session.query(Empleado).filter(Empleado.ELIMINADO is None).all()
+
             return [
                 {
                     "ID_EMPLEADO": emp.ID_EMPLEADO,
@@ -301,7 +310,7 @@ def actualizar_cita_fecha_db(id_cita: int, nueva_fecha: datetime) -> bool:
     """Actualiza la fecha y hora de una cita."""
     try:
         from src.BBDD.databasecontroller import CitaCorp
-        
+
         with get_session() as session:
             cita = session.query(CitaCorp).filter(CitaCorp.ID_CITA == id_cita).first()
             if cita:
@@ -318,7 +327,7 @@ def obtener_info_cita_db(id_cita: int) -> dict | None:
     """Recupera la fecha de una cita específica."""
     try:
         from src.BBDD.databasecontroller import CitaCorp
-        
+
         with get_session() as session:
             cita = session.query(CitaCorp).filter(CitaCorp.ID_CITA == id_cita).first()
             if cita:
@@ -330,26 +339,117 @@ def obtener_info_cita_db(id_cita: int) -> dict | None:
 
 def obtener_email_empleado_por_nombre(nombre_empleado: str) -> str | None:
     """Obtiene el email del empleado por su nombre desde la BD.
-    
+
     Args:
         nombre_empleado: Nombre del empleado a buscar
-        
+
     Returns:
         Email del empleado si existe, None si no se encuentra
     """
     try:
         from src.BBDD.databasecontroller import Empleado
-        
+
         with get_session() as session:
             # Busca el empleado por nombre (case-insensitive), excluyendo eliminados
-            empleado = session.query(Empleado).filter(
-                Empleado.NOMBRE.ilike(f"%{nombre_empleado}%"),
-                Empleado.ELIMINADO == None
-            ).first()
-            
+            empleado = (
+                session.query(Empleado)
+                .filter(
+                    Empleado.NOMBRE.ilike(f"%{nombre_empleado}%"),
+                    Empleado.ELIMINADO is None,
+                )
+                .first()
+            )
+
             if empleado and empleado.EMAIL:
                 return empleado.EMAIL
             return None
     except Exception as e:
         print(f"Error al obtener email del empleado: {e}")
     return None
+
+
+def guardar_peticion_fallida(telegram_id: int, fecha: datetime) -> bool:
+    try:
+        with get_session() as session:
+            from src.BBDD.databasecontroller import ListaEspera
+
+            # Evitar duplicados
+            existente = (
+                session.query(ListaEspera)
+                .filter(
+                    ListaEspera.TELEGRAM_ID == telegram_id,
+                    ListaEspera.FECHA == fecha,
+                    ListaEspera.NOTIFICADO == 0,
+                )
+                .first()
+            )
+
+            if existente:
+                return True
+
+            espera = ListaEspera(
+                TELEGRAM_ID=telegram_id,
+                FECHA=fecha,
+                NOTIFICADO=0,
+            )
+
+            session.add(espera)
+            session.commit()
+            return True
+
+    except Exception as e:
+        print(f"❌ Error guardando lista de espera: {e}")
+        return False
+
+
+def obtener_usuarios_esperando(fecha: datetime) -> list:
+    try:
+        with get_session() as session:
+            from src.BBDD.databasecontroller import ListaEspera
+
+            # Obtener solo el primer usuario (el más antiguo) para fechas futuras
+            espera = (
+                session.query(ListaEspera)
+                .filter(
+                    ListaEspera.FECHA == fecha,
+                    ListaEspera.NOTIFICADO == 0,
+                    ListaEspera.FECHA >= datetime.now(),
+                )
+                .order_by(ListaEspera.ID_LISTA.asc())
+                .first()
+            )
+
+            from collections import namedtuple
+
+            EsperaData = namedtuple("EsperaData", ["ID_LISTA", "TELEGRAM_ID", "FECHA"])
+
+            resultado = []
+            if espera:
+                resultado.append(
+                    EsperaData(
+                        ID_LISTA=espera.ID_LISTA,
+                        TELEGRAM_ID=espera.TELEGRAM_ID,
+                        FECHA=espera.FECHA,
+                    )
+                )
+
+            return resultado
+
+    except Exception as e:
+        print(f"❌ Error obteniendo lista de espera: {e}")
+        return []
+
+
+def marcar_espera_notificada(id_lista: int) -> None:
+    try:
+        with get_session() as session:
+            from src.BBDD.databasecontroller import ListaEspera
+
+            espera = session.get(ListaEspera, id_lista)
+
+            if espera:
+                espera.NOTIFICADO = 1
+                session.commit()
+
+    except Exception as e:
+        print(f"❌ Error marcando espera notificada: {e}")

@@ -39,7 +39,9 @@ def generar_imagen_disponibilidad(id_empleado: int, fecha: datetime) -> str:
         with get_session() as session:
             fecha_inicio = fecha.replace(hour=0, minute=0, second=0, microsecond=0)
             fecha_fin = fecha.replace(hour=23, minute=59, second=59, microsecond=999999)
-            citas = obtener_citas_empleado(session, id_empleado, fecha_inicio, fecha_fin)
+            citas = obtener_citas_empleado(
+                session, id_empleado, fecha_inicio, fecha_fin
+            )
 
             # Convertir a diccionarios para no perder datos después de cerrar sesión
             citas_data = [
@@ -153,7 +155,9 @@ def generar_imagen_disponibilidad(id_empleado: int, fecha: datetime) -> str:
         return None
 
 
-def generar_imagen_disponibilidad_semana(id_empleado: int, fecha_inicio: datetime) -> str:
+def generar_imagen_disponibilidad_semana(
+    id_empleado: int, fecha_inicio: datetime
+) -> str:
     """
     Genera una imagen de disponibilidad para 7 días a partir de una fecha.
     Una columna por día, eje Y = horas del día. Verde = disponible, Rojo = ocupado.
@@ -171,7 +175,9 @@ def generar_imagen_disponibilidad_semana(id_empleado: int, fecha_inicio: datetim
         # Obtener citas del empleado para la semana - DENTRO de la sesión
         with get_session() as session:
             fecha_fin_semana = fecha_inicio + timedelta(days=7)
-            citas = obtener_citas_empleado(session, id_empleado, fecha_inicio, fecha_fin_semana)
+            citas = obtener_citas_empleado(
+                session, id_empleado, fecha_inicio, fecha_fin_semana
+            )
 
             # Convertir a diccionarios
             citas_data = [
@@ -318,7 +324,9 @@ def generar_imagen_disponibilidad_semana_24h(
 
         # Obtener citas del empleado para la semana - DENTRO de la sesión
         with get_session() as session:
-            citas = obtener_citas_empleado(session, id_empleado, fecha_lunes, fecha_domingo)
+            citas = obtener_citas_empleado(
+                session, id_empleado, fecha_lunes, fecha_domingo
+            )
 
             # Convertir a diccionarios
             citas_data = [

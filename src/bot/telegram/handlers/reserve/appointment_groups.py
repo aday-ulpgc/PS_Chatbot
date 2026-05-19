@@ -17,9 +17,7 @@ async def handle_action_my_appointments(
         cliente_id = cliente_result.get("cliente_id")
 
         if not cliente_id:
-            await _send_or_edit(
-                query, update, "Error al obtener tus datos"
-            )
+            await _send_or_edit(query, update, "Error al obtener tus datos")
             return
 
         # Obtener citas del cliente de la BD
@@ -38,11 +36,7 @@ async def handle_action_my_appointments(
 
             if not citas_dict:
                 keyboard = [
-                    [
-                        InlineKeyboardButton(
-                            "Volver", callback_data="action_back_menu"
-                        )
-                    ],
+                    [InlineKeyboardButton("Volver", callback_data="action_back_menu")],
                 ]
                 reply_markup = InlineKeyboardMarkup(keyboard)
                 await _send_or_edit(

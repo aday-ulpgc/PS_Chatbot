@@ -17,19 +17,19 @@ load_dotenv(env_path)
 
 class NLPService:
     MODELOS_DISPONIBLES = [
-        "gemini-3.1-flash-lite",                 
-        "gemini-3-flash-preview",                   
-        "gemini-3.1-pro-preview",              
+        "gemini-3.1-flash-lite",
+        "gemini-3-flash-preview",
+        "gemini-3.1-pro-preview",
     ]
-    
+
     # 🔄 Índice del modelo actual (inicia con el mejor)
     _modelo_actual_idx = 0
-    
+
     @classmethod
     def obtener_modelo_actual(cls) -> str:
         """Retorna el modelo actual en uso."""
         return cls.MODELOS_DISPONIBLES[cls._modelo_actual_idx]
-    
+
     @classmethod
     def cambiar_al_siguiente_modelo(cls) -> str:
         """
@@ -37,11 +37,13 @@ class NLPService:
         Si llega al final, regresa al primero.
         Retorna el nuevo modelo.
         """
-        cls._modelo_actual_idx = (cls._modelo_actual_idx + 1) % len(cls.MODELOS_DISPONIBLES)
+        cls._modelo_actual_idx = (cls._modelo_actual_idx + 1) % len(
+            cls.MODELOS_DISPONIBLES
+        )
         nuevo_modelo = cls.MODELOS_DISPONIBLES[cls._modelo_actual_idx]
         print(f"⚠️  Modelo sobrecargado. Cambiando a: {nuevo_modelo}")
         return nuevo_modelo
-    
+
     @classmethod
     def resetear_a_modelo_preferido(cls) -> None:
         """Resetea al modelo preferido (el primero de la lista)."""
@@ -117,7 +119,7 @@ class NLPService:
             "generationConfig": {
                 "responseMimeType": "application/json",
                 "temperature": 0.7,
-                "maxOutputTokens": 1000
+                "maxOutputTokens": 1000,
             },
             "safetySettings": [
                 {
@@ -140,7 +142,7 @@ class NLPService:
         }
 
         max_reintentos = len(NLPService.MODELOS_DISPONIBLES)
-        
+
         for intento in range(max_reintentos):
             try:
                 async with httpx.AsyncClient() as client:
@@ -161,10 +163,10 @@ class NLPService:
 
                     # Éxito
                     data = response.json()
-                    
+
                     try:
                         candidato = data.get("candidates", [{}])[0]
-                        
+
                         # Verificar si fue bloqueado por seguridad
                         if candidato.get("finishReason") == "SAFETY":
                             msg_seguridad = TranslatorService.traducir(
@@ -177,6 +179,9 @@ class NLPService:
                         respuesta_json = NLPService._limpiar_json(texto_respuesta)
 
                         if respuesta_json and respuesta_json.get("respuesta_usuario"):
+                            respuesta_json["respuesta_original"] = respuesta_json[
+                                "respuesta_usuario"
+                            ]
                             texto_traducido = TranslatorService.traducir(
                                 respuesta_json["respuesta_usuario"], idioma_usuario
                             )
@@ -201,7 +206,7 @@ class NLPService:
                 return NLPService._respuesta_emergencia(
                     "La respuesta tardó demasiado. ¿Intentamos de nuevo?"
                 )
-            
+
             except Exception as e:
                 print(f"❌ Error inesperado: {type(e).__name__}: {e}")
                 if intento == max_reintentos - 1:

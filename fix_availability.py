@@ -57,8 +57,9 @@ async def handle_next_week(query, context, update):
     pass
 '''
 
-with open('src/bot/telegram/handlers/reserve/availability.py', 'w', encoding='utf-8') as f:
+with open(
+    "src/bot/telegram/handlers/reserve/availability.py", "w", encoding="utf-8"
+) as f:
     f.write(content)
 
 print("OK availability.py fixed")
-
