@@ -45,7 +45,7 @@ def obtener_o_crear_cliente_por_telegram(
                 from src.BBDD.databasecontroller import Empleado
 
                 empleado_default = (
-                    session.query(Empleado).filter(Empleado.ELIMINADO is None).first()
+                    session.query(Empleado).filter(Empleado.ELIMINADO == None).first()
                 )
 
                 if empleado_default:
@@ -207,7 +207,7 @@ def obtener_cliente_por_telegram_id(telegram_id: int) -> int | None:
         with get_session() as session:
             cliente = (
                 session.query(Cliente)
-                .filter(Cliente.TELEGRAM_ID == telegram_id, Cliente.ELIMINADO is None)
+                .filter(Cliente.TELEGRAM_ID == telegram_id, Cliente.ELIMINADO == None)
                 .first()
             )
 
@@ -234,7 +234,7 @@ def obtener_citas_cliente(cliente_id: int) -> list[dict]:
         with get_session() as session:
             citas = (
                 session.query(CitaCorp)
-                .filter(CitaCorp.ID_CLIENTE == cliente_id, CitaCorp.ELIMINADO is None)
+                .filter(CitaCorp.ID_CLIENTE == cliente_id, CitaCorp.ELIMINADO == None)
                 .order_by(CitaCorp.FECHA)
                 .all()
             )
@@ -291,7 +291,9 @@ def obtener_empleados_activos() -> list[dict]:
         from src.BBDD.databasecontroller import Empleado
 
         with get_session() as session:
-            empleados = session.query(Empleado).filter(Empleado.ELIMINADO is None).all()
+            empleados = session.query(Empleado).filter(Empleado.ELIMINADO == None).all()
+            
+            print(f"✅ obtener_empleados_activos: encontrados {len(empleados)} empleados activos")
 
             return [
                 {
@@ -302,7 +304,9 @@ def obtener_empleados_activos() -> list[dict]:
                 for emp in empleados
             ]
     except Exception as e:
-        print(f"Error al obtener empleados: {e}")
+        print(f"❌ Error al obtener empleados: {type(e).__name__}: {e}")
+        import traceback
+        traceback.print_exc()
     return []
 
 
@@ -355,7 +359,7 @@ def obtener_email_empleado_por_nombre(nombre_empleado: str) -> str | None:
                 session.query(Empleado)
                 .filter(
                     Empleado.NOMBRE.ilike(f"%{nombre_empleado}%"),
-                    Empleado.ELIMINADO is None,
+                    Empleado.ELIMINADO == None,
                 )
                 .first()
             )

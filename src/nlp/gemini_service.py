@@ -17,9 +17,9 @@ load_dotenv(env_path)
 
 class NLPService:
     MODELOS_DISPONIBLES = [
+        "gemini-2.5-flash-lite",
+        "gemini-2.5-flash",
         "gemini-3.1-flash-lite",
-        "gemini-3-flash-preview",
-        "gemini-3.1-pro-preview",
     ]
 
     # 🔄 Índice del modelo actual (inicia con el mejor)
@@ -81,8 +81,7 @@ class NLPService:
         idioma_usuario: str = "es",
     ) -> dict:
         api_key = os.getenv("GEMINI_API_KEY")
-        modelo = os.getenv("GEMINI_MODEL", "gemini-3-flash-preview")
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent?key={api_key}"
+        NLPService.resetear_a_modelo_preferido()
 
         from src.services.calendar_service import TIMEZONE
 
@@ -145,6 +144,8 @@ class NLPService:
 
         for intento in range(max_reintentos):
             try:
+                modelo = NLPService.obtener_modelo_actual()
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent?key={api_key}"
                 async with httpx.AsyncClient() as client:
                     response = await client.post(url, json=payload, timeout=30.0)
 
@@ -161,7 +162,18 @@ class NLPService:
                             )
                             return NLPService._respuesta_emergencia(msg_error)
 
-                    # Éxito
+                    if response.status_code != 200:
+                        print(f"❌ Error HTTP {response.status_code} con modelo {modelo}: {response.text[:200]}")
+                        if intento < max_reintentos - 1:
+                            NLPService.cambiar_al_siguiente_modelo()
+                            await asyncio.sleep(1)
+                            continue
+                        else:
+                            msg_error = TranslatorService.traducir(
+                                "Tuve un problema al conectarme. ¿Lo intentamos de nuevo?",
+                                idioma_usuario,
+                            )
+                            return NLPService._respuesta_emergencia(msg_error)
                     data = response.json()
 
                     try:
