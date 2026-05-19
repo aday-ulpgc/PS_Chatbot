@@ -53,14 +53,28 @@ async def handle_action_my_appointments(
         palabra_alas = TranslatorService.traducir("a las", idioma)
 
         for i, cita in enumerate(citas, 1):
-            fecha_str = cita["FECHA"].strftime("%d de %B, %Y")
-            fecha_traducida = TranslatorService.traducir(fecha_str, idioma)
-            hora_str = cita["FECHA"].strftime("%H:%M")
-            nombre_empleado = cita.get("NOMBRE_EMPLEADO", "No especificado")
+            fecha_dt = cita["FECHA"]
+            if idioma == "es":
+                meses_es = {
+                    1: "enero", 2: "febrero", 3: "marzo", 4: "abril", 5: "mayo", 6: "junio",
+                    7: "julio", 8: "agosto", 9: "septiembre", 10: "octubre", 11: "noviembre", 12: "diciembre"
+                }
+                nombre_mes = meses_es.get(fecha_dt.month, "enero")
+                fecha_formateada = f"{fecha_dt.strftime('%d')} de {nombre_mes} de {fecha_dt.strftime('%Y')}"
+            else:
+                meses_en = {
+                    1: "January", 2: "February", 3: "March", 4: "April", 5: "May", 6: "June",
+                    7: "July", 8: "August", 9: "September", 10: "October", 11: "November", 12: "December"
+                }
+                nombre_mes = meses_en.get(fecha_dt.month, "January")
+                fecha_formateada = f"{nombre_mes} {fecha_dt.strftime('%d')}, {fecha_dt.strftime('%Y')}"
 
-            texto_citas += f"🔹 *Cita {i}* — {fecha_str} a las {hora_str}\n"
-            texto_citas += f"   👤 Con: {nombre_empleado}\n\n"
-            texto_citas += f"🔹 *{palabra_cita} {i}* — {fecha_traducida} {palabra_alas} {hora_str}\n\n"
+            hora_str = fecha_dt.strftime("%H:%M")
+            nombre_empleado = cita.get("NOMBRE_EMPLEADO", "No especificado")
+            palabra_con = TranslatorService.traducir("con", idioma)
+
+            texto_citas += f"🔹 *{palabra_cita} {i}* — {fecha_formateada} {palabra_alas} {hora_str}\n"
+            texto_citas += f"   👤 {palabra_con.capitalize()}: {nombre_empleado}\n\n"
 
         keyboard.append(
             [
@@ -189,9 +203,10 @@ async def handle_cancel_appointment(query, context: ContextTypes.DEFAULT_TYPE) -
         old_fecha = cita["FECHA"].strftime("%Y-%m-%d")
         old_hora = cita["FECHA"].strftime("%H:%M")
         name_and_id = f"{query.from_user.full_name} ({query.from_user.id})"
+        email_empleado = cita.get("EMAIL_EMPLEADO")
 
         await asyncio.to_thread(
-            calendar_service.delete_reservation, name_and_id, old_fecha, old_hora
+            calendar_service.delete_reservation, name_and_id, old_fecha, old_hora, email_empleado
         )
 
     exito = await asyncio.to_thread(cancelar_cita_db, id_cita)

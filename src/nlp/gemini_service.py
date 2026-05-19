@@ -52,14 +52,23 @@ class NLPService:
 
     @staticmethod
     def _limpiar_json(texto: str) -> dict:
-        """Limpia el texto por si Gemini envuelve el JSON en bloques de Markdown."""
-        texto_limpio = re.sub(r"```json\n?", "", texto)
-        texto_limpio = re.sub(r"```\n?", "", texto_limpio)
+        """Limpia y extrae el bloque JSON de la respuesta de Gemini de forma ultra-robusta."""
         try:
-            print(f"JSON Limpio: {texto_limpio}")
-            return json.loads(texto_limpio.strip())
-        except json.JSONDecodeError:
-            print(f"❌ Error decodificando JSON de Gemini: {texto}")
+            # Buscar el bloque JSON delimitado por llaves
+            match = re.search(r"(\{.*\})", texto, re.DOTALL)
+            if match:
+                texto_json = match.group(1)
+            else:
+                texto_json = texto
+
+            # Limpiar bloques de markdown adicionales si los hubiera
+            texto_json = re.sub(r"```json\n?", "", texto_json)
+            texto_json = re.sub(r"```\n?", "", texto_json)
+
+            print(f"JSON Limpio: {texto_json}")
+            return json.loads(texto_json.strip())
+        except Exception as e:
+            print(f"❌ Error decodificando JSON de Gemini: {e}. Texto original: {texto}")
             return NLPService._respuesta_emergencia(
                 "Uy, me he liado un poco. ¿Me repites qué querías hacer?"
             )

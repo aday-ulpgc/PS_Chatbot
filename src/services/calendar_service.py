@@ -37,7 +37,29 @@ class GoogleCalendarService:
         return build("calendar", "v3", credentials=credentials)
 
     def is_slot_available(self, date_str: str, hour_str: str) -> bool:
-        """Verifica si el hueco horario está libre comparando con eventos existentes."""
+        """Verifica si el hueco horario está libre comparando con eventos existentes.
+        Si calendar_id es el general, comprueba si al menos un empleado activo está libre.
+        """
+        general_calendar_id = os.getenv("CALENDAR_ID")
+        if self.calendar_id == general_calendar_id:
+            try:
+                from src.BBDD.database_service import obtener_empleados_activos
+                empleados = obtener_empleados_activos()
+                if empleados:
+                    for emp in empleados:
+                        email = emp.get("EMAIL")
+                        if email:
+                            emp_service = GoogleCalendarService(email)
+                            if emp_service.is_slot_available_single(date_str, hour_str):
+                                return True
+                    return False
+            except Exception as e:
+                print(f"⚠️ Error al verificar disponibilidad general de empleados: {e}")
+
+        return self.is_slot_available_single(date_str, hour_str)
+
+    def is_slot_available_single(self, date_str: str, hour_str: str) -> bool:
+        """Verifica si el hueco horario está libre en este calendario específico."""
         time_min = f"{date_str}T00:00:00Z"
         time_max = f"{date_str}T23:59:59Z"
 
@@ -213,6 +235,29 @@ def create_reservation(
         id_empleado_seleccionado: ID del empleado seleccionado por el usuario (opcional)
     """
     try:
+        # Si no se especifica trabajador, seleccionamos dinámicamente el primero activo que esté disponible
+        if not gmail_trabajador:
+            try:
+                from src.BBDD.database_service import obtener_empleados_activos
+                empleados = obtener_empleados_activos()
+                empleado_libre = None
+                for emp in empleados:
+                    email = emp.get("EMAIL")
+                    if email:
+                        cal_emp = GoogleCalendarService(email)
+                        if cal_emp.is_slot_available_single(date, hour):
+                            empleado_libre = emp
+                            break
+                if empleado_libre:
+                    gmail_trabajador = empleado_libre.get("EMAIL")
+                    id_empleado_seleccionado = empleado_libre.get("ID_EMPLEADO")
+                elif empleados:
+                    # Si todos están ocupados, por defecto asignamos el primero para que lance el error de no disponible
+                    gmail_trabajador = empleados[0].get("EMAIL")
+                    id_empleado_seleccionado = empleados[0].get("ID_EMPLEADO")
+            except Exception as e:
+                print(f"⚠️ Error al auto-asignar empleado libre: {e}")
+
         calendar = GoogleCalendarService(gmail_trabajador)
 
         if not calendar.calendar_id:
@@ -318,13 +363,13 @@ def create_reservation(
         return "❌ Lo siento, hubo un problema técnico al crear la reserva."
 
 
-def delete_reservation(user_id: str, date: str, hour: str) -> bool:
+def delete_reservation(user_id: str, date: str, hour: str, gmail_trabajador: str = None, *args, **kwargs) -> bool:
     """
     Función de fachada (Facade) para eliminar una reserva.
     Es llamada cuando el usuario cancela o modifica desde Telegram.
     """
     try:
-        calendar = GoogleCalendarService()
+        calendar = GoogleCalendarService(gmail_trabajador)
 
         if not calendar.calendar_id:
             print("❌ Error: No se ha configurado el CALENDAR_ID.")

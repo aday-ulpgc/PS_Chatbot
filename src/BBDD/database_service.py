@@ -328,14 +328,17 @@ def actualizar_cita_fecha_db(id_cita: int, nueva_fecha: datetime) -> bool:
 
 
 def obtener_info_cita_db(id_cita: int) -> dict | None:
-    """Recupera la fecha de una cita específica."""
+    """Recupera la fecha y el email del empleado de una cita específica."""
     try:
         from src.BBDD.databasecontroller import CitaCorp
 
         with get_session() as session:
             cita = session.query(CitaCorp).filter(CitaCorp.ID_CITA == id_cita).first()
             if cita:
-                return {"FECHA": cita.FECHA}
+                email = None
+                if cita.empleado:
+                    email = cita.empleado.EMAIL
+                return {"FECHA": cita.FECHA, "EMAIL_EMPLEADO": email}
     except Exception as e:
         print(f"Error al obtener info de la cita: {e}")
     return None

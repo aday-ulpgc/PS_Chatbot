@@ -219,12 +219,13 @@ async def handle_calendar_and_time(
             if cita_antigua:
                 old_fecha = cita_antigua["FECHA"].strftime("%Y-%m-%d")
                 old_hora = cita_antigua["FECHA"].strftime("%H:%M")
+                email_empleado = cita_antigua.get("EMAIL_EMPLEADO")
                 await asyncio.to_thread(
                     calendar_service.delete_reservation,
                     name_and_id,
                     old_fecha,
                     old_hora,
-                    True,
+                    email_empleado,
                 )
 
             await asyncio.to_thread(
