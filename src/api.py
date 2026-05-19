@@ -23,38 +23,27 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
 from src.BBDD.databasecontroller import (
-    actualizar_cita,
     actualizar_cita_corp,
-    crear_cita,
     crear_cita_corp,
     get_citas_cor_en_rango,
-    get_citas_ind_en_rango,
     crear_cliente,
-    crear_contacto,
     crear_empleado,
-    crear_usuario,
-    eliminar_cita,
     eliminar_cita_corp,
     eliminar_cliente,
-    eliminar_contacto,
     eliminar_empleado,
-    eliminar_usuario,
     get_db,
     init_db,
-    obtener_cita,
     obtener_cita_corp,
-    obtener_citas_corp_eliminadas_por_usuario,
-    obtener_citas_corp_por_usuario,
-    obtener_citas_eliminadas_por_usuario,
-    obtener_citas_por_usuario,
+    obtener_citas_cliente,
+    obtener_citas_cliente_eliminadas,
+    obtener_citas_empleado,
     obtener_cliente,
+    obtener_cliente_por_telegram,
     obtener_clientes_por_empleado,
-    obtener_contacto,
-    obtener_contactos,
-    obtener_contactos_eliminados,
     obtener_empleado,
+    obtener_empleado_por_nombre,
     obtener_empleados,
-    obtener_usuario,
+    obtener_o_crear_cliente_telegram,
 )
 
 
@@ -122,226 +111,64 @@ app = FastAPI(
 # ── Schemas Pydantic ───────────────────────────────────────────────────────────
 
 
-class UsuarioCreate(BaseModel):
-    TIPO: str = "I"
+class EmpleadoCreate(BaseModel):
+    TIPO: str  # 'senior' | 'junior'
     NOMBRE: str
     EMAIL: str
     CONTRASENA: str
-
-
-class UsuarioOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    ID_USUARIO: int
-    TIPO: str
-    NOMBRE: str
-    EMAIL: str
-    ELIMINADO: Optional[datetime]
-
-
-class ContactoCreate(BaseModel):
-    NOMBRE: str
-    EMAIL: Optional[str] = None
-
-
-class ContactoOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    ID_CONTACTO: int
-    ID_USUARIO: Optional[int]
-    NOMBRE: str
-    EMAIL: Optional[str]
-    ELIMINADO: Optional[datetime]
-
-
-class CitaCreate(BaseModel):
-    # Tipo I: requiere ID_USUARIO; ID_CONTACTO opcional
-    ID_USUARIO: int
-    ID_CONTACTO: Optional[int] = None
-    FECHA: Optional[datetime] = None  # por omisión: datetime.now()
-    DESCRIPCION: Optional[str] = None
-    PRIORIDAD: int = 1
-    # Tipo C: requiere ID_EMPLEADO + ID_CLIENTE
-    ID_EMPLEADO: Optional[int] = None
-    ID_CLIENTE: Optional[int] = None
-    # Ambos tipos
-    DURACION: Optional[int] = None  # minutos
-
-
-class CitaUpdate(BaseModel):
-    FECHA: Optional[datetime] = None
-    DESCRIPCION: Optional[str] = None
-    PRIORIDAD: Optional[int] = None  # solo tipo I
-    DURACION: Optional[int] = None  # ambos tipos, minutos
-
-
-class CitaOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    ID_CITA: int
-    # Tipo I
-    ID_USUARIO: Optional[int] = None
-    ID_CONTACTO: Optional[int] = None
-    PRIORIDAD: Optional[int] = None
-    # Tipo C
-    ID_EMPLEADO: Optional[int] = None
-    ID_CLIENTE: Optional[int] = None
-    # Comunes
-    DESCRIPCION: Optional[str]
-    FECHA: datetime
-    DURACION: Optional[int] = None  # minutos
-    ELIMINADO: Optional[datetime]
-
-
-class CitaPage(BaseModel):
-    items: list[CitaOut]
-    lastpage: int
-
-
-class EmpleadoCreate(BaseModel):
-    TIPO: str = "E"  # 'A' = Admin | 'E' = Empleado
-    NOMBRE: str
-    CONTRASENA_CORP: str | None = None
-    ID_ADMIN: Optional[int] = None
 
 
 class EmpleadoOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     ID_EMPLEADO: int
-    ID_USUARIO: Optional[int]
-    ID_ADMIN: Optional[int]
     TIPO: str
     NOMBRE: str
+    EMAIL: str
     ELIMINADO: Optional[datetime]
 
 
 class ClienteCreate(BaseModel):
-    DNI: str
     NOMBRE: str
-    ID_EMPLEADO_USUAL: Optional[int] = None
+    TELEGRAM_ID: Optional[int] = None
+    EMAIL: Optional[str] = None
+    TELEFONO: Optional[str] = None
 
 
 class ClienteOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     ID_CLIENTE: int
-    ID_EMPLEADO_USUAL: Optional[int]
-    DNI: str
     NOMBRE: str
+    TELEGRAM_ID: Optional[int]
+    EMAIL: Optional[str]
+    TELEFONO: Optional[str]
     ELIMINADO: Optional[datetime]
 
 
-# ── Endpoints: USUARIOS ────────────────────────────────────────────────────────
+class CitaCorpCreate(BaseModel):
+    ID_EMPLEADO: int
+    ID_CLIENTE: int
+    FECHA: Optional[datetime] = None  # por omisión: datetime.now()
+    DESCRIPCION: Optional[str] = None
+    DURACION: Optional[int] = None  # minutos
+    bloqueante: int = Query(
+        default=0,
+        description="0 = sin comprobación de disponibilidad. N > 0 = busca hueco libre en ±N días.",
+    )
 
 
-@app.post(
-    "/usuarios",
-    response_model=UsuarioOut,
-    status_code=201,
-    tags=["Usuarios"],
-    responses={**_R400},
-)
-def post_usuario(body: UsuarioCreate, db: Session = Depends(get_db)):
-    """Registra un nuevo usuario. La contraseña se almacena con hash bcrypt."""
-    try:
-        return crear_usuario(db, body.TIPO, body.NOMBRE, body.EMAIL, body.CONTRASENA)
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+class CitaCorpOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
 
-
-@app.get(
-    "/usuarios/{id_usuario}",
-    response_model=UsuarioOut,
-    tags=["Usuarios"],
-    responses={**_R404},
-)
-def get_usuario(id_usuario: int, db: Session = Depends(get_db)):
-    usuario = obtener_usuario(db, id_usuario)
-    if usuario is None:
-        raise HTTPException(status_code=404, detail="Usuario no encontrado")
-    return usuario
-
-
-@app.delete(
-    "/usuarios/{id_usuario}", status_code=204, tags=["Usuarios"], responses={**_R404}
-)
-def delete_usuario(id_usuario: int, db: Session = Depends(get_db)):
-    """Soft delete: registra la fecha de baja en ELIMINADO."""
-    if not eliminar_usuario(db, id_usuario):
-        raise HTTPException(
-            status_code=404, detail="Usuario no encontrado o ya eliminado"
-        )
-
-
-# ── Endpoints: CONTACTOS ───────────────────────────────────────────────────────
-
-
-@app.post(
-    "/usuarios/{id_usuario}/contactos",
-    response_model=ContactoOut,
-    status_code=201,
-    tags=["Contactos"],
-    responses={**_R400, **_R404},
-)
-def post_contacto(id_usuario: int, body: ContactoCreate, db: Session = Depends(get_db)):
-    """Añade un profesional (contacto) a la agenda del usuario."""
-    try:
-        return crear_contacto(db, id_usuario, body.NOMBRE, body.EMAIL)
-    except (ValueError, PermissionError) as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-
-@app.get(
-    "/usuarios/{id_usuario}/contactos",
-    response_model=list[ContactoOut],
-    tags=["Contactos"],
-    responses={**_R400, **_R404},
-)
-def get_contactos(id_usuario: int, db: Session = Depends(get_db)):
-    """Lista los contactos activos del usuario."""
-    try:
-        return obtener_contactos(db, id_usuario)
-    except (ValueError, PermissionError) as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-
-@app.get(
-    "/usuarios/{id_usuario}/contactos/eliminados",
-    response_model=list[ContactoOut],
-    tags=["Contactos"],
-    responses={**_R400, **_R404},
-)
-def get_contactos_eliminados(id_usuario: int, db: Session = Depends(get_db)):
-    """Lista los contactos eliminados (soft-delete) del usuario."""
-    try:
-        return obtener_contactos_eliminados(db, id_usuario)
-    except (ValueError, PermissionError) as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-
-@app.get(
-    "/contactos/{id_contacto}",
-    response_model=ContactoOut,
-    tags=["Contactos"],
-    responses={**_R404},
-)
-def get_contacto(id_contacto: int, db: Session = Depends(get_db)):
-    contacto = obtener_contacto(db, id_contacto)
-    if contacto is None:
-        raise HTTPException(status_code=404, detail="Contacto no encontrado")
-    return contacto
-
-
-@app.delete(
-    "/contactos/{id_contacto}", status_code=204, tags=["Contactos"], responses={**_R404}
-)
-def delete_contacto(id_contacto: int, db: Session = Depends(get_db)):
-    """Soft delete: registra la fecha de baja en ELIMINADO."""
-    if not eliminar_contacto(db, id_contacto):
-        raise HTTPException(
-            status_code=404, detail="Contacto no encontrado o ya eliminado"
-        )
+    ID_CITA: int
+    ID_EMPLEADO: int
+    ID_CLIENTE: int
+    DESCRIPCION: Optional[str]
+    FECHA: datetime
+    DURACION: Optional[int]  # minutos
+    ELIMINADO: Optional[datetime]
+    ELIMINADO: Optional[datetime]
 
 
 # ── Endpoints: CITAS (compartidos, dispatch por TIPO de usuario) ───────────────
@@ -426,22 +253,20 @@ def _buscar_disponibilidad(
 
 @app.post(
     "/citas",
-    response_model=CitaOut,
+    response_model=CitaCorpOut,
     status_code=201,
     tags=["Citas"],
     responses={**_R400, **_R404, **_R409},
 )
 def post_cita(
-    body: CitaCreate,
+    body: CitaCorpCreate,
     bloqueante: int = Query(
         default=0,
         description="0 = sin comprobación de disponibilidad. N > 0 = busca hueco libre en ±N días.",
     ),
     db: Session = Depends(get_db),
 ):
-    """Crea una cita.
-    - Tipo I: usa ID_USUARIO en el body + FECHA (+ ID_CONTACTO, DESCRIPCION, PRIORIDAD opcionales).
-    - Tipo C: usa ID_EMPLEADO + ID_CLIENTE en el body + FECHA (+ DESCRIPCION opcional).
+    """Crea una cita corporativa (Empleado ↔ Cliente).
 
     Si `bloqueante` es 0 (valor por defecto) se inserta sin comprobación de disponibilidad.
     Si `bloqueante` es N > 0 se verifica que el slot esté libre en el calendario;
@@ -453,17 +278,13 @@ def post_cita(
         fecha_ref = fecha_ref.replace(tzinfo=None)
 
     try:
-        usuario = obtener_usuario(db, body.ID_USUARIO)
-        if usuario is None:
-            raise HTTPException(status_code=404, detail="Usuario no encontrado")
-
-        es_corp = usuario.TIPO == "C"
-
-        if es_corp and (body.ID_EMPLEADO is None or body.ID_CLIENTE is None):
-            raise HTTPException(
-                status_code=400,
-                detail="Tipo C requiere ID_EMPLEADO e ID_CLIENTE",
-            )
+        # Validar que empleado y cliente existan
+        empleado = obtener_empleado(db, body.ID_EMPLEADO)
+        if empleado is None:
+            raise HTTPException(status_code=404, detail="Empleado no encontrado")
+        cliente = obtener_cliente(db, body.ID_CLIENTE)
+        if cliente is None:
+            raise HTTPException(status_code=404, detail="Cliente no encontrado")
 
         # ── Comprobación de disponibilidad (solo si bloqueante != 0) ─────────────────
         if bloqueante != 0:
@@ -475,12 +296,9 @@ def post_cita(
                 hour=23, minute=59, second=59, microsecond=0
             )
 
-            if es_corp:
-                citas = get_citas_cor_en_rango(
-                    db, body.ID_EMPLEADO, range_start, range_end
-                )
-            else:
-                citas = get_citas_ind_en_rango(db, range_start, range_end)
+            citas = get_citas_cor_en_rango(
+                db, body.ID_EMPLEADO, range_start, range_end
+            )
 
             estado, antes, despues = _buscar_disponibilidad(
                 citas, fecha_ref, duracion_efectiva, range_start, range_end
@@ -508,25 +326,14 @@ def post_cita(
                         f"Otras fechas cercanas que podrían interesarte: {fechas_str}"
                     ),
                 )
-            # estado == "available" → continuar con la inserción normal
 
         # ── Inserción ──────────────────────────────────────────────────
-        if es_corp:
-            return crear_cita_corp(
-                db,
-                body.ID_EMPLEADO,
-                body.ID_CLIENTE,
-                body.FECHA,
-                body.DESCRIPCION,
-                body.DURACION,
-            )
-        return crear_cita(
+        return crear_cita_corp(
             db,
-            body.ID_USUARIO,
-            fecha_ref,
-            body.ID_CONTACTO,
+            body.ID_EMPLEADO,
+            body.ID_CLIENTE,
+            body.FECHA,
             body.DESCRIPCION,
-            body.PRIORIDAD,
             body.DURACION,
         )
     except HTTPException:
@@ -555,181 +362,31 @@ def _parse_fecha(fecha_str: Optional[str]) -> datetime:
         )
 
 
-@app.get(
-    "/usuarios/{id_usuario}/citas",
-    response_model=CitaPage,
-    tags=["Citas"],
-    responses={**_R400, **_R404},
-)
-def get_citas_usuario(
-    id_usuario: int,
-    anterior: bool = Query(
-        default=False,
-        description="false → próximas citas desde la fecha dada; true → citas anteriores a la fecha dada",
-    ),
-    fecha: Optional[str] = Query(
-        default=None,
-        description="Fecha de referencia en ISO 8601 (YYYY-MM-DD o YYYY-MM-DDTHH:MM:SS). Por defecto: ahora. Si solo se indica fecha, se asume 00:00.",
-    ),
-    page: int = Query(
-        default=0,
-        description="Página a devolver (1-indexado). 0 = sin paginación, devuelve todos. Tamaño fijo de 9 elementos por página.",
-    ),
-    db: Session = Depends(get_db),
-):
-    """Lista las citas activas del usuario filtradas por fecha de referencia, con paginación.
-    - anterior=false (defecto): citas desde 'fecha' en adelante, más cercanas primero.
-    - anterior=true: citas anteriores a 'fecha', más cercanas primero.
-    Tipo I: citas individuales. Tipo C: citas de todos sus empleados.
-    """
-    fecha_dt = _parse_fecha(fecha)
-    try:
-        usuario = obtener_usuario(db, id_usuario)
-        if usuario is None:
-            raise HTTPException(status_code=404, detail="Usuario no encontrado")
-        if usuario.TIPO == "C":
-            citas = obtener_citas_corp_por_usuario(db, id_usuario, fecha_dt, anterior)
-        else:
-            citas = obtener_citas_por_usuario(db, id_usuario, fecha_dt, anterior)
-        total = len(citas)
-        lastpage = math.ceil(total / PAGE_SIZE) if total > 0 else 1
-        if page == 0:
-            return CitaPage(items=citas, lastpage=lastpage)
-        offset = (page - 1) * PAGE_SIZE
-        return CitaPage(items=citas[offset : offset + PAGE_SIZE], lastpage=lastpage)
-    except (ValueError, PermissionError) as e:
-        raise HTTPException(status_code=400, detail=str(e))
 
 
 @app.get(
-    "/usuarios/{id_usuario}/citas/eliminadas",
-    response_model=CitaPage,
-    tags=["Citas"],
-    responses={**_R400, **_R404},
-)
-def get_citas_eliminadas_usuario(
-    id_usuario: int,
-    anterior: bool = Query(
-        default=False,
-        description="false → próximas citas desde la fecha dada; true → citas anteriores a la fecha dada",
-    ),
-    fecha: Optional[str] = Query(
-        default=None,
-        description="Fecha de referencia en ISO 8601 (YYYY-MM-DD o YYYY-MM-DDTHH:MM:SS). Por defecto: ahora. Si solo se indica fecha, se asume 00:00.",
-    ),
-    page: int = Query(
-        default=0,
-        description="Página a devolver (1-indexado). 0 = sin paginación, devuelve todos. Tamaño fijo de 9 elementos por página.",
-    ),
-    db: Session = Depends(get_db),
-):
-    """Lista las citas eliminadas del usuario filtradas por fecha de referencia, con paginación.
-    - anterior=false (defecto): citas desde 'fecha' en adelante, más cercanas primero.
-    - anterior=true: citas anteriores a 'fecha', más cercanas primero.
-    Tipo I: citas individuales eliminadas. Tipo C: citas corp eliminadas.
-    """
-    fecha_dt = _parse_fecha(fecha)
-    try:
-        usuario = obtener_usuario(db, id_usuario)
-        if usuario is None:
-            raise HTTPException(status_code=404, detail="Usuario no encontrado")
-        if usuario.TIPO == "C":
-            citas = obtener_citas_corp_eliminadas_por_usuario(
-                db, id_usuario, fecha_dt, anterior
-            )
-        else:
-            citas = obtener_citas_eliminadas_por_usuario(
-                db, id_usuario, fecha_dt, anterior
-            )
-        total = len(citas)
-        lastpage = math.ceil(total / PAGE_SIZE) if total > 0 else 1
-        if page == 0:
-            return CitaPage(items=citas, lastpage=lastpage)
-        offset = (page - 1) * PAGE_SIZE
-        return CitaPage(items=citas[offset : offset + PAGE_SIZE], lastpage=lastpage)
-    except (ValueError, PermissionError) as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-
-@app.get(
-    "/citas/{id_cita}", response_model=CitaOut, tags=["Citas"], responses={**_R404}
-)
-def get_cita(id_cita: int, db: Session = Depends(get_db)):
-    """Obtiene una cita por ID. Busca primero en CITAS_IND, luego en CITAS_COR."""
-    cita = obtener_cita(db, id_cita)
-    if cita is not None:
-        return cita
-    cita = obtener_cita_corp(db, id_cita)
-    if cita is None:
-        raise HTTPException(status_code=404, detail="Cita no encontrada")
-    return cita
-
-
-@app.put(
-    "/citas/{id_cita}",
-    response_model=CitaOut,
-    tags=["Citas"],
-    responses={**_R400, **_R404},
-)
-def put_cita(id_cita: int, body: CitaUpdate, db: Session = Depends(get_db)):
-    """Actualiza una cita. Busca primero en CITAS_IND, luego en CITAS_COR.
-    PRIORIDAD solo aplica a citas individuales.
-    """
-    cita = actualizar_cita(
-        db, id_cita, body.FECHA, body.DESCRIPCION, body.PRIORIDAD, body.DURACION
-    )
-    if cita is not None:
-        return cita
-    cita = actualizar_cita_corp(
-        db, id_cita, body.FECHA, body.DESCRIPCION, body.DURACION
-    )
-    if cita is None:
-        raise HTTPException(status_code=404, detail="Cita no encontrada")
-    return cita
-
-
-@app.delete("/citas/{id_cita}", status_code=204, tags=["Citas"], responses={**_R404})
-def delete_cita(id_cita: int, db: Session = Depends(get_db)):
-    """Soft delete. Busca primero en CITAS_IND, luego en CITAS_COR."""
-    if eliminar_cita(db, id_cita):
-        return
-    if eliminar_cita_corp(db, id_cita):
-        return
-    raise HTTPException(status_code=404, detail="Cita no encontrada o ya eliminada")
-
-
-# ── Endpoints: EMPLEADOS ───────────────────────────────────────────────────────
-
-
-@app.post(
-    "/usuarios/{id_usuario}/empleados",
-    response_model=EmpleadoOut,
-    status_code=201,
-    tags=["Empleados"],
-    responses={**_R400, **_R404},
-)
-def post_empleado(id_usuario: int, body: EmpleadoCreate, db: Session = Depends(get_db)):
-    """Añade un empleado a la corporación. Solo para usuarios TIPO='C'."""
-    try:
-        return crear_empleado(
-            db, id_usuario, body.TIPO, body.NOMBRE, body.CONTRASENA_CORP, body.ID_ADMIN
-        )
-    except (ValueError, PermissionError) as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-
-@app.get(
-    "/usuarios/{id_usuario}/empleados",
+    "/empleados",
     response_model=list[EmpleadoOut],
     tags=["Empleados"],
-    responses={**_R400, **_R404},
+    responses={**_R404},
 )
-def get_empleados(id_usuario: int, db: Session = Depends(get_db)):
-    """Lista los empleados activos de la corporación."""
-    try:
-        return obtener_empleados(db, id_usuario)
-    except (ValueError, PermissionError) as e:
-        raise HTTPException(status_code=400, detail=str(e))
+def get_empleados_list(db: Session = Depends(get_db)):
+    """Lista todos los empleados activos."""
+    return obtener_empleados(db)
+
+
+@app.get(
+    "/empleados/by-nombre/{nombre}",
+    response_model=EmpleadoOut,
+    tags=["Empleados"],
+    responses={**_R404},
+)
+def get_empleado_por_nombre(nombre: str, db: Session = Depends(get_db)):
+    """Busca un empleado por nombre (búsqueda case-insensitive)."""
+    empleado = obtener_empleado_por_nombre(db, nombre)
+    if empleado is None:
+        raise HTTPException(status_code=404, detail=f"Empleado con nombre '{nombre}' no encontrado")
+    return empleado
 
 
 @app.get(
@@ -760,34 +417,35 @@ def delete_empleado(id_empleado: int, db: Session = Depends(get_db)):
 
 
 @app.post(
-    "/empleados/{id_empleado}/clientes",
+    "/clientes",
     response_model=ClienteOut,
     status_code=201,
     tags=["Clientes"],
-    responses={**_R400, **_R404},
+    responses={**_R400},
 )
-def post_cliente(id_empleado: int, body: ClienteCreate, db: Session = Depends(get_db)):
-    """Registra un nuevo cliente asignado a un empleado."""
+def post_cliente(body: ClienteCreate, db: Session = Depends(get_db)):
+    """Registra un nuevo cliente."""
     try:
         return crear_cliente(
-            db, id_empleado, body.DNI, body.NOMBRE, body.ID_EMPLEADO_USUAL
+            db, body.NOMBRE, body.TELEGRAM_ID, body.EMAIL, body.TELEFONO
         )
     except (ValueError, PermissionError) as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
 @app.get(
-    "/empleados/{id_empleado}/clientes",
+    "/clientes",
     response_model=list[ClienteOut],
     tags=["Clientes"],
-    responses={**_R400, **_R404},
+    responses={**_R404},
 )
-def get_clientes(id_empleado: int, db: Session = Depends(get_db)):
-    """Lista los clientes activos del empleado."""
-    try:
-        return obtener_clientes_por_empleado(db, id_empleado)
-    except (ValueError, PermissionError) as e:
-        raise HTTPException(status_code=400, detail=str(e))
+def get_clientes_list(db: Session = Depends(get_db)):
+    """Lista todos los clientes activos."""
+    # Esta función necesita ser creada en databasecontroller
+    from sqlalchemy import func
+    with db:
+        from src.BBDD.databasecontroller import Cliente
+        return db.query(Cliente).filter(Cliente.ELIMINADO.is_(None)).all()
 
 
 @app.get(
@@ -812,95 +470,3 @@ def delete_cliente(id_cliente: int, db: Session = Depends(get_db)):
         raise HTTPException(
             status_code=404, detail="Cliente no encontrado o ya eliminado"
         )
-
-
-# ── Endpoints: VISUALIZACIÓN ─────────────────────────────────────────────────────
-
-
-@app.get(
-    "/usuarios/{id_usuario}/disponibilidad/dia",
-    response_class=FileResponse,
-    tags=["Visualización"],
-    responses={**_R_PNG, **_R404, **_R500},
-)
-def get_disponibilidad_dia(
-    id_usuario: int,
-    fecha: Optional[str] = Query(
-        default=None,
-        description="Fecha en ISO 8601 (YYYY-MM-DD o YYYY-MM-DDTHH:MM:SS). Por defecto: hoy.",
-    ),
-    db: Session = Depends(get_db),
-):
-    """Devuelve una imagen PNG con la disponibilidad horaria del usuario para un día."""
-    from src.services.visualization_service import generar_imagen_disponibilidad
-
-    fecha_dt = _parse_fecha(fecha)
-    usuario = obtener_usuario(db, id_usuario)
-    if usuario is None:
-        raise HTTPException(status_code=404, detail="Usuario no encontrado")
-    filepath = generar_imagen_disponibilidad(id_usuario, fecha_dt)
-    if filepath is None:
-        raise HTTPException(status_code=500, detail="Error al generar la imagen")
-    return FileResponse(
-        filepath, media_type="image/png", filename="disponibilidad_dia.png"
-    )
-
-
-@app.get(
-    "/usuarios/{id_usuario}/disponibilidad/semana",
-    response_class=FileResponse,
-    tags=["Visualización"],
-    responses={**_R_PNG, **_R404, **_R500},
-)
-def get_disponibilidad_semana(
-    id_usuario: int,
-    fecha: Optional[str] = Query(
-        default=None,
-        description="Fecha de inicio de semana en ISO 8601. Por defecto: hoy.",
-    ),
-    db: Session = Depends(get_db),
-):
-    """Devuelve una imagen PNG con la disponibilidad para 7 días a partir de la fecha."""
-    from src.services.visualization_service import generar_imagen_disponibilidad_semana
-
-    fecha_dt = _parse_fecha(fecha)
-    usuario = obtener_usuario(db, id_usuario)
-    if usuario is None:
-        raise HTTPException(status_code=404, detail="Usuario no encontrado")
-    filepath = generar_imagen_disponibilidad_semana(id_usuario, fecha_dt)
-    if filepath is None:
-        raise HTTPException(status_code=500, detail="Error al generar la imagen")
-    return FileResponse(
-        filepath, media_type="image/png", filename="disponibilidad_semana.png"
-    )
-
-
-@app.get(
-    "/usuarios/{id_usuario}/disponibilidad/semana-completa",
-    response_class=FileResponse,
-    tags=["Visualización"],
-    responses={**_R_PNG, **_R404, **_R500},
-)
-def get_disponibilidad_semana_completa(
-    id_usuario: int,
-    fecha: Optional[str] = Query(
-        default=None,
-        description="Cualquier fecha de la semana en ISO 8601. Por defecto: hoy.",
-    ),
-    db: Session = Depends(get_db),
-):
-    """Devuelve una imagen PNG con la disponibilidad de la semana completa (lunes–domingo) que contiene la fecha."""
-    from src.services.visualization_service import (
-        generar_imagen_disponibilidad_semana_24h,
-    )
-
-    fecha_dt = _parse_fecha(fecha)
-    usuario = obtener_usuario(db, id_usuario)
-    if usuario is None:
-        raise HTTPException(status_code=404, detail="Usuario no encontrado")
-    filepath = generar_imagen_disponibilidad_semana_24h(id_usuario, fecha_dt)
-    if filepath is None:
-        raise HTTPException(status_code=500, detail="Error al generar la imagen")
-    return FileResponse(
-        filepath, media_type="image/png", filename="disponibilidad_semana_completa.png"
-    )

@@ -9,6 +9,7 @@ from src.services import calendar_service
 from src.services.voice_service import VoiceService
 from src.services.translator_service import TranslatorService
 from src.bot.telegram.constants import MODO_TEXTO, MODO_AUDIO, TRABAJADORES
+from src.BBDD.database_service import obtener_email_empleado_por_nombre
 from src.bot.telegram.handlers.manage_appointments import (
     handle_action_cancel_menu,
     handle_action_modify_menu,
@@ -101,7 +102,9 @@ async def _handle_booking_intent(
     fecha = datos.get("fecha_iso")
     hora = datos.get("hora")
     nombre_ia = datos.get("nombre_trabajador") or ""
-    gmail_trabajador = TRABAJADORES.get(nombre_ia.lower())
+    
+    gmail_trabajador = obtener_email_empleado_por_nombre(nombre_ia)
+    print(f"Intentando reservar para {nombre_id} el {fecha} a las {hora} con {nombre_ia} ({gmail_trabajador})")
 
     if fecha and hora:
         slot_disponible = await asyncio.to_thread(
@@ -286,8 +289,9 @@ async def handle_texto_libre(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
     nombre_trabajador_sesion = context.user_data.get("trabajador_actual")
+    
     gmail_consulta = (
-        TRABAJADORES.get(nombre_trabajador_sesion) if nombre_trabajador_sesion else None
+        obtener_email_empleado_por_nombre(nombre_trabajador_sesion) if nombre_trabajador_sesion else None
     )
 
     datos_semanal = await asyncio.to_thread(
@@ -301,6 +305,9 @@ async def handle_texto_libre(
         audio_bytes = await voice_file.download_as_bytearray()
         audio_b64 = base64.b64encode(audio_bytes).decode("utf-8")
         texto_usuario = "[El usuario ha enviado una nota de voz. Escúchala para extraer la intención]"
+
+        texto_es = texto_usuario
+
     else:
         texto_usuario = update.message.text
 

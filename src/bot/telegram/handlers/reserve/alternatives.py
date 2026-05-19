@@ -5,7 +5,7 @@ from datetime import datetime
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, constants
 from telegram.ext import ContextTypes
 
-from src.BBDD.database_service import obtener_usuario_y_contacto_para_cita
+from src.BBDD.database_service import obtener_o_crear_cliente_por_telegram
 from src.bot.telegram.chat_actions import send_action_while_thinking
 from src.bot.telegram.constants import MODO_AUDIO, MODO_TEXTO
 from src.bot.telegram.keyboards import main_menu_keyboard
@@ -156,10 +156,10 @@ async def handle_alternative_time_selection_callback(
             text=f"✅ ¡Resumen de tu solicitud!\n📅 Fecha: {fecha_display}\n⏰ Hora: {hora_formatted}\n\n⏳ Procesando reserva..."
         )
 
-        # Obtener o crear usuario y contacto de la BD
+        # Obtener o crear cliente de la BD
         telegram_id = update.effective_user.id
         user_info = await asyncio.to_thread(
-            obtener_usuario_y_contacto_para_cita,
+            obtener_o_crear_cliente_por_telegram,
             telegram_id,
             update.effective_user.full_name,
         )

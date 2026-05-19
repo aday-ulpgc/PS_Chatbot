@@ -1,28 +1,31 @@
+"""Test file for database times - DEPRECATED.
+
+This test file uses the old Usuario/CitaInd architecture which has been removed.
+Will be updated when necessary.
+"""
 import sys
 
 sys.path.insert(0, ".")
 
 from src.BBDD.database_service import get_session
-from src.BBDD.databasecontroller import CitaInd, Usuario
+from src.BBDD.databasecontroller import CitaCorp
 
 
 def main():
     print("Consultando citas en la base de datos...")
     with get_session() as session:
         citas = (
-            session.query(CitaInd)
-            .filter(CitaInd.ELIMINADO.is_(None))
-            .order_by(CitaInd.FECHA.asc())
+            session.query(CitaCorp)
+            .filter(CitaCorp.ELIMINADO.is_(None))
+            .order_by(CitaCorp.FECHA.asc())
             .all()
         )
         for cita in citas:
-            usuario = (
-                session.query(Usuario)
-                .filter(Usuario.ID_USUARIO == cita.ID_USUARIO)
-                .first()
+            cliente_nombre = (
+                cita.cliente.NOMBRE if cita.cliente else 'N/A'
             )
             print(
-                f"ID={cita.ID_CITA} | {usuario.EMAIL if usuario else 'N/A'} | FECHA raw={cita.FECHA} | hora='{cita.FECHA.strftime('%H:%M')}'"
+                f"ID={cita.ID_CITA} | {cliente_nombre} | FECHA raw={cita.FECHA} | hora='{cita.FECHA.strftime('%H:%M')}'"
             )
 
 
