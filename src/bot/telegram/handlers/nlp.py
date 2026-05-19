@@ -22,10 +22,32 @@ from src.bot.telegram.handlers.manage_appointments import (
 # Clave: user_id (str), Valor: dict con "historial", "pref_mode", "trabajador_actual"
 WEB_SESSIONS: dict[str, dict] = {}
 
+# ── Referencia al bot PTB para compartir sesiones con usuarios de Telegram ────
+_ptb_app = None
+
+
+def set_ptb_app(app) -> None:
+    """Registra la instancia PTB para que los usuarios web identificados via Telegram
+    compartan el mismo estado de sesión que al usar el bot directamente."""
+    global _ptb_app
+    _ptb_app = app
+
 
 def _get_user_data(user_id: str, es_web: bool, context=None) -> dict:
-    """Devuelve el diccionario de datos de usuario correcto según la plataforma."""
+    """Devuelve el diccionario de datos de usuario correcto según la plataforma.
+
+    Para usuarios web autenticados con Telegram (user_id = 'tg_NNNNN'), reutiliza
+    el user_data de PTB para que la sesión sea la misma que en el bot.
+    """
     if es_web:
+        # Usuario identificado via Telegram Login Widget → sesión compartida con el bot
+        if user_id.startswith("tg_") and _ptb_app is not None:
+            try:
+                tg_numeric_id = int(user_id[3:])
+                return _ptb_app.user_data[tg_numeric_id]
+            except (ValueError, AttributeError):
+                pass
+        # Visitante anónimo → sesión in-memory exclusiva de la web
         if user_id not in WEB_SESSIONS:
             WEB_SESSIONS[user_id] = {}
         return WEB_SESSIONS[user_id]
@@ -223,6 +245,7 @@ async def procesar_flujo_completo(
     es_web: bool = False,
     update: Optional[Update] = None,
     context: Optional[ContextTypes.DEFAULT_TYPE] = None,
+    user_name: str = "",
 ) -> dict:
     """Núcleo agnóstico del chatbot. Procesa un mensaje y devuelve el dict de respuesta.
 
@@ -235,6 +258,7 @@ async def procesar_flujo_completo(
         es_web:     True si la petición viene de la API web.
         update:     Objeto Update de Telegram (None si es_web=True).
         context:    ContextTypes de Telegram (None si es_web=True).
+        user_name:  Nombre del usuario (solo se usa en el flujo web para Telegram Login).
 
     Returns:
         El dict completo de respuesta del agente (respuesta_agente).
@@ -334,11 +358,29 @@ async def procesar_flujo_completo(
     if es_web and accion == "reservar" and estado == "listo_para_reservar":
         nombre_ia = datos.get("nombre_trabajador") or ""
         gmail_trabajador = TRABAJADORES.get(nombre_ia.lower())
+        # Formato de nombre igual que en Telegram: "Nombre (ID)"
+        # El nombre se obtiene de la BD (autoritativo) igual que el bot usa
+        # update.effective_user.full_name — no depende del cliente web.
+        if user_id.startswith("tg_"):
+            tg_numeric_id = user_id[3:]
+            try:
+                from src.BBDD.database_service import obtener_o_crear_usuario_telegram
+                db_result = await asyncio.to_thread(
+                    obtener_o_crear_usuario_telegram,
+                    int(tg_numeric_id),
+                    user_name or None,
+                )
+                nombre_db = db_result.get("nombre") or user_name or f"Usuario Web"
+            except Exception as e:
+                print(f"[WARN] No se pudo obtener nombre desde DB: {e}")
+                nombre_db = user_name or f"Usuario Web"
+            nombre_reserva = f"{nombre_db} ({tg_numeric_id})"
+        else:
+            nombre_reserva = user_id
         try:
-            # En la web, usamos el user_id como identificador (ya sea UUID o ID de Telegram)
             resultado = await asyncio.to_thread(
                 calendar_service.create_reservation,
-                user_id,
+                nombre_reserva,
                 datos.get("fecha_iso"),
                 datos.get("hora"),
                 gmail_trabajador,

@@ -930,10 +930,13 @@ class ChatWebRequest(BaseModel):
     """Petición al endpoint de chat desde la Landing Page."""
 
     user_id: str
-    """Identificador único del usuario web (UUID o Telegram Login ID)."""
+    """Identificador único del usuario web (UUID o Telegram Login ID con prefijo 'tg_')."""
 
     mensaje: str
     """Texto del mensaje del usuario."""
+
+    user_name: Optional[str] = None
+    """Nombre del usuario de Telegram (solo cuando está autenticado via Telegram Login Widget)."""
 
 
 class ChatWebResponse(BaseModel):
@@ -966,6 +969,7 @@ async def post_chat_web(body: ChatWebRequest):
             user_id=body.user_id,
             texto=body.mensaje,
             es_web=True,
+            user_name=body.user_name or "",
         )
 
         return ChatWebResponse(

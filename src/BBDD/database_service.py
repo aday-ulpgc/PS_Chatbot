@@ -38,7 +38,7 @@ def obtener_o_crear_usuario_telegram(
             usuario = session.query(Usuario).filter(Usuario.EMAIL == email).first()
 
             if usuario:
-                return {"id_usuario": usuario.ID_USUARIO, "creado": False}
+                return {"id_usuario": usuario.ID_USUARIO, "creado": False, "nombre": usuario.NOMBRE}
 
             nuevo_usuario = crear_usuario(
                 session,
@@ -48,7 +48,7 @@ def obtener_o_crear_usuario_telegram(
                 contrasena="telegram_bot",  # Contraseña por defecto
             )
             session.commit()
-            return {"id_usuario": nuevo_usuario.ID_USUARIO, "creado": True}
+            return {"id_usuario": nuevo_usuario.ID_USUARIO, "creado": True, "nombre": nuevo_usuario.NOMBRE}
     except Exception as e:
         print(f"❌ Error en obtener_o_crear_usuario_telegram: {e}")
         return {"id_usuario": None, "creado": False, "error": str(e)}

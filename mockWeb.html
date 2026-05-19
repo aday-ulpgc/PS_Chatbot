@@ -1044,7 +1044,7 @@
         .msg-bubble {
             padding: 0.7rem 1rem;
             border-radius: 12px;
-            font-size: 1.5rem;
+            font-size: 1rem;
             line-height: 1.55;
         }
 
@@ -2273,14 +2273,6 @@
             <div class="tg-input-area">
                 <input class="tg-input" id="tgInput" type="text" placeholder="Escribe un mensaje..."
                     autocomplete="off" />
-                <button class="tg-audio-toggle" id="tgAudioToggle" title="Activar/desactivar modo audio">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
-                        <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
-                        <line x1="12" y1="19" x2="12" y2="23"></line>
-                        <line x1="8" y1="23" x2="16" y2="23"></line>
-                    </svg>
-                </button>
                 <button class="tg-send" id="tgSend">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
                         <path d="M22 2L11 13M22 2L15 22L11 13M22 2L2 9L11 13" stroke="white" stroke-width="2"
@@ -2356,38 +2348,7 @@
         const tgNotif = document.getElementById('tgNotif');
         const tgLabel = document.getElementById('tgLabel');
         const chatWidget = document.getElementById('tg-chat-widget');
-        const tgAudioToggle = document.getElementById('tgAudioToggle');
         let chatOpen = false;
-        
-        // ── Estado de modo audio ──────────────────────────────────────────────
-        const AUDIO_MODE_KEY = 'calia_audio_mode';
-        let audioModeEnabled = localStorage.getItem(AUDIO_MODE_KEY) === 'true';
-        
-        function updateAudioToggleUI() {
-            if (audioModeEnabled) {
-                tgAudioToggle.classList.add('active');
-                tgAudioToggle.title = 'Modo audio activado. Click para desactivar.';
-            } else {
-                tgAudioToggle.classList.remove('active');
-                tgAudioToggle.title = 'Modo audio desactivado. Click para activar.';
-            }
-        }
-        
-        function toggleAudioMode() {
-            audioModeEnabled = !audioModeEnabled;
-            localStorage.setItem(AUDIO_MODE_KEY, audioModeEnabled);
-            updateAudioToggleUI();
-            // Notificar al backend para actualizar la sesión
-            const accion = audioModeEnabled ? 'activar_audio' : 'desactivar_audio';
-            fetch(CALIA_API, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_id: getUserId(), mensaje: accion })
-            }).catch(() => {});
-        }
-        
-        updateAudioToggleUI();
-        tgAudioToggle.addEventListener('click', toggleAudioMode);
 
         // ── Utilidades de UI del chat ────────────────────────────────────────
         function getTime() {
@@ -2528,11 +2489,16 @@
             document.getElementById('quickReplies').style.display = 'none';
             showTyping();
 
+            const tgUser = getTelegramUser();
+            const userName = tgUser
+                ? (tgUser.first_name + (tgUser.last_name ? ' ' + tgUser.last_name : ''))
+                : null;
+
             try {
                 const response = await fetch(CALIA_API, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ user_id: getUserId(), mensaje: text })
+                    body: JSON.stringify({ user_id: getUserId(), mensaje: text, user_name: userName })
                 });
 
                 if (!response.ok) {

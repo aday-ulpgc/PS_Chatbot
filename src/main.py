@@ -25,6 +25,7 @@ from telegram.ext import (
 
 from src.bot.telegram.handlers.commands import start_command
 from src.bot.telegram.router import menu_callback_handler, message_handler
+from src.bot.telegram.handlers.nlp import set_ptb_app
 from src.api import app as fastapi_app
 from src.bot.telegram.handlers.reminders import check_daily_reminders
 from datetime import time
@@ -105,6 +106,10 @@ def main() -> None:
         sys.exit(1)
 
     app = ApplicationBuilder().token(token).build()
+
+    # Compartir la instancia PTB con la API web para que los usuarios identificados
+    # via Telegram Login Widget usen la misma sesión que el bot
+    set_ptb_app(app)
 
     hora_recordatorio = time(hour=8, minute=0, second=0)
     app.job_queue.run_daily(check_daily_reminders, time=hora_recordatorio)
