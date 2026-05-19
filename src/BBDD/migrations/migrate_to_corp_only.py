@@ -21,7 +21,7 @@ def migrate_to_corp_only():
     """Migración a arquitectura corporativa única."""
     try:
         print("🔄 Iniciando migración: Individual → Solo Corporativa...\n")
-        
+
         with engine.connect() as conn:
             # 1. Verificar si CITAS_IND existe
             print("1️⃣  Verificando tabla CITAS_IND...")
@@ -33,21 +33,24 @@ def migrate_to_corp_only():
             """)
             )
             exists = result.fetchone()[0] > 0
-            
+
             if exists:
                 # 2. Contar registros en CITAS_IND
                 result = conn.execute(text("SELECT COUNT(*) FROM CITAS_IND"))
                 count = result.fetchone()[0]
                 print(f"✅ CITAS_IND encontrada con {count} registros")
-                
+
                 if count > 0:
                     print("\n2️⃣  Migrando datos de CITAS_IND a CITAS_COR...")
-                    print("⚠️  Nota: Se crearán empleados genéricos para cada usuario de CITAS_IND")
-                    
+                    print(
+                        "⚠️  Nota: Se crearán empleados genéricos para cada usuario de CITAS_IND"
+                    )
+
                     # Para cada usuario con CITAS_IND, crear un empleado
                     # y luego migrar la cita
                     print("   - Creando empleados genéricos...")
-                    conn.execute(text("""
+                    conn.execute(
+                        text("""
                         INSERT INTO EMPLEADOS (ID_USUARIO, TIPO, NOMBRE, ELIMINADO)
                         SELECT DISTINCT 
                             u.ID_USUARIO,
@@ -58,11 +61,13 @@ def migrate_to_corp_only():
                         LEFT JOIN EMPLEADOS e ON u.ID_USUARIO = e.ID_USUARIO
                         WHERE u.ID_USUARIO IN (SELECT DISTINCT ID_USUARIO FROM CITAS_IND)
                         AND e.ID_EMPLEADO IS NULL
-                    """))
-                    
+                    """)
+                    )
+
                     # Crear clientes genéricos y migrar citas
                     print("   - Creando clientes genéricos...")
-                    conn.execute(text("""
+                    conn.execute(
+                        text("""
                         INSERT INTO CLIENTES (ID_EMPLEADO_USUAL, DNI, NOMBRE, ELIMINADO)
                         SELECT DISTINCT 
                             e.ID_EMPLEADO,
@@ -73,10 +78,12 @@ def migrate_to_corp_only():
                         JOIN USUARIOS u ON ci.ID_USUARIO = u.ID_USUARIO
                         JOIN EMPLEADOS e ON u.ID_USUARIO = e.ID_USUARIO
                         WHERE ci.ELIMINADO IS NULL
-                    """))
-                    
+                    """)
+                    )
+
                     print("   - Migrando citas...")
-                    conn.execute(text("""
+                    conn.execute(
+                        text("""
                         INSERT INTO CITAS_COR (ID_EMPLEADO, ID_CLIENTE, FECHA, DURACION, DESCRIPCIÓN, ELIMINADO)
                         SELECT 
                             e.ID_EMPLEADO,
@@ -90,49 +97,55 @@ def migrate_to_corp_only():
                         JOIN EMPLEADOS e ON u.ID_USUARIO = e.ID_USUARIO
                         JOIN CLIENTES c ON e.ID_EMPLEADO = c.ID_EMPLEADO_USUAL
                         AND CONCAT('GENERIC-', ci.ID_CITA) = c.DNI
-                    """))
-                    
+                    """)
+                    )
+
                     print("✅ Datos migrados correctamente")
                 else:
                     print("✅ CITAS_IND vacía, no hay datos para migrar")
-                
+
                 # 3. Eliminar tabla CITAS_IND
                 print("\n3️⃣  Eliminando tabla CITAS_IND...")
                 conn.execute(text("DROP TABLE CITAS_IND"))
                 print("✅ Tabla CITAS_IND eliminada")
             else:
                 print("✅ CITAS_IND no existe (ya fue eliminada)")
-            
+
             # 4. Limpiar USUARIOS: remover referencia a TIPO='I'
             print("\n4️⃣  Actualizando tabla USUARIOS...")
             # Cambiar todos los TIPO='I' a 'C' o dejarlos sin tipo
-            conn.execute(text("""
+            conn.execute(
+                text("""
                 UPDATE USUARIOS SET TIPO = 'C' WHERE TIPO = 'I' OR TIPO IS NULL
-            """))
+            """)
+            )
             print("✅ USUARIOS actualizados (TIPO='I' → 'C')")
-            
+
             # 5. Agregar columna telegram_id a CLIENTE (si no existe)
             print("\n5️⃣  Agregando columna telegram_id a CLIENTE...")
             try:
-                conn.execute(text("""
+                conn.execute(
+                    text("""
                     ALTER TABLE CLIENTES ADD COLUMN telegram_id INT NULL AFTER ID_CLIENTE
-                """))
+                """)
+                )
                 print("✅ Columna telegram_id agregada a CLIENTE")
             except Exception as e:
                 print(f"⚠️  Columna telegram_id ya existe o error: {e}")
-            
+
             # Confirmar cambios
             conn.commit()
-            
+
             print("\n✅ Migración completada exitosamente")
             print("   - Arquitectura: Solo Corporativa")
             print("   - Tabla CITAS_IND: Eliminada")
             print("   - Tabla USUARIOS: Actualizada (TIPO='C')")
             print("   - Tabla CLIENTE: Agregado campo telegram_id")
-            
+
     except Exception as e:
         print(f"\n❌ Error en migración: {e}")
         import traceback
+
         traceback.print_exc()
         raise
 

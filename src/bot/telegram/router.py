@@ -1,6 +1,5 @@
 from telegram import Update
 from telegram.ext import ContextTypes
-import asyncio
 
 from src.services.translator_service import TranslatorService
 
@@ -24,6 +23,7 @@ from src.bot.telegram.handlers.reserve.availability import (
 from src.bot.telegram.handlers.reserve.booking import (
     handle_action_reserve,
     handle_calendar_and_time,
+    handle_waitlist_booking,
     handle_select_employee_callback,
 )
 
@@ -145,6 +145,10 @@ async def menu_callback_handler(
 
     elif query.data.startswith("modcita_"):
         await handle_start_modify_calendar(query, context)
+        return
+
+    if query.data.startswith("waitlistbook_"):
+        await handle_waitlist_booking(query, context, update)
         return
 
     msg_error = TranslatorService.traducir("Acción no reconocida.", idioma)

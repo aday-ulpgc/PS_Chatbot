@@ -1,7 +1,5 @@
 """Handlers para visualizar disponibilidad - DESHABILITADO TEMPORALMENTE."""
 
-from telegram import Update
-from telegram.ext import ContextTypes
 from .keyboards import back_menu_markup
 
 

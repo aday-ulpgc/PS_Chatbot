@@ -71,11 +71,14 @@ async def test_guardar_fecha_en_contexto():
     query.data = "cb_calendar_data"
     update.callback_query = query
 
-    with patch(
-        "src.bot.telegram.handlers.reserve.booking.DetailedTelegramCalendar.process"
-    ) as mock_process, patch(
-        "src.bot.telegram.handlers.reserve.booking.DetailedTelegramCalendar.func"
-    ) as mock_func:
+    with (
+        patch(
+            "src.bot.telegram.handlers.reserve.booking.DetailedTelegramCalendar.process"
+        ) as mock_process,
+        patch(
+            "src.bot.telegram.handlers.reserve.booking.DetailedTelegramCalendar.func"
+        ) as mock_func,
+    ):
         mock_process.return_value = (date(2026, 6, 26), None, None)
 
         mock_func.return_value = lambda x: True

@@ -57,38 +57,40 @@ async def handle_select_employee(query, context: ContextTypes.DEFAULT_TYPE) -> N
     try:
         # Obtener empleados activos
         empleados = await asyncio.to_thread(obtener_empleados_activos)
-        
+
         if not empleados:
             await query.edit_message_text(
                 "❌ Lo siento, no hay empleados disponibles en este momento."
             )
             return
-        
+
         # Crear botones para cada empleado
         keyboard = []
         for emp in empleados:
             btn = InlineKeyboardButton(
                 text=f"👤 {emp['NOMBRE']} ({emp['EMAIL']})",
-                callback_data=f"select_emp_{emp['EMAIL']}"
+                callback_data=f"select_emp_{emp['EMAIL']}",
             )
             keyboard.append([btn])
-        
+
         # Agregar botón para volver
-        keyboard.append([
-            InlineKeyboardButton("🔙 Volver", callback_data="action_back_menu")
-        ])
-        
+        keyboard.append(
+            [InlineKeyboardButton("🔙 Volver", callback_data="action_back_menu")]
+        )
+
         await query.edit_message_text(
             text="👤 *Selecciona con cuál empleado deseas agendar tu cita:*",
             reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode="Markdown"
+            parse_mode="Markdown",
         )
     except Exception as e:
         print(f"❌ Error en handle_select_employee: {e}")
         await query.edit_message_text("❌ Error al cargar los empleados")
 
 
-async def handle_select_employee_callback(query, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def handle_select_employee_callback(
+    query, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """Guarda el empleado elegido y muestra el calendario de reservas."""
     idioma = context.user_data.get("idioma", "es")
 
@@ -184,9 +186,7 @@ async def handle_calendar_and_time(
                         ],
                         [
                             InlineKeyboardButton(
-                                TranslatorService.traducir(
-                                    "⫶☰ Menú Principal", idioma
-                                ),
+                                TranslatorService.traducir("⫶☰ Menú Principal", idioma),
                                 callback_data="action_back_menu",
                             )
                         ],
@@ -514,62 +514,43 @@ async def handle_calendar_and_time(
     return False
 
 
-async def handle_action_reserve(query, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def handle_waitlist_booking(
+    query,
+    context: ContextTypes.DEFAULT_TYPE,
+    update: Update,
+) -> None:
+    """Procesa el intento de reserva directa desde la notificación de lista de espera."""
     idioma = context.user_data.get("idioma", "es")
 
-    limpiar_estado_reserva(context)
-
-    current_calendar = DetailedTelegramCalendar(min_date=date.today())
-    calendar, step = current_calendar.build()
-
-    keyboard_dict = json.loads(calendar)
-    navigation_row = [
-        {
-            "text": TranslatorService.traducir("↻ Reiniciar", idioma),
-            "callback_data": "action_reserve",
-        },
-        {
-            "text": TranslatorService.traducir("⫶☰ Menú", idioma),
-            "callback_data": "action_back_menu",
-        },
-    ]
-
-    availability_row = [
-        {
-            "text": TranslatorService.traducir("📅 Ver disponibilidad", idioma),
-            "callback_data": "action_view_availability",
-        }
-    ]
-
-    keyboard_dict["inline_keyboard"].append(availability_row)
-    keyboard_dict["inline_keyboard"].append(navigation_row)
-
     try:
-        keyboard_buttons = [
-            [
-                InlineKeyboardButton(
-                    text=btn["text"],
-                    callback_data=btn["callback_data"],
-                )
-                for btn in row
-            ]
-            for row in keyboard_dict.get("inline_keyboard", [])
-        ]
-        texto_step = f"Selecciona una fecha {CALENDAR_STEPS[step]}:"
-        msg_step = TranslatorService.traducir(texto_step, idioma)
+        _, fecha_iso, hora_iso = query.data.split("_")
+    except ValueError:
+        msg = TranslatorService.traducir("❌ Formato de datos inválido.", idioma)
+        await query.edit_message_text(msg)
+        return
 
-        await query.edit_message_text(
-            text=msg_step,
-            reply_markup=InlineKeyboardMarkup(keyboard_buttons),
-        )
-    except BadRequest:
-        pass
+    msg = TranslatorService.traducir("⏳ Procesando tu reserva...", idioma)
+    await query.edit_message_text(text=msg)
+
+    response_message = await calendar_service.create_reservation_via_api(
+        telegram_id=update.effective_user.id,
+        date=fecha_iso,
+        hour=hora_iso,
+        nombre=update.effective_user.full_name,
+    )
+
+    response_traducida = TranslatorService.traducir(response_message, idioma)
+
+    if response_message.startswith("❌"):
+        await query.edit_message_text(text=response_traducida)
+    else:
+        await query.edit_message_text(text=f"✅ {response_traducida}")
 
 
 async def handle_action_reserve(query, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Inicia el flujo de reserva: primero selecciona empleado, luego calendario."""
     # Limpiamos cualquier estado residual de flujos anteriores
     limpiar_estado_reserva(context)
-    
+
     # Mostrar selector de empleados
     await handle_select_employee(query, context)

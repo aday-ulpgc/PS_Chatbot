@@ -3,6 +3,7 @@
 This test file uses the old Usuario/CitaInd architecture which has been removed.
 Will be updated when necessary.
 """
+
 import sys
 
 sys.path.insert(0, ".")
@@ -21,9 +22,7 @@ def main():
             .all()
         )
         for cita in citas:
-            cliente_nombre = (
-                cita.cliente.NOMBRE if cita.cliente else 'N/A'
-            )
+            cliente_nombre = cita.cliente.NOMBRE if cita.cliente else "N/A"
             print(
                 f"ID={cita.ID_CITA} | {cliente_nombre} | FECHA raw={cita.FECHA} | hora='{cita.FECHA.strftime('%H:%M')}'"
             )

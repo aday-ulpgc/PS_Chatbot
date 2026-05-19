@@ -193,7 +193,11 @@ class GoogleCalendarService:
 
 
 def create_reservation(
-    user_id: str, date: str, hour: str, gmail_trabajador: str = None, id_empleado_seleccionado: int = None
+    user_id: str,
+    date: str,
+    hour: str,
+    gmail_trabajador: str = None,
+    id_empleado_seleccionado: int = None,
 ) -> str:
     """
     Función de fachada (Facade) que orquestra la reserva.
@@ -254,20 +258,24 @@ def create_reservation(
         if telegram_id:
             from src.BBDD.database_service import obtener_o_crear_cliente_por_telegram
             from src.BBDD.databasecontroller import Empleado, get_session
-            
+
             cliente_result = obtener_o_crear_cliente_por_telegram(telegram_id, nombre)
             cliente_id = cliente_result.get("cliente_id")
-            
+
             if cliente_id:
                 id_empleado = id_empleado_seleccionado
 
                 if not id_empleado and gmail_trabajador:
                     try:
                         with get_session() as session:
-                            empleado = session.query(Empleado).filter(
-                                Empleado.EMAIL == gmail_trabajador,
-                                Empleado.ELIMINADO == None,
-                            ).first()
+                            empleado = (
+                                session.query(Empleado)
+                                .filter(
+                                    Empleado.EMAIL == gmail_trabajador,
+                                    Empleado.ELIMINADO is None,
+                                )
+                                .first()
+                            )
                             if empleado:
                                 id_empleado = empleado.ID_EMPLEADO
                     except Exception as e:
@@ -276,15 +284,17 @@ def create_reservation(
                 if not id_empleado:
                     try:
                         with get_session() as session:
-                            empleado = session.query(Empleado).filter(
-                                Empleado.ELIMINADO == None
-                            ).first()
+                            empleado = (
+                                session.query(Empleado)
+                                .filter(Empleado.ELIMINADO is None)
+                                .first()
+                            )
                             if empleado:
                                 id_empleado = empleado.ID_EMPLEADO
                     except Exception as e:
                         print(f"⚠️ Error getting first empleado: {e}")
                         id_empleado = 1
-                
+
                 # Crear datetime con fecha Y hora
                 fecha_obj = datetime.strptime(f"{date} {hour}", "%Y-%m-%d %H:%M")
                 success_db = guardar_cita_en_db(
@@ -395,7 +405,7 @@ async def create_reservation_via_api(
     """
     Función async para crear reservas desde los handlers del bot.
     Delegada a create_reservation() con parámetros de Telegram.
-    
+
     Args:
         telegram_id: ID del usuario en Telegram
         date: Fecha en formato "YYYY-MM-DD"
@@ -405,7 +415,7 @@ async def create_reservation_via_api(
         bloqueante: Empleado ID (deprecated, para compatibilidad)
         nombre: Nombre del usuario (si no se proporciona, se usa "Usuario")
         id_empleado: ID del empleado seleccionado por el usuario
-    
+
     Returns:
         Mensaje de confirmación o error para el usuario
     """
@@ -415,7 +425,7 @@ async def create_reservation_via_api(
             user_id_str = f"{nombre} ({telegram_id})"
         else:
             user_id_str = f"Usuario ({telegram_id})"
-        
+
         # Llamar a la función sincrónica create_reservation
         response = create_reservation(
             user_id=user_id_str,
@@ -424,9 +434,9 @@ async def create_reservation_via_api(
             gmail_trabajador=gmail_trabajador,
             id_empleado_seleccionado=id_empleado,
         )
-        
+
         return response
-    
+
     except Exception as e:
         print(f"❌ Error en create_reservation_via_api: {e}")
         return f"❌ Error al crear la reserva: {str(e)}"
