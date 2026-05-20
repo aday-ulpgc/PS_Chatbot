@@ -6,6 +6,7 @@ de Telegram esté presente y arranca el bot en modo polling.
 
 import os
 import sys
+import pytz
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 import threading
@@ -55,7 +56,8 @@ def main() -> None:
     app = ApplicationBuilder().token(token).persistence(persistence).build()
 
     # Recordatorio todos los días a las 08:00 de la mañana
-    hora_recordatorio = time(hour=8, minute=0, second=0)
+    tz = pytz.timezone("Atlantic/Canary")
+    hora_recordatorio = time(hour=8, minute=00, second=0, tzinfo=tz)
     app.job_queue.run_daily(check_daily_reminders, time=hora_recordatorio)
 
     app.add_handler(CommandHandler("start", start_command))
@@ -79,7 +81,7 @@ def main() -> None:
         poll_interval=2.0,  # Esperar 2 segundos entre polls
         timeout=10,  # Timeout de 10 segundos (por defecto es 5)
         allowed_updates=None,
-        drop_pending_updates=True,  # Ignorar mensajes antiguos al reiniciar
+        drop_pending_updates=True,
     )
 
 

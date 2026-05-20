@@ -1,6 +1,7 @@
 import datetime
 from telegram.ext import ContextTypes
 from src.BBDD.databasecontroller import get_session, CitaCorp
+from src.services.translator_service import TranslatorService
 
 
 async def check_daily_reminders(context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -35,22 +36,42 @@ async def check_daily_reminders(context: ContextTypes.DEFAULT_TYPE) -> None:
                 if dias_restantes in [1, 2, 3]:
                     chat_id = cita.cliente.TELEGRAM_ID
 
-                    fecha_str = cita.FECHA.strftime("%d/%m/%Y")
-                    hora_str = cita.FECHA.strftime("%H:%M")
+                    try:
+                        user_data = context.application.user_data.get(chat_id, {})
+                        idioma = user_data.get("idioma", "es")
 
-                    mensaje = (
-                        f"🔔 *Recordatorio de Cita!*\n\n"
-                        f"Hola {cita.cliente.NOMBRE}, te recordamos que tienes una cita "
-                        f"el *{fecha_str}* a las *{hora_str}*.\n\n"
-                        f"Te esperamos!"
-                    )
+                        fecha_str = cita.FECHA.strftime("%d/%m/%Y")
+                        hora_str = cita.FECHA.strftime("%H:%M")
 
-                    await context.bot.send_message(
-                        chat_id=chat_id, text=mensaje, parse_mode="Markdown"
-                    )
-                    print(
-                        f"✅ Recordatorio enviado a {chat_id} para cita en {dias_restantes} dias."
-                    )
+                        if dias_restantes == 1:
+                            intro = "¡Mañana es tu cita!"
+                        else:
+                            intro = f"¡Faltan {dias_restantes} días para tu cita!"
+
+                        mensaje_base = (
+                            f"🔔 *Recordatorio de Cita!*\n\n"
+                            f"Hola {cita.cliente.NOMBRE}, {intro.lower()} "
+                            f"Será el *{fecha_str}* a las *{hora_str}*.\n\n"
+                            f"¡Te esperamos!"
+                        )
+
+                        mensaje_traducido = TranslatorService.traducir(
+                            mensaje_base, idioma
+                        )
+
+                        await context.bot.send_message(
+                            chat_id=chat_id,
+                            text=mensaje_traducido,
+                            parse_mode="Markdown",
+                        )
+                        print(
+                            f"✅ Recordatorio enviado a {chat_id} para cita en {dias_restantes} dias."
+                        )
+
+                    except Exception as e:
+                        print(
+                            f"⚠️ No se pudo enviar recordatorio al usuario {chat_id}. Razón: {e}"
+                        )
 
     except Exception as e:
-        print(f"❌ Error en la tarea diaria de recordatorios: {e}")
+        print(f"❌ Error CRÍTICO en la tarea diaria de recordatorios: {e}")
