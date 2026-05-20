@@ -17,8 +17,8 @@ load_dotenv(env_path)
 
 class NLPService:
     MODELOS_DISPONIBLES = [
-        "gemini-2.5-flash-lite",
         "gemini-2.5-flash",
+        "gemini-2.5-flash-lite",
         "gemini-3.1-flash-lite",
     ]
 
@@ -51,6 +51,61 @@ class NLPService:
         print(f"🔄 Reseteando a modelo preferido: {cls.obtener_modelo_actual()}")
 
     @staticmethod
+    def _reparar_json(texto: str) -> str:
+        """Intenta reparar un JSON truncado o incompleto añadiendo comillas, corchetes y llaves de cierre,
+        y limpiando comas colgantes al final.
+        """
+        texto = texto.strip()
+        if not texto.startswith("{"):
+            return texto
+
+        reparado = []
+        en_comillas = False
+        escape = False
+        pila_bloques = []  # para rastrear '{' y '['
+
+        for char in texto:
+            reparado.append(char)
+            if escape:
+                escape = False
+                continue
+            if char == "\\":
+                escape = True
+                continue
+            if char == '"':
+                en_comillas = not en_comillas
+                continue
+            if not en_comillas:
+                if char in "{[":
+                    pila_bloques.append(char)
+                elif char in "]}":
+                    if pila_bloques:
+                        pila_bloques.pop()
+
+        # Si terminó dentro de un string, cerramos las comillas
+        if en_comillas:
+            reparado.append('"')
+
+        # Convertir a cadena para poder limpiar comas finales antes de cerrar
+        temp_str = "".join(reparado).strip()
+
+        # Mientras termine en coma y no esté en comillas, removemos la coma
+        while temp_str.endswith(","):
+            temp_str = temp_str[:-1].strip()
+
+        reparado = list(temp_str)
+
+        # Cerrar todos los bloques abiertos en orden inverso
+        while pila_bloques:
+            abierto = pila_bloques.pop()
+            if abierto == "{":
+                reparado.append("}")
+            elif abierto == "[":
+                reparado.append("]")
+
+        return "".join(reparado)
+
+    @staticmethod
     def _limpiar_json(texto: str) -> dict:
         """Limpia y extrae el bloque JSON de la respuesta de Gemini de forma ultra-robusta."""
         try:
@@ -59,11 +114,19 @@ class NLPService:
             if match:
                 texto_json = match.group(1)
             else:
-                texto_json = texto
+                # Si no hay llave de cierre, buscar desde el primer '{' en adelante
+                idx_inicio = texto.find("{")
+                if idx_inicio != -1:
+                    texto_json = texto[idx_inicio:]
+                else:
+                    texto_json = texto
 
             # Limpiar bloques de markdown adicionales si los hubiera
             texto_json = re.sub(r"```json\n?", "", texto_json)
             texto_json = re.sub(r"```\n?", "", texto_json)
+
+            # Reparar JSON si está incompleto o truncado
+            texto_json = NLPService._reparar_json(texto_json)
 
             print(f"JSON Limpio: {texto_json}")
             return json.loads(texto_json.strip())

@@ -8,7 +8,7 @@ from telegram.ext import ContextTypes
 from telegram_bot_calendar import DetailedTelegramCalendar
 
 from src.BBDD.database_service import (
-    actualizar_cita_fecha_db,
+    actualizar_cita_completa_db,
     obtener_horas_ocupadas,
     obtener_info_cita_db,
     obtener_o_crear_cliente_por_telegram,
@@ -206,37 +206,74 @@ async def handle_calendar_and_time(
 
         if modifying_id:
             await query.answer()
-            msg = TranslatorService.traducir(
-                "⏳ Modificando tu reserva en Google Calendar...", idioma
-            )
-            await query.edit_message_text(text=msg)
 
             cita_antigua = await asyncio.to_thread(obtener_info_cita_db, modifying_id)
             name_and_id = (
                 f"{update.effective_user.full_name} ({update.effective_user.id})"
             )
 
+            # Obtener el email del empleado seleccionado o el antiguo si no se seleccionó
+            selected_emp_email = context.user_data.get("selected_emp_email")
+            if not selected_emp_email and cita_antigua:
+                selected_emp_email = cita_antigua.get("EMAIL_EMPLEADO")
+
+            if not selected_emp_email:
+                msg = TranslatorService.traducir(
+                    "❌ Error al identificar el empleado para la modificación.", idioma
+                )
+                await query.edit_message_text(text=msg)
+                return True
+
+            # Validar que el hueco esté libre con ese empleado antes de hacer nada
+            calendar_new = calendar_service.GoogleCalendarService(selected_emp_email)
+            slot_disponible = await asyncio.to_thread(
+                calendar_new.is_slot_available_single,
+                selected_data,
+                selected_time,
+            )
+
+            if not slot_disponible:
+                msg = TranslatorService.traducir(
+                    f"❌ Lo siento, la cita de las {selected_time}h con ese empleado ya no está disponible. "
+                    "Por favor, elige otra hora.",
+                    idioma,
+                )
+                await query.edit_message_text(text=msg)
+                return True
+
+            msg_progreso = TranslatorService.traducir(
+                "⏳ Modificando tu reserva en Google Calendar...", idioma
+            )
+            await query.edit_message_text(text=msg_progreso)
+
+            # 1. Borrar la reserva antigua en Google Calendar
             if cita_antigua:
                 old_fecha = cita_antigua["FECHA"].strftime("%Y-%m-%d")
                 old_hora = cita_antigua["FECHA"].strftime("%H:%M")
-                email_empleado = cita_antigua.get("EMAIL_EMPLEADO")
+                email_empleado_antiguo = cita_antigua.get("EMAIL_EMPLEADO")
                 await asyncio.to_thread(
                     calendar_service.delete_reservation,
                     name_and_id,
                     old_fecha,
                     old_hora,
-                    email_empleado,
+                    email_empleado_antiguo,
                 )
 
+            # 2. Crear el nuevo evento en Google Calendar para el empleado seleccionado
+            from datetime import timedelta
+
+            start_time = datetime.strptime(
+                f"{selected_data} {selected_time}", "%Y-%m-%d %H:%M"
+            )
+            end_time = start_time + timedelta(hours=1)
             await asyncio.to_thread(
-                calendar_service.create_reservation,
+                calendar_new.create_event,
                 name_and_id,
-                selected_data,
-                selected_time,
-                None,
-                True,
+                start_time,
+                end_time,
             )
 
+            # 3. Actualizar la cita existente en base de datos (fecha, hora y empleado)
             fecha_dt = datetime.strptime(selected_data, "%Y-%m-%d")
             hora_parts = selected_time.split(":")
             fecha_dt_con_hora = fecha_dt.replace(
@@ -245,9 +282,13 @@ async def handle_calendar_and_time(
             )
 
             await asyncio.to_thread(
-                actualizar_cita_fecha_db, modifying_id, fecha_dt_con_hora
+                actualizar_cita_completa_db,
+                modifying_id,
+                fecha_dt_con_hora,
+                selected_emp_email,
             )
             context.user_data.pop("modifying_id", None)
+            context.user_data.pop("selected_emp_email", None)
 
             msg = TranslatorService.traducir(
                 "✅ Cita modificada con éxito. Actualizando agenda...", idioma

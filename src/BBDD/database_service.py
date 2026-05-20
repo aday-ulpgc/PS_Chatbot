@@ -332,6 +332,40 @@ def actualizar_cita_fecha_db(id_cita: int, nueva_fecha: datetime) -> bool:
     return False
 
 
+def actualizar_cita_completa_db(
+    id_cita: int, nueva_fecha: datetime, email_empleado: str
+) -> bool:
+    """Actualiza la fecha, hora y el empleado de una cita."""
+    try:
+        from src.BBDD.databasecontroller import CitaCorp, Empleado
+
+        with get_session() as session:
+            # Buscar el empleado por email
+            empleado = (
+                session.query(Empleado)
+                .filter(
+                    Empleado.EMAIL == email_empleado,
+                    Empleado.ELIMINADO.is_(None),
+                )
+                .first()
+            )
+
+            if not empleado:
+                print(f"❌ Empleado no encontrado con email: {email_empleado}")
+                return False
+
+            cita = session.query(CitaCorp).filter(CitaCorp.ID_CITA == id_cita).first()
+            if cita:
+                cita.FECHA = nueva_fecha
+                cita.ID_EMPLEADO = empleado.ID_EMPLEADO
+                session.commit()
+                return True
+        return False
+    except Exception as e:
+        print(f"Error al actualizar cita completa: {e}")
+    return False
+
+
 def obtener_info_cita_db(id_cita: int) -> dict | None:
     """Recupera la fecha y el email del empleado de una cita específica."""
     try:
