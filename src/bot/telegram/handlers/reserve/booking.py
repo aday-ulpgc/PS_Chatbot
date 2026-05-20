@@ -54,17 +54,19 @@ async def enviar_recordatorio_cita(context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def handle_select_employee(query, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Muestra los empleados disponibles para que el usuario seleccione uno."""
+    idioma = context.user_data.get("idioma", "es")
+
     try:
         # Obtener empleados activos
         empleados = await asyncio.to_thread(obtener_empleados_activos)
 
         if not empleados:
-            await query.edit_message_text(
-                "❌ Lo siento, no hay empleados disponibles en este momento."
+            msg_vacio = TranslatorService.traducir(
+                "❌ Lo siento, no hay empleados disponibles en este momento.", idioma
             )
+            await query.edit_message_text(msg_vacio)
             return
 
-        # Crear botones para cada empleado
         keyboard = []
         for emp in empleados:
             btn = InlineKeyboardButton(
@@ -73,19 +75,25 @@ async def handle_select_employee(query, context: ContextTypes.DEFAULT_TYPE) -> N
             )
             keyboard.append([btn])
 
-        # Agregar botón para volver
+        lbl_volver = TranslatorService.traducir("🔙 Volver", idioma)
         keyboard.append(
-            [InlineKeyboardButton("🔙 Volver", callback_data="action_back_menu")]
+            [InlineKeyboardButton(lbl_volver, callback_data="action_back_menu")]
         )
 
+        msg_select = TranslatorService.traducir(
+            "👤 *Selecciona con cuál empleado deseas agendar tu cita:*", idioma
+        )
         await query.edit_message_text(
-            text="👤 *Selecciona con cuál empleado deseas agendar tu cita:*",
+            text=msg_select,
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="Markdown",
         )
     except Exception as e:
         print(f"❌ Error en handle_select_employee: {e}")
-        await query.edit_message_text("❌ Error al cargar los empleados")
+        msg_error = TranslatorService.traducir(
+            "❌ Error al cargar los empleados", idioma
+        )
+        await query.edit_message_text(msg_error)
 
 
 async def handle_select_employee_callback(
