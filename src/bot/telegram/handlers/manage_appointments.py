@@ -1,5 +1,5 @@
 import asyncio
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 from telegram.error import BadRequest
 
@@ -12,129 +12,111 @@ from src.BBDD.database_service import (
     obtener_info_cita_db,
 )
 
+MESES_ES = {1: "enero", 2: "febrero", 3: "marzo", 4: "abril", 5: "mayo", 6: "junio", 7: "julio", 8: "agosto", 9: "septiembre", 10: "octubre", 11: "noviembre", 12: "diciembre"}
+MESES_EN = {1: "January", 2: "February", 3: "March", 4: "April", 5: "May", 6: "June", 7: "July", 8: "August", 9: "September", 10: "October", 11: "November", 12: "December"}
 
-async def handle_action_my_appointments(
-    query, context: ContextTypes.DEFAULT_TYPE, update=None
-) -> None:
-    """Muestra las citas con un formato elegante y botones de cancelación."""
+async def _send_or_edit(query, update, text, keyboard):
+    """Función auxiliar para enviar o editar mensajes de forma segura."""
+    if query:
+        try:
+            await query.edit_message_text(text=text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+        except BadRequest:
+            pass
+    else:
+        await update.message.reply_text(text=text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+
+async def handle_action_my_appointments(query, context: ContextTypes.DEFAULT_TYPE, update=None) -> None:
+    """Muestra las citas agrupadas en bloques de 5 con formato elegante."""
     idioma = context.user_data.get("idioma", "es")
+    telegram_id = query.from_user.id if query else update.effective_user.id
 
-    if query is not None:
-        telegram_id = query.from_user.id
-    else:
-        telegram_id = update.effective_user.id
-
-    # Obtener cliente_id basado en telegram_id
     cliente_id = await asyncio.to_thread(obtener_cliente_por_telegram_id, telegram_id)
-
     if not cliente_id:
-        texto_citas = "📋 *Mis Citas*\n\nAún no tienes perfil de cliente registrado."
-        citas = []
-    else:
-        citas = await asyncio.to_thread(obtener_citas_cliente, cliente_id)
+        msg = TranslatorService.traducir("📋 *Mis Citas*\n\nAún no tienes perfil de cliente registrado.", idioma)
+        return await _send_or_edit(query, update, msg, [[InlineKeyboardButton(TranslatorService.traducir("🔙 Volver al Menú", idioma), callback_data="action_back_menu")]])
+
+    citas = await asyncio.to_thread(obtener_citas_cliente, cliente_id)
+
+    if not citas:
+        msg = TranslatorService.traducir("📋 *Mis Citas*\n\nActualmente no tienes ninguna reserva activa.", idioma)
+        return await _send_or_edit(query, update, msg, [[InlineKeyboardButton(TranslatorService.traducir("🔙 Volver al Menú", idioma), callback_data="action_back_menu")]])
+
+    bloques = [citas[i : i + 5] for i in range(0, len(citas), 5)]
+    context.user_data["citas_bloques"] = bloques
+    context.user_data["citas_bloque_actual"] = 0
+
+    await _render_bloque_citas(query, context, update, 0)
+
+async def _render_bloque_citas(query, context, update, index_bloque):
+    """Genera el mensaje y el teclado para la página actual de citas."""
+    idioma = context.user_data.get("idioma", "es")
+    bloques = context.user_data.get("citas_bloques", [])
+    if not bloques: return
+
+    citas_bloque = bloques[index_bloque]
+
+    lbl_titulo = TranslatorService.traducir("📋 *Mis Próximas Citas:*", idioma)
+    lbl_pag = TranslatorService.traducir("Pág.", idioma)
+    palabra_cita = TranslatorService.traducir("reserva", idioma).capitalize()
+    palabra_alas = TranslatorService.traducir("a las", idioma)
+    palabra_con = TranslatorService.traducir("con", idioma).capitalize()
+
+    texto_citas = f"{lbl_titulo} ({lbl_pag} {index_bloque + 1}/{len(bloques)})\n\n"
+    start_idx = index_bloque * 5 + 1
+
+    for i, cita in enumerate(citas_bloque, start_idx):
+        fecha_dt = cita["FECHA"] if isinstance(cita, dict) else cita.FECHA
+        hora_str = fecha_dt.strftime("%H:%M")
+        nombre_empleado = cita.get("NOMBRE_EMPLEADO", "No especificado") if isinstance(cita, dict) else getattr(cita, 'NOMBRE_EMPLEADO', "No especificado")
+
+        if idioma == "es":
+            fecha_formateada = f"{fecha_dt.strftime('%d')} de {MESES_ES.get(fecha_dt.month, 'enero')} de {fecha_dt.strftime('%Y')}"
+        else:
+            fecha_formateada = f"{MESES_EN.get(fecha_dt.month, 'January')} {fecha_dt.strftime('%d')}, {fecha_dt.strftime('%Y')}"
+
+        texto_citas += f"🔹 *{palabra_cita} {i}* — {fecha_formateada} {palabra_alas} {hora_str}\n"
+        texto_citas += f"   👤 {palabra_con}: {nombre_empleado}\n\n"
 
     keyboard = []
 
-    if not citas:
-        texto_base = "📋 *Mis Citas*"
-        texto_citas = (
-            TranslatorService.traducir(texto_base, idioma)
-            + "\n\n"
-            + TranslatorService.traducir(
-                "Actualmente no tienes ninguna reserva activa.",
-                idioma,
-            )
-        )
+    keyboard.append([
+        InlineKeyboardButton(TranslatorService.traducir("📝 Modificar", idioma), callback_data="action_modify_menu"),
+        InlineKeyboardButton(TranslatorService.traducir("❌ Cancelar", idioma), callback_data="action_cancel_menu"),
+    ])
+
+    nav_buttons = []
+    if len(bloques) > 1:
+        if index_bloque > 0:
+            nav_buttons.append(InlineKeyboardButton(TranslatorService.traducir("⬅️ Anterior", idioma), callback_data="action_prev_citas_group"))
+        if index_bloque < len(bloques) - 1:
+            nav_buttons.append(InlineKeyboardButton(TranslatorService.traducir("Siguiente ➡️", idioma), callback_data="action_next_citas_group"))
+        if nav_buttons:
+            keyboard.append(nav_buttons)
+
+    keyboard.append([InlineKeyboardButton(TranslatorService.traducir("🔙 Volver al Menú", idioma), callback_data="action_back_menu")])
+
+    await _send_or_edit(query, update, texto_citas, keyboard)
+
+async def handle_prev_citas_group(query, context: ContextTypes.DEFAULT_TYPE, update=None) -> None:
+    """Retrocede de grupo en la paginación."""
+    bloque_actual = context.user_data.get("citas_bloque_actual", 0)
+    if bloque_actual > 0:
+        context.user_data["citas_bloque_actual"] = bloque_actual - 1
+        await _render_bloque_citas(query, context, update, bloque_actual - 1)
     else:
-        texto_base = "📋 *Tus Próximas Citas:*"
-        texto_citas = TranslatorService.traducir(texto_base, idioma) + "\n\n"
+        msg = TranslatorService.traducir("⚠️ Ya estás en la primera página", context.user_data.get("idioma", "es"))
+        await query.answer(msg, show_alert=True)
 
-        palabra_cita = TranslatorService.traducir("reserva", idioma).capitalize()
-        palabra_alas = TranslatorService.traducir("a las", idioma)
-
-        for i, cita in enumerate(citas, 1):
-            fecha_dt = cita["FECHA"]
-            if idioma == "es":
-                meses_es = {
-                    1: "enero",
-                    2: "febrero",
-                    3: "marzo",
-                    4: "abril",
-                    5: "mayo",
-                    6: "junio",
-                    7: "julio",
-                    8: "agosto",
-                    9: "septiembre",
-                    10: "octubre",
-                    11: "noviembre",
-                    12: "diciembre",
-                }
-                nombre_mes = meses_es.get(fecha_dt.month, "enero")
-                fecha_formateada = f"{fecha_dt.strftime('%d')} de {nombre_mes} de {fecha_dt.strftime('%Y')}"
-            else:
-                meses_en = {
-                    1: "January",
-                    2: "February",
-                    3: "March",
-                    4: "April",
-                    5: "May",
-                    6: "June",
-                    7: "July",
-                    8: "August",
-                    9: "September",
-                    10: "October",
-                    11: "November",
-                    12: "December",
-                }
-                nombre_mes = meses_en.get(fecha_dt.month, "January")
-                fecha_formateada = (
-                    f"{nombre_mes} {fecha_dt.strftime('%d')}, {fecha_dt.strftime('%Y')}"
-                )
-
-            hora_str = fecha_dt.strftime("%H:%M")
-            nombre_empleado = cita.get("NOMBRE_EMPLEADO", "No especificado")
-            palabra_con = TranslatorService.traducir("con", idioma)
-
-            texto_citas += f"🔹 *{palabra_cita} {i}* — {fecha_formateada} {palabra_alas} {hora_str}\n"
-            texto_citas += f"   👤 {palabra_con.capitalize()}: {nombre_empleado}\n\n"
-
-        keyboard.append(
-            [
-                InlineKeyboardButton(
-                    TranslatorService.traducir("📝 Modificar", idioma),
-                    callback_data="action_modify_menu",
-                ),
-                InlineKeyboardButton(
-                    TranslatorService.traducir("❌ Cancelar", idioma),
-                    callback_data="action_cancel_menu",
-                ),
-            ]
-        )
-
-    keyboard.append(
-        [
-            InlineKeyboardButton(
-                TranslatorService.traducir("🔙 Volver al Menú", idioma),
-                callback_data="action_back_menu",
-            )
-        ]
-    )
-
-    if query is not None:
-        try:
-            await query.edit_message_text(
-                text=texto_citas,
-                reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode="Markdown",
-            )
-        except BadRequest as e:
-            print(f"⚠️ Aviso (esperado si el texto no cambia): {e}")
+async def handle_next_citas_group(query, context: ContextTypes.DEFAULT_TYPE, update=None) -> None:
+    """Avanza de grupo en la paginación."""
+    bloques = context.user_data.get("citas_bloques", [])
+    bloque_actual = context.user_data.get("citas_bloque_actual", 0)
+    if bloque_actual < len(bloques) - 1:
+        context.user_data["citas_bloque_actual"] = bloque_actual + 1
+        await _render_bloque_citas(query, context, update, bloque_actual + 1)
     else:
-        await update.message.reply_text(
-            text=texto_citas,
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode="Markdown",
-        )
+        msg = TranslatorService.traducir("⚠️ Ya estás en la última página", context.user_data.get("idioma", "es"))
+        await query.answer(msg, show_alert=True)
 
 
 async def handle_action_cancel_menu(
@@ -150,7 +132,6 @@ async def handle_action_cancel_menu(
     else:
         telegram_id = update.effective_user.id
 
-    # Obtener cliente_id y luego sus citas
     cliente_id = await asyncio.to_thread(obtener_cliente_por_telegram_id, telegram_id)
     if not cliente_id:
         await handle_action_my_appointments(query, context, update)

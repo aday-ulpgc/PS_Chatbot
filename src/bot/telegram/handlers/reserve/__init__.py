@@ -3,11 +3,7 @@ from .alternatives import (
     handle_alternative_time_selection_callback,
     parse_alternative_times,
 )
-from .appointment_groups import (
-    handle_action_my_appointments,
-    handle_next_citas_group,
-    handle_prev_citas_group,
-)
+
 from .availability import (
     handle_action_view_availability,
     handle_action_view_availability_day,

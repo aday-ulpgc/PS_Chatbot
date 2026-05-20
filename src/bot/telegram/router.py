@@ -6,10 +6,7 @@ from src.services.translator_service import TranslatorService
 from src.bot.telegram.handlers.reserve.alternatives import (
     handle_alternative_time_selection_callback,
 )
-from src.bot.telegram.handlers.reserve.appointment_groups import (
-    handle_prev_citas_group,
-    handle_next_citas_group,
-)
+
 from src.bot.telegram.handlers.reserve.availability import (
     handle_action_view_availability,
     handle_action_view_availability_day,
@@ -28,12 +25,15 @@ from src.bot.telegram.handlers.reserve.booking import (
 )
 
 from src.bot.telegram.handlers.manage_appointments import (
-    handle_action_my_appointments,
     handle_cancel_appointment,
     handle_action_cancel_menu,
     handle_action_modify_menu,
     handle_start_modify_calendar,
+    handle_action_my_appointments,
+    handle_prev_citas_group,
+    handle_next_citas_group,
 )
+
 
 from src.bot.telegram.handlers.settings import (
     handle_toggle_audio_main,
