@@ -417,7 +417,7 @@ async def handle_texto_libre(
             msg_ocupado = TranslatorService.traducir(
                 (
                     f"❌ Lo siento, la cita de las {hora}h ya no está disponible.\n\n"
-                    "He guardado tu interest en ese horario. "
+                    "He guardado tu interés en ese horario. "
                     "Si se libera, te avisaré automáticamente.\n\n"
                     "¿Quieres probar con otro día u otra hora?"
                 ),

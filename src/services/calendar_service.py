@@ -319,7 +319,7 @@ def create_reservation(
                                 session.query(Empleado)
                                 .filter(
                                     Empleado.EMAIL == gmail_trabajador,
-                                    Empleado.ELIMINADO is None,
+                                    Empleado.ELIMINADO.is_(None),
                                 )
                                 .first()
                             )
@@ -333,7 +333,7 @@ def create_reservation(
                         with get_session() as session:
                             empleado = (
                                 session.query(Empleado)
-                                .filter(Empleado.ELIMINADO is None)
+                                .filter(Empleado.ELIMINADO.is_(None))
                                 .first()
                             )
                             if empleado:

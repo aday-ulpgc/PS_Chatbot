@@ -41,14 +41,14 @@ def verificar_citas_en_bd(fechas):
                 # Buscar citas activas en esa fecha
                 citas_activas = (
                     session.query(CitaCorp)
-                    .filter(CitaCorp.FECHA == fecha_obj, CitaCorp.ELIMINADO is None)
+                    .filter(CitaCorp.FECHA == fecha_obj, CitaCorp.ELIMINADO.is_(None))
                     .all()
                 )
 
                 # Buscar citas eliminadas en esa fecha
                 citas_eliminadas = (
                     session.query(CitaCorp)
-                    .filter(CitaCorp.FECHA == fecha_obj, CitaCorp.ELIMINADO is not None)
+                    .filter(CitaCorp.FECHA == fecha_obj, CitaCorp.ELIMINADO.isnot(None))
                     .all()
                 )
 

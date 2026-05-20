@@ -29,7 +29,7 @@ def verificar_citas_especificas():
         with get_session() as session:
             citas_activas = (
                 session.query(CitaCorp)
-                .filter(CitaCorp.ELIMINADO is None)
+                .filter(CitaCorp.ELIMINADO.is_(None))
                 .order_by(CitaCorp.FECHA)
                 .all()
             )

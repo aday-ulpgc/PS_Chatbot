@@ -45,7 +45,7 @@ def obtener_o_crear_cliente_por_telegram(
                 from src.BBDD.databasecontroller import Empleado
 
                 empleado_default = (
-                    session.query(Empleado).filter(Empleado.ELIMINADO is None).first()
+                    session.query(Empleado).filter(Empleado.ELIMINADO.is_(None)).first()
                 )
 
                 if empleado_default:
@@ -207,7 +207,7 @@ def obtener_cliente_por_telegram_id(telegram_id: int) -> int | None:
         with get_session() as session:
             cliente = (
                 session.query(Cliente)
-                .filter(Cliente.TELEGRAM_ID == telegram_id, Cliente.ELIMINADO is None)
+                .filter(Cliente.TELEGRAM_ID == telegram_id, Cliente.ELIMINADO.is_(None))
                 .first()
             )
 
@@ -234,7 +234,7 @@ def obtener_citas_cliente(cliente_id: int) -> list[dict]:
         with get_session() as session:
             citas = (
                 session.query(CitaCorp)
-                .filter(CitaCorp.ID_CLIENTE == cliente_id, CitaCorp.ELIMINADO is None)
+                .filter(CitaCorp.ID_CLIENTE == cliente_id, CitaCorp.ELIMINADO.is_(None))
                 .order_by(CitaCorp.FECHA)
                 .all()
             )
@@ -291,7 +291,9 @@ def obtener_empleados_activos() -> list[dict]:
         from src.BBDD.databasecontroller import Empleado
 
         with get_session() as session:
-            empleados = session.query(Empleado).filter(Empleado.ELIMINADO is None).all()
+            empleados = (
+                session.query(Empleado).filter(Empleado.ELIMINADO.is_(None)).all()
+            )
 
             print(
                 f"✅ obtener_empleados_activos: encontrados {len(empleados)} empleados activos"
@@ -365,7 +367,7 @@ def obtener_email_empleado_por_nombre(nombre_empleado: str) -> str | None:
                 session.query(Empleado)
                 .filter(
                     Empleado.NOMBRE.ilike(f"%{nombre_empleado}%"),
-                    Empleado.ELIMINADO is None,
+                    Empleado.ELIMINADO.is_(None),
                 )
                 .first()
             )
